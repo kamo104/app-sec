@@ -36,9 +36,40 @@ function protobufPlugin() {
   }
 }
 
+// Custom plugin to build WebAssembly password validator before build
+function wasmPlugin() {
+  return {
+    name: 'wasm-builder',
+    buildStart() {
+      const wasmDir = './src/wasm'
+      if (!existsSync(wasmDir)) {
+        mkdirSync(wasmDir, { recursive: true })
+      }
+
+      try {
+        console.log('Building WebAssembly password validator...')
+        // Build the Rust library for WebAssembly
+        execSync(
+          'cd ../password-validator && cargo build --target wasm32-unknown-unknown --release --features wasm',
+          { stdio: 'inherit' }
+        )
+        // Generate JavaScript bindings
+        execSync(
+          'wasm-bindgen ../password-validator/target/wasm32-unknown-unknown/release/password_validator.wasm --target web --out-dir ../frontend/src/wasm --out-name password-validator',
+          { stdio: 'inherit' }
+        )
+        console.log('WebAssembly password validator built successfully')
+      } catch (error) {
+        console.warn('Could not build WebAssembly module:', (error as Error).message)
+      }
+    }
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    wasmPlugin(),
     protobufPlugin(),
     VueRouter({
       dts: 'src/typed-router.d.ts',

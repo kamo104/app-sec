@@ -34,6 +34,21 @@ pub async fn register_user(
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
 
+    // Validate password strength using shared Rust library
+    let validation_result = password_validator::validate_password(&payload.password);
+    if !validation_result.is_valid {
+        debug!(
+            "Password validation failed for '{}': {:?}",
+            payload.username, validation_result.errors
+        );
+        let response = ApiResponse {
+            success: false,
+            message: format!("Password does not meet requirements: {}", validation_result.errors.join(", ")),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
     // Check if username already exists
     match db.user_login_table.is_username_free(&payload.username).await {
         Ok(true) => {

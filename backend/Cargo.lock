@@ -143,6 +143,7 @@ dependencies = [
  "keyring",
  "libsqlite3-sys",
  "num-traits",
+ "password-validator",
  "prost",
  "prost-build",
  "prost-types",
@@ -1890,6 +1891,14 @@ dependencies = [
  "base64ct",
  "rand_core 0.6.4",
  "subtle",
+]
+
+[[package]]
+name = "password-validator"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

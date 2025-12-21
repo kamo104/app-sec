@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+### SHARED:
+password-validator = { path = "../password-validator" }
+
 ### DB:
 argon2 = { version = "0.5.3", features = ["zeroize", "std"] }
 async-trait = "0.1.89"

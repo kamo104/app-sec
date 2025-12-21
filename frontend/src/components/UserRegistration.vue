@@ -60,6 +60,20 @@
                   </div>
                 </template>
               </v-text-field>
+
+              <!-- Password Strength Indicator -->
+              <div v-if="passwordStrength && passwordTouched" class="password-strength-indicator">
+                <div class="strength-label">
+                  Strength: <span :class="['strength-value', passwordStrength.toLowerCase()]">{{ passwordStrength }}</span>
+                </div>
+                <div class="strength-bar-container">
+                  <div
+                    class="strength-bar"
+                    :class="passwordStrength.toLowerCase()"
+                    :style="{ width: (passwordScore * 20) + '%' }"
+                  ></div>
+                </div>
+              </div>
             </div>
 
             <!-- Confirm Password Field -->
@@ -113,8 +127,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { registerUser, type ApiError } from '@/services/api'
+import { initializePasswordValidator, validatePassword, getPasswordStrengthInfo } from '@/services/passwordValidator'
 
 interface FormData {
   username: string
@@ -148,10 +163,23 @@ const usernameHasError = ref(false)
 const emailHasError = ref(false)
 const passwordErrors = ref<string[]>([])
 const confirmPasswordHasError = ref(false)
+const wasmInitialized = ref(false)
+const passwordStrength = ref<'Weak' | 'Medium' | 'Strong' | null>(null)
+const passwordScore = ref<number>(0)
 
-// Combined password rules that updates passwordErrors array
-const passwordRulesCombined: Array<(value: string) => string | boolean> = [
-  (value: string): string | boolean => {
+// Initialize WebAssembly on component mount
+onMounted(async () => {
+  try {
+    await initializePasswordValidator()
+    wasmInitialized.value = true
+  } catch (error) {
+    console.error('Failed to initialize password validator:', error)
+  }
+})
+
+// Combined password rules that uses WebAssembly validation
+const passwordRulesCombined: Array<(value: string) => Promise<string | boolean>> = [
+  async (value: string): Promise<string | boolean> => {
     if (!value) {
       // Only show error if field has been touched
       if (passwordTouched.value) {
@@ -163,22 +191,22 @@ const passwordRulesCombined: Array<(value: string) => string | boolean> = [
       return true
     }
 
-    const errors: string[] = []
+    // Use WebAssembly validation
+    try {
+      const result = await validatePassword(value)
+      passwordErrors.value = result.errors
 
-    if (value.length < 8) errors.push('Password must be at least 8 characters')
-    if (!/[A-Z]/.test(value)) errors.push('Password must contain at least one uppercase letter')
-    if (!/[a-z]/.test(value)) errors.push('Password must contain at least one lowercase letter')
-    if (!/[0-9]/.test(value)) errors.push('Password must contain at least one number')
-    if (!/[^A-Za-z0-9]/.test(value)) errors.push('Password must contain at least one special character')
+      if (result.errors.length > 0) {
+        return result.errors[0]!
+      }
 
-    passwordErrors.value = errors
-
-    if (errors.length > 0) {
-      // Return first error to satisfy Vuetify's rule system
-      return errors[0]!
+      return true
+    } catch (error) {
+      console.error('Password validation error:', error)
+      // If WASM validation fails, the app depends on WASM so we don't have a fallback
+      // Just return true to allow submission and let backend handle validation
+      return true
     }
-
-    return true
   }
 ]
 
@@ -277,11 +305,27 @@ const handleEmailInput = (value: string) => {
   clearMessage()
 }
 
-const handlePasswordInput = (value: string) => {
+const handlePasswordInput = async (value: string) => {
   if (!passwordTouched.value) {
     passwordTouched.value = true
   }
   clearMessage()
+
+  // Update password strength when WASM is initialized
+  if (wasmInitialized.value && value.length > 0) {
+    try {
+      const strengthInfo = await getPasswordStrengthInfo(value)
+      passwordStrength.value = strengthInfo.strength
+      passwordScore.value = strengthInfo.score
+    } catch (error) {
+      console.error('Error getting password strength:', error)
+      passwordStrength.value = null
+      passwordScore.value = 0
+    }
+  } else if (value.length === 0) {
+    passwordStrength.value = null
+    passwordScore.value = 0
+  }
 }
 
 const handleConfirmPasswordInput = (value: string) => {
@@ -384,5 +428,77 @@ const handleSubmit = async () => {
 /* Remove bottom margin from last error to prevent extra spacing */
 .password-error:last-child {
   margin-bottom: 0;
+}
+
+/* Password Strength Indicator Styles */
+.password-strength-indicator {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+}
+
+.password-strength-indicator.weak {
+  border-left-color: rgb(var(--v-theme-error));
+}
+
+.password-strength-indicator.medium {
+  border-left-color: rgb(var(--v-theme-warning));
+}
+
+.password-strength-indicator.strong {
+  border-left-color: rgb(var(--v-theme-success));
+}
+
+.strength-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.strength-value {
+  font-weight: 700;
+}
+
+.strength-value.weak {
+  color: rgb(var(--v-theme-error));
+}
+
+.strength-value.medium {
+  color: rgb(var(--v-theme-warning));
+}
+
+.strength-value.strong {
+  color: rgb(var(--v-theme-success));
+}
+
+.strength-bar-container {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.strength-bar {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: 2px;
+}
+
+.strength-bar.weak {
+  background: rgb(var(--v-theme-error));
+}
+
+.strength-bar.medium {
+  background: rgb(var(--v-theme-warning));
+}
+
+.strength-bar.strong {
+  background: rgb(var(--v-theme-success));
 }
 </style>
