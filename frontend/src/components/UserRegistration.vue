@@ -81,15 +81,17 @@
               ></v-text-field>
             </div>
 
-            <!-- Success Message -->
+            <!-- Status Message -->
             <v-alert
-              v-if="successMessage"
-              type="success"
+              v-if="statusMessage"
+              :type="messageType"
               variant="tonal"
               class="mb-4"
               density="compact"
+              closable
+              @click:close="clearMessage"
             >
-              {{ successMessage }}
+              {{ statusMessage }}
             </v-alert>
 
             <!-- Submit Button -->
@@ -103,13 +105,6 @@
             >
               Register
             </v-btn>
-
-            <!-- Form Data Preview -->
-            <v-divider class="my-6"></v-divider>
-            <div class="text-caption text-grey mb-2">Form Data Preview (for debugging):</div>
-            <v-card variant="tonal" color="grey-lighten-4" class="pa-3">
-              <pre class="text-caption">{{ previewData }}</pre>
-            </v-card>
           </v-form>
         </v-card>
       </v-col>
@@ -118,7 +113,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
+import { registerUser, type ApiError } from '@/services/api'
 
 interface FormData {
   username: string
@@ -137,7 +133,8 @@ const formData = reactive<FormData>({
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const loading = ref(false)
-const successMessage = ref('')
+const statusMessage = ref('')
+const messageType = ref<'success' | 'error' | 'warning' | 'info'>('success')
 const form = ref<any>(null)
 
 // Track whether fields have been interacted with
@@ -145,16 +142,6 @@ const usernameTouched = ref(false)
 const emailTouched = ref(false)
 const passwordTouched = ref(false)
 const confirmPasswordTouched = ref(false)
-
-// Computed property for preview data (without password)
-const previewData = computed(() => {
-  return {
-    username: formData.username,
-    email: formData.email,
-    password: formData.password ? '•'.repeat(formData.password.length) : '',
-    confirmPassword: formData.confirmPassword ? '•'.repeat(formData.confirmPassword.length) : '',
-  }
-})
 
 // Track errors for each field to control dynamic spacing
 const usernameHasError = ref(false)
@@ -264,9 +251,15 @@ const confirmPasswordRules: Array<(value: string) => string | boolean> = [
   }
 ]
 
-// Clear success message when user starts typing
-const clearSuccess = () => {
-  successMessage.value = ''
+// Clear status message
+const clearMessage = () => {
+  statusMessage.value = ''
+}
+
+// Display a message with the given type
+const showMessage = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+  statusMessage.value = message
+  messageType.value = type
 }
 
 // Handle input handlers to mark fields as touched
@@ -274,34 +267,34 @@ const handleUsernameInput = (value: string) => {
   if (!usernameTouched.value) {
     usernameTouched.value = true
   }
-  clearSuccess()
+  clearMessage()
 }
 
 const handleEmailInput = (value: string) => {
   if (!emailTouched.value) {
     emailTouched.value = true
   }
-  clearSuccess()
+  clearMessage()
 }
 
 const handlePasswordInput = (value: string) => {
   if (!passwordTouched.value) {
     passwordTouched.value = true
   }
-  clearSuccess()
+  clearMessage()
 }
 
 const handleConfirmPasswordInput = (value: string) => {
   if (!confirmPasswordTouched.value) {
     confirmPasswordTouched.value = true
   }
-  clearSuccess()
+  clearMessage()
 }
 
 // Main form submission handler
 const handleSubmit = async () => {
   // Reset messages
-  successMessage.value = ''
+  clearMessage()
 
   // Validate using Vuetify form validation
   // This will automatically show errors under each field
@@ -312,42 +305,45 @@ const handleSubmit = async () => {
   }
 
   // If we reach here, all fields are valid
-  // Simulate API call
+  // Call the actual API
   loading.value = true
 
-  setTimeout(() => {
-    loading.value = false
-    successMessage.value = 'Registration successful! Welcome aboard! 🎉'
+  try {
+    const response = await registerUser({
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+    })
 
-    // Reset form after successful submission (optional)
-    setTimeout(() => {
-      formData.username = ''
-      formData.email = ''
-      formData.password = ''
-      formData.confirmPassword = ''
-      successMessage.value = ''
-      // Also reset touched states
-      usernameTouched.value = false
-      emailTouched.value = false
-      passwordTouched.value = false
-      confirmPasswordTouched.value = false
-      // Reset error states
-      usernameHasError.value = false
-      emailHasError.value = false
-      passwordErrors.value = []
-      confirmPasswordHasError.value = false
-    }, 3000)
-  }, 1500)
+    if (response.success) {
+      showMessage(response.message || 'Registration successful! Welcome aboard! 🎉', 'success')
+    } else {
+      // Handle non-success response
+      console.error('Registration failed:', response.message)
+      showMessage(response.message || 'Registration failed', 'error')
+    }
+  } catch (error) {
+    const apiError = error as ApiError
+    console.error('Registration error:', apiError)
+
+    // Handle specific error cases
+    if (apiError.status === 409) {
+      // Username already taken - show error message
+      showMessage('Username already exists. Please choose a different one.', 'error')
+    } else if (apiError.status === 0) {
+      // Network error - backend not running
+      showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')
+    } else {
+      // Other errors
+      showMessage(apiError.message || 'An error occurred during registration', 'error')
+    }
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
 <style scoped>
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: 'Courier New', monospace;
-}
-
 /* Remove all default spacing between fields */
 .form-field-wrapper {
   margin-bottom: 0;

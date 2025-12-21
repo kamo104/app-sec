@@ -1,6 +1,6 @@
 # Project Context
 
-When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes. Don't run the front-end development server by yourself - it's already running in the background.
+When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes.
 
 ## About This Project
 

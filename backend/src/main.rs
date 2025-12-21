@@ -3,7 +3,7 @@ use axum::{
     body::Bytes,
     extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
     response::IntoResponse,
-    routing::any,
+    routing::{any, get, post},
 };
 use axum_extra::TypedHeader;
 use tokio::sync::{OnceCell, mpsc};
@@ -11,6 +11,7 @@ use tokio::sync::{OnceCell, mpsc};
 use std::{net::Ipv4Addr, ops::ControlFlow, sync::Arc};
 use std::{net::SocketAddr, path::PathBuf};
 use tower_http::{
+    cors::{Any, CorsLayer},
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
@@ -31,7 +32,9 @@ use clap::Parser;
 use sqlx::types::time::OffsetDateTime;
 
 mod db;
+mod api;
 use db::DBHandle;
+use api::{register_user, health_check};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -40,6 +43,8 @@ struct Args {
     web_bind_addr: Ipv4Addr,
     #[arg(long, default_value_t = 4000)]
     web_port: u16,
+    #[arg(long, default_value_t = false, help = "Run in development mode (uses data_dev.db with static key, no keyring required)")]
+    dev: bool,
 }
 
 static DB_HANDLE: OnceCell<Arc<DBHandle>> = OnceCell::const_new();
@@ -59,13 +64,34 @@ async fn main() {
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./dist");
 
     // get the db handle
-    let handle = DBHandle::open("data.db").await.unwrap();
+    let handle = if args.dev {
+        info!("Running in development mode");
+        DBHandle::open_dev().await.unwrap()
+    } else {
+        DBHandle::open("data.db").await.unwrap()
+    };
     DB_HANDLE.set(handle).unwrap();
+
+    // Duplicate DB handle for state
+    let db_handle = DB_HANDLE.get().unwrap().clone();
 
     // build our application with some routes
     let app = Router::new()
+        // API routes
+        .route("/api/health", get(health_check))
+        .route("/api/register", post(register_user))
+        // Existing routes
         .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
         .route("/ws", any(ws_upgrade_handler))
+        // Add DB state
+        .with_state(db_handle)
+        // CORS layer - allow all origins in dev mode
+        .layer(
+            CorsLayer::new()
+                .allow_methods(Any)
+                .allow_headers(Any)
+                .allow_origin(Any),
+        )
         // logging
         .layer(
             TraceLayer::new_for_http()

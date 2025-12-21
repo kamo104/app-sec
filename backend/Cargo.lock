@@ -144,6 +144,8 @@ dependencies = [
  "libsqlite3-sys",
  "num-traits",
  "rand_core 0.9.3",
+ "serde",
+ "serde_json",
  "sqlx",
  "strum",
  "time",

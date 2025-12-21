@@ -3,6 +3,7 @@ use const_format::formatcp;
 use core::fmt::Write;
 use keyring::Entry;
 use rand_core::{OsRng, TryRngCore};
+use serde::{Deserialize, Serialize};
 use sqlx::Executor;
 use sqlx::Row;
 use sqlx::types::time::OffsetDateTime;
@@ -23,6 +24,14 @@ const KEYRING_SERVICE_NAME: &str = "FreeTrack_DB_KEY";
 const KEYRING_USERNAME: &str = "freetrack";
 const KEYRING_DB_KEY_LEN: usize = 32;
 /* --- KEYRING constants --- */
+
+/* --- DEVELOPMENT MODE constants --- */
+/// Development database path - separate from production to avoid conflicts
+const DEV_DATABASE_PATH: &str = "data_dev.db";
+/// Static encryption key for development mode - eliminates keyring dependency during development
+/// Uses SQLCipher key format: "x'hexkey'"
+const DEV_DATABASE_KEY: &str = "\"x'DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF'\"";
+/* --- DEVELOPMENT MODE constants --- */
 
 /* --- USER_SESSIONS_TABLE --- */
 /* This table is used to store user sessions */
@@ -93,7 +102,7 @@ impl UserSessionsTable {
 
 /* --- USER_LOGIN_TABLE --- */
 /* This table is used to store login information */
-#[derive(FromRow, Clone, Debug)]
+#[derive(FromRow, Clone, Debug, Serialize, Deserialize)]
 pub struct UserLogin {
     pub username: String,
     pub email: String,
@@ -120,7 +129,7 @@ impl UserLoginTable {
             .await?;
         Ok(())
     }
-    async fn set(&self, row: &UserLogin) -> Result<()> {
+    pub async fn set(&self, row: &UserLogin) -> Result<()> {
         sqlx::query(formatcp!(
             "INSERT INTO {} (\
                 username, \
@@ -261,6 +270,18 @@ impl DBHandle {
     pub async fn open(database_path: &str) -> Result<Arc<Self>> {
         DBHandle::open_with_opts(database_path, None).await
     }
+    /// Open database in development mode
+    /// Uses a static key and separate database file to avoid keyring prompts during development
+    pub async fn open_dev() -> Result<Arc<Self>> {
+        // Use development database path and static key
+        let opts = SqliteConnectOptions::from_str(DEV_DATABASE_PATH)
+            .unwrap()
+            .pragma("key", DEV_DATABASE_KEY)
+            .pragma("foreign_keys", "ON")
+            .create_if_missing(true);
+
+        DBHandle::open_with_opts(DEV_DATABASE_PATH, Some(opts)).await
+    }
     pub async fn open_with_opts(
         database_path: &str,
         opts_override: Option<SqliteConnectOptions>,
@@ -308,3 +329,37 @@ impl DBHandle {
         Ok(Arc::new(db_handle))
     }
 }
+
+/* --- API RESPONSE TYPES --- */
+#[derive(Debug, Serialize)]
+pub struct ApiResponse<T> {
+    pub success: bool,
+    pub message: String,
+    pub data: Option<T>,
+}
+
+impl<T> ApiResponse<T> {
+    pub fn success(data: T, message: &str) -> Self {
+        ApiResponse {
+            success: true,
+            message: message.to_string(),
+            data: Some(data),
+        }
+    }
+
+    pub fn error(message: &str) -> Self {
+        ApiResponse {
+            success: false,
+            message: message.to_string(),
+            data: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegistrationRequest {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+}
+/* --- API RESPONSE TYPES --- */
