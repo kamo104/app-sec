@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 ### SHARED:
-password-validator = { path = "../password-validator" }
+field-validator = { path = "../field-validator" }
 
 ### DB:
 argon2 = { version = "0.5.3", features = ["zeroize", "std"] }

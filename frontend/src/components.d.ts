@@ -12,10 +12,19 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppFooter: typeof import('./components/AppFooter.vue')['default']
+    AuthFormLayout: typeof import('./components/auth/AuthFormLayout.vue')['default']
+    AuthSubmitButton: typeof import('./components/auth/AuthSubmitButton.vue')['default']
+    ConfirmPasswordField: typeof import('./components/auth/ConfirmPasswordField.vue')['default']
+    EmailField: typeof import('./components/auth/EmailField.vue')['default']
+    ForgotPasswordLink: typeof import('./components/auth/ForgotPasswordLink.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    PasswordField: typeof import('./components/auth/PasswordField.vue')['default']
+    RememberMeCheckbox: typeof import('./components/auth/RememberMeCheckbox.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    StatusMessage: typeof import('./components/auth/StatusMessage.vue')['default']
     UserLogin: typeof import('./components/UserLogin.vue')['default']
+    UsernameField: typeof import('./components/auth/UsernameField.vue')['default']
     UserRegistration: typeof import('./components/UserRegistration.vue')['default']
   }
 }

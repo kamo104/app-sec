@@ -2,7 +2,10 @@
  * src/styles/main.css
  *
  * Additional font overrides for Vuetify components
+ * Imports shared authentication component styles
  */
+
+@import './auth.css';
 
 /* Global font override - system fonts only, no Roboto */
 /* Exclude v-icon from this rule so it can use Material Design Icons font */

@@ -1,135 +1,70 @@
 <template>
-  <v-container class="fill-height" max-width="600">
-    <v-row justify="center">
-      <v-col cols="12" md="8">
-        <v-card class="pa-6" elevation="2" title="User Registration">
-          <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
-            <!-- Username Field -->
-            <div :class="['form-field-wrapper', { 'has-error': usernameHasError && usernameTouched }]">
-              <v-text-field
-                v-model="formData.username"
-                :rules="usernameRules"
-                label="Username"
-                prepend-inner-icon="mdi-account"
-                variant="outlined"
-                required
-                validate-on="input"
-                @update:model-value="handleUsernameInput"
-                :error="usernameHasError && usernameTouched"
-                class="custom-field"
-              ></v-text-field>
-            </div>
+  <AuthFormLayout title="User Registration" ref="authFormLayout">
+    <template #default="{ handleSubmit: formSubmit }">
+      <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
+        <!-- Username Field -->
+        <UsernameField
+          ref="usernameField"
+          v-model="formData.username"
+          @touched="markFieldTouched('username')"
+        />
 
-            <!-- Email Field -->
-            <div :class="['form-field-wrapper', { 'has-error': emailHasError && emailTouched }]">
-              <v-text-field
-                v-model="formData.email"
-                :rules="emailRules"
-                label="Email"
-                prepend-inner-icon="mdi-email"
-                variant="outlined"
-                required
-                type="email"
-                validate-on="input"
-                @update:model-value="handleEmailInput"
-                :error="emailHasError && emailTouched"
-                class="custom-field"
-              ></v-text-field>
-            </div>
+        <!-- Email Field -->
+        <EmailField
+          ref="emailField"
+          v-model="formData.email"
+          @touched="markFieldTouched('email')"
+        />
 
-            <!-- Password Field -->
-            <div :class="['form-field-wrapper', { 'has-error': passwordErrors.length > 0 && passwordTouched }]">
-              <v-text-field
-                v-model="formData.password"
-                :rules="passwordRulesCombined"
-                label="Password"
-                prepend-inner-icon="mdi-lock"
-                variant="outlined"
-                required
-                :type="showPassword ? 'text' : 'password'"
-                :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showPassword = !showPassword"
-                validate-on="input"
-                @update:model-value="handlePasswordInput"
-                :error="passwordErrors.length > 0 && passwordTouched"
-                class="custom-field"
-              >
-                <template v-if="passwordErrors.length > 0 && passwordTouched" #message>
-                  <div v-for="(error, index) in passwordErrors" :key="index" class="password-error">
-                    • {{ error }}
-                  </div>
-                </template>
-              </v-text-field>
+        <!-- Password Field with Strength -->
+        <PasswordField
+          ref="passwordField"
+          v-model="formData.password"
+          show-strength
+          @touched="markFieldTouched('password')"
+          @validation="handlePasswordValidation"
+        />
 
-              <!-- Password Strength Indicator - always visible when touched and score exists -->
-              <div v-if="passwordTouched && passwordScore !== null" class="password-strength-indicator">
-                <div class="strength-label">
-                  Score: <span :class="['strength-value', getStrengthClass(passwordScore)]">{{ passwordScore }}</span> / 7
-                </div>
-                <div class="strength-bar-container">
-                  <div
-                    class="strength-bar"
-                    :class="getStrengthClass(passwordScore)"
-                    :style="{ width: (passwordScore / 7 * 100) + '%' }"
-                  ></div>
-                </div>
-              </div>
-            </div>
+        <!-- Confirm Password Field -->
+        <ConfirmPasswordField
+          ref="confirmPasswordField"
+          v-model="formData.confirmPassword"
+          :password-to-match="formData.password"
+          @touched="markFieldTouched('confirmPassword')"
+        />
 
-            <!-- Confirm Password Field -->
-            <div :class="['form-field-wrapper', { 'has-error': confirmPasswordHasError && confirmPasswordTouched }]">
-              <v-text-field
-                v-model="formData.confirmPassword"
-                :rules="confirmPasswordRules"
-                label="Confirm Password"
-                prepend-inner-icon="mdi-lock-check"
-                variant="outlined"
-                required
-                :type="showConfirmPassword ? 'text' : 'password'"
-                :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                validate-on="input"
-                @update:model-value="handleConfirmPasswordInput"
-                :error="confirmPasswordHasError && confirmPasswordTouched"
-                class="custom-field"
-              ></v-text-field>
-            </div>
+        <!-- Status Message -->
+        <StatusMessage
+          v-if="statusMessage"
+          :message="statusMessage"
+          :type="messageType"
+          @close="clearMessage"
+        />
 
-            <!-- Status Message -->
-            <v-alert
-              v-if="statusMessage"
-              :type="messageType"
-              variant="tonal"
-              class="mb-4"
-              density="compact"
-              closable
-              @click:close="clearMessage"
-            >
-              {{ statusMessage }}
-            </v-alert>
-
-            <!-- Submit Button -->
-            <v-btn
-              type="submit"
-              color="primary"
-              size="large"
-              block
-              :loading="loading"
-              :disabled="loading"
-            >
-              Register
-            </v-btn>
-          </v-form>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+        <!-- Submit Button -->
+        <AuthSubmitButton
+          label="Register"
+          :loading="loading"
+          :disabled="loading"
+          @click="() => formSubmit(handleSubmit)"
+        />
+      </v-form>
+    </template>
+  </AuthFormLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { registerUser, type ApiError } from '@/services/api'
-import { initializePasswordValidator, validatePassword, getPasswordScore } from '@/services/passwordValidator'
+
+// Import reusable components
+import AuthFormLayout from './auth/AuthFormLayout.vue'
+import UsernameField from './auth/UsernameField.vue'
+import EmailField from './auth/EmailField.vue'
+import PasswordField from './auth/PasswordField.vue'
+import ConfirmPasswordField from './auth/ConfirmPasswordField.vue'
+import AuthSubmitButton from './auth/AuthSubmitButton.vue'
+import StatusMessage from './auth/StatusMessage.vue'
 
 interface FormData {
   username: string
@@ -145,132 +80,41 @@ const formData = reactive<FormData>({
   confirmPassword: '',
 })
 
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
 const loading = ref(false)
 const statusMessage = ref('')
 const messageType = ref<'success' | 'error' | 'warning' | 'info'>('success')
+
+// Refs to component instances
 const form = ref<any>(null)
+const usernameField = ref<any>(null)
+const emailField = ref<any>(null)
+const passwordField = ref<any>(null)
+const confirmPasswordField = ref<any>(null)
 
-// Track whether fields have been interacted with
-const usernameTouched = ref(false)
-const emailTouched = ref(false)
-const passwordTouched = ref(false)
-const confirmPasswordTouched = ref(false)
-
-// Track errors for each field to control dynamic spacing
-const usernameHasError = ref(false)
-const emailHasError = ref(false)
-const passwordErrors = ref<string[]>([])
-const confirmPasswordHasError = ref(false)
-const wasmInitialized = ref(false)
-const passwordScore = ref<number | null>(null)
-
-// Initialize WebAssembly on component mount
-onMounted(async () => {
-  try {
-    await initializePasswordValidator()
-    wasmInitialized.value = true
-  } catch (error) {
-    console.error('Failed to initialize password validator:', error)
-  }
+// Track touched state for each field
+const touchedFields = reactive({
+  username: false,
+  email: false,
+  password: false,
+  confirmPassword: false,
 })
 
-// Combined password rules that uses WebAssembly validation
-const passwordRulesCombined: Array<(value: string) => Promise<string | boolean>> = [
-  async (value: string): Promise<string | boolean> => {
-    // Use WebAssembly validation - it handles empty strings and all other cases
-    try {
-      const [result, score] = await Promise.all([
-        validatePassword(value),
-        getPasswordScore(value)
-      ])
+// Track password validation state
+const passwordValidation = reactive({
+  isValid: false,
+  errors: [] as string[],
+})
 
-      passwordErrors.value = result.errors
-      passwordScore.value = score
+// Mark field as touched
+const markFieldTouched = (field: keyof typeof touchedFields) => {
+  touchedFields[field] = true
+}
 
-      if (result.errors.length > 0) {
-        return result.errors[0]!
-      }
-
-      return true
-    } catch (error) {
-      console.error('Password validation error:', error)
-      // If WASM validation fails, the app depends on WASM so we don't have a fallback
-      // Just return true to allow submission and let backend handle validation
-      return true
-    }
-  }
-]
-
-// Validation rules with error tracking
-const usernameRules: Array<(value: string) => string | boolean> = [
-  (value: string): string | boolean => {
-    if (!value) {
-      // Only show error if field has been touched
-      if (usernameTouched.value) {
-        usernameHasError.value = true
-        return 'Username is required'
-      }
-      usernameHasError.value = false
-      return true
-    }
-    if (value.length < 3) {
-      usernameHasError.value = true
-      return 'Username must be at least 3 characters'
-    }
-    if (value.length > 20) {
-      usernameHasError.value = true
-      return 'Username must be less than 20 characters'
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-      usernameHasError.value = true
-      return 'Username can only contain letters, numbers, and underscores'
-    }
-    usernameHasError.value = false
-    return true
-  }
-]
-
-const emailRules: Array<(value: string) => string | boolean> = [
-  (value: string): string | boolean => {
-    if (!value) {
-      // Only show error if field has been touched
-      if (emailTouched.value) {
-        emailHasError.value = true
-        return 'Email is required'
-      }
-      emailHasError.value = false
-      return true
-    }
-    if (!/.+@.+\..+/.test(value)) {
-      emailHasError.value = true
-      return 'Email must be valid'
-    }
-    emailHasError.value = false
-    return true
-  }
-]
-
-const confirmPasswordRules: Array<(value: string) => string | boolean> = [
-  (value: string): string | boolean => {
-    if (!value) {
-      // Only show error if field has been touched
-      if (confirmPasswordTouched.value) {
-        confirmPasswordHasError.value = true
-        return 'Please confirm your password'
-      }
-      confirmPasswordHasError.value = false
-      return true
-    }
-    if (value !== formData.password) {
-      confirmPasswordHasError.value = true
-      return 'Passwords do not match'
-    }
-    confirmPasswordHasError.value = false
-    return true
-  }
-]
+// Handle password validation from PasswordField component
+const handlePasswordValidation = (isValid: boolean, errors: string[]) => {
+  passwordValidation.isValid = isValid
+  passwordValidation.errors = errors
+}
 
 // Clear status message
 const clearMessage = () => {
@@ -283,67 +127,22 @@ const showMessage = (message: string, type: 'success' | 'error' | 'warning' | 'i
   messageType.value = type
 }
 
-// Handle input handlers to mark fields as touched
-const handleUsernameInput = (value: string) => {
-  if (!usernameTouched.value) {
-    usernameTouched.value = true
-  }
-  clearMessage()
-}
-
-const handleEmailInput = (value: string) => {
-  if (!emailTouched.value) {
-    emailTouched.value = true
-  }
-  clearMessage()
-}
-
-const handlePasswordInput = async (value: string) => {
-  if (!passwordTouched.value) {
-    passwordTouched.value = true
-  }
-  clearMessage()
-
-  // Update score and errors immediately on input using WASM
-  if (wasmInitialized.value) {
-    try {
-      const [result, score] = await Promise.all([
-        validatePassword(value),
-        getPasswordScore(value)
-      ])
-      passwordErrors.value = result.errors
-      passwordScore.value = score
-    } catch (error) {
-      console.error('Error getting password score:', error)
-    }
-  }
-}
-
-const handleConfirmPasswordInput = (value: string) => {
-  if (!confirmPasswordTouched.value) {
-    confirmPasswordTouched.value = true
-  }
-  clearMessage()
-}
-
-// Get CSS class for strength based on score
-const getStrengthClass = (score: number | null): string => {
-  if (score === null) return ''
-  if (score <= 3) return 'weak'
-  if (score <= 5) return 'medium'
-  return 'strong'
-}
-
 // Main form submission handler
 const handleSubmit = async () => {
   // Reset messages
   clearMessage()
 
-  // Validate using Vuetify form validation
-  // This will automatically show errors under each field
-  const { valid } = await form.value.validate()
+  // Validate all fields using component validation methods
+  const validations = await Promise.all([
+    usernameField.value?.validate(),
+    emailField.value?.validate(),
+    passwordField.value?.validate(),
+    confirmPasswordField.value?.validate(),
+  ])
 
-  if (!valid) {
+  const allValid = validations.every(v => v?.valid !== false)
+
+  if (!allValid) {
     return
   }
 
@@ -387,142 +186,5 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* Add consistent spacing between form fields */
-.form-field-wrapper {
-  margin-bottom: 16px;
-}
-
-/* Remove extra spacing after the last field */
-.form-field-wrapper:last-child {
-  margin-bottom: 0;
-}
-
-/* Add more spacing when there are errors to accommodate the error messages */
-.form-field-wrapper.has-error {
-  margin-bottom: 24px;
-}
-
-/* Remove Vuetify's default margin on text fields */
-:deep(.custom-field) {
-  margin-bottom: 0;
-}
-
-/* Custom styling for password error messages */
-.password-error {
-  line-height: 1.3;
-  margin-bottom: 3px;
-  color: rgb(var(--v-theme-error));
-  font-size: 0.75rem;
-  text-indent: -0.8em;
-  padding-left: 0.8em;
-}
-
-/* Ensure the message slot displays correctly */
-:deep(.v-messages__wrapper) {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* Remove bottom margin from last error to prevent extra spacing */
-.password-error:last-child {
-  margin-bottom: 0;
-}
-
-/* Password Strength Indicator Styles - positioned after the input field */
-.password-strength-indicator {
-  margin-top: 2px;
-  padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 4px;
-  border-left: 3px solid transparent;
-}
-
-/* Hide Vuetify's message area when there are no errors */
-.form-field-wrapper:not(.has-error) :deep(.v-messages) {
-  min-height: 0 !important;
-  height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Ensure the message wrapper itself has no height when empty */
-.form-field-wrapper:not(.has-error) :deep(.v-messages__wrapper) {
-  min-height: 0 !important;
-  height: 0 !important;
-  max-height: 0 !important;
-}
-
-/* Remove padding from input details area when no errors */
-.form-field-wrapper:not(.has-error) :deep(.v-input__details) {
-  padding: 0 !important;
-  min-height: 0 !important;
-}
-
-.password-strength-indicator.weak {
-  border-left-color: rgb(var(--v-theme-error));
-}
-
-.password-strength-indicator.medium {
-  border-left-color: rgb(var(--v-theme-warning));
-}
-
-.password-strength-indicator.strong {
-  border-left-color: rgb(var(--v-theme-success));
-}
-
-.strength-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.strength-value {
-  font-weight: 700;
-}
-
-.strength-value.weak {
-  color: rgb(var(--v-theme-error));
-}
-
-.strength-value.medium {
-  color: rgb(var(--v-theme-warning));
-}
-
-.strength-value.strong {
-  color: rgb(var(--v-theme-success));
-}
-
-.strength-bar-container {
-  height: 4px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-  width: 100%;
-  margin-top: 4px;
-}
-
-.strength-bar {
-  height: 100%;
-  transition: width 0.3s ease, background-color 0.3s ease;
-  border-radius: 2px;
-  min-width: 2px;
-}
-
-.strength-bar.weak {
-  background: rgb(var(--v-theme-error));
-}
-
-.strength-bar.medium {
-  background: rgb(var(--v-theme-warning));
-}
-
-.strength-bar.strong {
-  background: rgb(var(--v-theme-success));
-}
+/* No additional styles needed - handled by reusable components */
 </style>

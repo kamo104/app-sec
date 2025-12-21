@@ -34,16 +34,46 @@ pub async fn register_user(
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
 
-    // Validate password strength using shared Rust library
-    let validation_result = password_validator::validate_password(&payload.password);
-    if !validation_result.is_valid {
+    // Validate username using shared Rust library
+    let username_result = field_validator::validate_username(&payload.username, 3, 20, true);
+    if !username_result.is_valid {
         debug!(
-            "Password validation failed for '{}': {:?}",
-            payload.username, validation_result.errors
+            "Username validation failed for '{}': {:?}",
+            payload.username, username_result.errors
         );
         let response = ApiResponse {
             success: false,
-            message: format!("Password does not meet requirements: {}", validation_result.errors.join(", ")),
+            message: format!("Username does not meet requirements: {}", username_result.errors.join(", ")),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
+    // Validate email using shared Rust library
+    let email_result = field_validator::validate_email(&payload.email);
+    if !email_result.is_valid {
+        debug!(
+            "Email validation failed for '{}': {:?}",
+            payload.email, email_result.errors
+        );
+        let response = ApiResponse {
+            success: false,
+            message: format!("Email does not meet requirements: {}", email_result.errors.join(", ")),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
+    // Validate password strength using shared Rust library
+    let password_result = field_validator::validate_password(&payload.password);
+    if !password_result.is_valid {
+        debug!(
+            "Password validation failed for '{}': {:?}",
+            payload.username, password_result.errors
+        );
+        let response = ApiResponse {
+            success: false,
+            message: format!("Password does not meet requirements: {}", password_result.errors.join(", ")),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -166,6 +196,21 @@ pub async fn login_user(
         let response = ApiResponse {
             success: false,
             message: "Username and password are required".to_string(),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
+    }
+
+    // Validate username format (without length validation for login)
+    let username_result = field_validator::validate_username(&payload.username, 3, 20, false);
+    if !username_result.is_valid {
+        debug!(
+            "Username validation failed for '{}': {:?}",
+            payload.username, username_result.errors
+        );
+        let response = ApiResponse {
+            success: false,
+            message: format!("Invalid username format: {}", username_result.errors.join(", ")),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();

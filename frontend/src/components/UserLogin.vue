@@ -1,100 +1,66 @@
 <template>
-  <v-container class="fill-height" max-width="600">
-    <v-row justify="center">
-      <v-col cols="12" md="8">
-        <v-card class="pa-6" elevation="2" title="User Login">
-          <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
-            <!-- Username Field -->
-            <div :class="['form-field-wrapper', { 'has-error': usernameHasError && usernameTouched }]">
-              <v-text-field
-                v-model="formData.username"
-                :rules="usernameRules"
-                label="Username"
-                prepend-inner-icon="mdi-account"
-                variant="outlined"
-                required
-                validate-on="input"
-                @update:model-value="handleUsernameInput"
-                :error="usernameHasError && usernameTouched"
-                class="custom-field"
-              ></v-text-field>
-            </div>
+  <AuthFormLayout title="User Login" ref="authFormLayout">
+    <template #default="{ handleSubmit: formSubmit }">
+      <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
+        <!-- Username Field (no length validation for login) -->
+        <UsernameField
+          ref="usernameField"
+          v-model="formData.username"
+          :validate-length="false"
+          @touched="markFieldTouched('username')"
+        />
 
-            <!-- Password Field -->
-            <div :class="['form-field-wrapper', { 'has-error': passwordHasError && passwordTouched }]">
-              <v-text-field
-                v-model="formData.password"
-                :rules="passwordRules"
-                label="Password"
-                prepend-inner-icon="mdi-lock"
-                variant="outlined"
-                required
-                :type="showPassword ? 'text' : 'password'"
-                :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showPassword = !showPassword"
-                validate-on="input"
-                @update:model-value="handlePasswordInput"
-                :error="passwordHasError && passwordTouched"
-                class="custom-field"
-              ></v-text-field>
-            </div>
+        <!-- Password Field (no validation for login - backend handles it) -->
+        <PasswordField
+          ref="passwordField"
+          v-model="formData.password"
+          :show-strength="false"
+          :validate="false"
+          @touched="markFieldTouched('password')"
+        />
 
-            <!-- Remember Me Checkbox -->
-            <div class="mb-4">
-              <v-checkbox
-                v-model="formData.rememberMe"
-                label="Remember me"
-                density="compact"
-                hide-details
-              ></v-checkbox>
-            </div>
+        <!-- Remember Me Checkbox -->
+        <RememberMeCheckbox
+          v-model="formData.rememberMe"
+        />
 
-            <!-- Status Message -->
-            <v-alert
-              v-if="statusMessage"
-              :type="messageType"
-              variant="tonal"
-              class="mb-4"
-              density="compact"
-              closable
-              @click:close="clearMessage"
-            >
-              {{ statusMessage }}
-            </v-alert>
+        <!-- Status Message -->
+        <StatusMessage
+          v-if="statusMessage"
+          :message="statusMessage"
+          :type="messageType"
+          @close="clearMessage"
+        />
 
-            <!-- Login Button -->
-            <v-btn
-              type="submit"
-              color="primary"
-              size="large"
-              block
-              :loading="loading"
-              :disabled="loading"
-            >
-              Login
-            </v-btn>
+        <!-- Submit Button -->
+        <AuthSubmitButton
+          label="Login"
+          :loading="loading"
+          :disabled="loading"
+          @click="() => formSubmit(handleSubmit)"
+        />
 
-            <!-- Reset Password Link -->
-            <div class="text-center mt-4">
-              <v-btn
-                variant="text"
-                color="info"
-                size="small"
-                @click="handleResetPassword"
-              >
-                Forgot your password?
-              </v-btn>
-            </div>
-          </v-form>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+        <!-- Forgot Password Link -->
+        <ForgotPasswordLink
+          @click="handleResetPassword"
+        />
+      </v-form>
+    </template>
+  </AuthFormLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { loginUser, type ApiError } from '@/services/api'
+
+// Import reusable components
+import AuthFormLayout from './auth/AuthFormLayout.vue'
+import UsernameField from './auth/UsernameField.vue'
+import PasswordField from './auth/PasswordField.vue'
+import RememberMeCheckbox from './auth/RememberMeCheckbox.vue'
+import AuthSubmitButton from './auth/AuthSubmitButton.vue'
+import StatusMessage from './auth/StatusMessage.vue'
+import ForgotPasswordLink from './auth/ForgotPasswordLink.vue'
 
 interface FormData {
   username: string
@@ -108,52 +74,25 @@ const formData = reactive<FormData>({
   rememberMe: false,
 })
 
-const showPassword = ref(false)
 const loading = ref(false)
 const statusMessage = ref('')
 const messageType = ref<'success' | 'error' | 'warning' | 'info'>('success')
+
+// Refs to component instances
 const form = ref<any>(null)
+const usernameField = ref<any>(null)
+const passwordField = ref<any>(null)
 
-// Track whether fields have been interacted with
-const usernameTouched = ref(false)
-const passwordTouched = ref(false)
+// Track touched state for each field
+const touchedFields = reactive({
+  username: false,
+  password: false,
+})
 
-// Track errors for each field
-const usernameHasError = ref(false)
-const passwordHasError = ref(false)
-
-// Validation rules with error tracking
-const usernameRules: Array<(value: string) => string | boolean> = [
-  (value: string): string | boolean => {
-    if (!value) {
-      // Only show error if field has been touched
-      if (usernameTouched.value) {
-        usernameHasError.value = true
-        return 'Username is required'
-      }
-      usernameHasError.value = false
-      return true
-    }
-    usernameHasError.value = false
-    return true
-  }
-]
-
-const passwordRules: Array<(value: string) => string | boolean> = [
-  (value: string): string | boolean => {
-    if (!value) {
-      // Only show error if field has been touched
-      if (passwordTouched.value) {
-        passwordHasError.value = true
-        return 'Password is required'
-      }
-      passwordHasError.value = false
-      return true
-    }
-    passwordHasError.value = false
-    return true
-  }
-]
+// Mark field as touched
+const markFieldTouched = (field: keyof typeof touchedFields) => {
+  touchedFields[field] = true
+}
 
 // Clear status message
 const clearMessage = () => {
@@ -166,21 +105,6 @@ const showMessage = (message: string, type: 'success' | 'error' | 'warning' | 'i
   messageType.value = type
 }
 
-// Handle input handlers to mark fields as touched
-const handleUsernameInput = (value: string) => {
-  if (!usernameTouched.value) {
-    usernameTouched.value = true
-  }
-  clearMessage()
-}
-
-const handlePasswordInput = (value: string) => {
-  if (!passwordTouched.value) {
-    passwordTouched.value = true
-  }
-  clearMessage()
-}
-
 // Handle reset password
 const handleResetPassword = () => {
   showMessage('Password reset functionality will be implemented soon!', 'info')
@@ -191,14 +115,20 @@ const handleSubmit = async () => {
   // Reset messages
   clearMessage()
 
-  // Validate using Vuetify form validation
-  const { valid } = await form.value.validate()
+  // Validate all fields using component validation methods
+  const validations = await Promise.all([
+    usernameField.value?.validate(),
+    passwordField.value?.validate(),
+  ])
 
-  if (!valid) {
+  const allValid = validations.every(v => v?.valid !== false)
+
+  if (!allValid) {
     return
   }
 
   // If we reach here, all fields are valid
+  // Call the actual API
   loading.value = true
 
   try {
@@ -245,23 +175,5 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* Remove all default spacing between fields */
-.form-field-wrapper {
-  margin-bottom: 0;
-}
-
-/* Add spacing between form fields only when field has been touched AND has an error */
-.form-field-wrapper.has-error {
-  margin-bottom: 12px;
-}
-
-/* Remove extra spacing after the last field */
-.form-field-wrapper:last-child.has-error {
-  margin-bottom: 0;
-}
-
-/* Remove Vuetify's default margin on text fields */
-:deep(.custom-field) {
-  margin-bottom: 0;
-}
+/* No additional styles needed - handled by reusable components */
 </style>

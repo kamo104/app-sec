@@ -62,22 +62,22 @@ if ! command -v protoc &> /dev/null; then
 fi
 print_success "protoc found"
 
-# Build password validator library
-print_status "Building password validator library..."
-cd password-validator
+# Build field validator library
+print_status "Building field validator library..."
+cd field-validator
 
 # Run tests first
-print_status "Running password validator tests..."
+print_status "Running field validator tests..."
 cargo test --quiet
 if [ $? -eq 0 ]; then
-    print_success "Password validator tests passed"
+    print_success "Field validator tests passed"
 else
-    print_error "Password validator tests failed"
+    print_error "Field validator tests failed"
     exit 1
 fi
 
 # Build for native (backend use)
-print_status "Building password validator for native use..."
+print_status "Building field validator for native use..."
 cargo build --release --quiet
 if [ $? -eq 0 ]; then
     print_success "Native build completed"
@@ -87,7 +87,7 @@ else
 fi
 
 # Build for WebAssembly
-print_status "Building password validator for WebAssembly..."
+print_status "Building field validator for WebAssembly..."
 cargo build --target wasm32-unknown-unknown --release --features wasm --quiet
 if [ $? -eq 0 ]; then
     print_success "WebAssembly build completed"
@@ -100,8 +100,8 @@ fi
 print_status "Generating WebAssembly bindings..."
 cd ../frontend
 mkdir -p src/wasm
-cd ../password-validator
-wasm-bindgen target/wasm32-unknown-unknown/release/password_validator.wasm --target web --out-dir ../frontend/src/wasm --out-name password-validator
+cd ../field-validator
+wasm-bindgen target/wasm32-unknown-unknown/release/field_validator.wasm --target web --out-dir ../frontend/src/wasm --out-name field-validator
 if [ $? -eq 0 ]; then
     print_success "WebAssembly bindings generated"
 else
