@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { loginUser, type ApiError } from '@/services/api'
 
 interface FormData {
   username: string
@@ -200,12 +201,46 @@ const handleSubmit = async () => {
   // If we reach here, all fields are valid
   loading.value = true
 
-  // TODO: Integrate with backend API
-  // For now, simulate login attempt
-  setTimeout(() => {
+  try {
+    const response = await loginUser({
+      username: formData.username,
+      password: formData.password,
+    })
+
+    if (response.success && response.data) {
+      showMessage(`Welcome back, ${response.data.username}!`, 'success')
+
+      // Store user info if "Remember me" is checked
+      if (formData.rememberMe) {
+        localStorage.setItem('user', JSON.stringify(response.data))
+      }
+
+      // TODO: Redirect to dashboard or home page
+      // For now, just show success message
+      console.log('Login successful:', response.data)
+    } else {
+      // Handle non-success response
+      console.error('Login failed:', response.message)
+      showMessage(response.message || 'Login failed', 'error')
+    }
+  } catch (error) {
+    const apiError = error as ApiError
+    console.error('Login error:', apiError)
+
+    // Handle specific error cases
+    if (apiError.status === 401) {
+      // Unauthorized - invalid credentials
+      showMessage('Invalid username or password', 'error')
+    } else if (apiError.status === 0) {
+      // Network error - backend not running
+      showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')
+    } else {
+      // Other errors
+      showMessage(apiError.message || 'An error occurred during login', 'error')
+    }
+  } finally {
     loading.value = false
-    showMessage('Login functionality will be integrated with the backend API soon!', 'info')
-  }, 1000)
+  }
 }
 </script>
 

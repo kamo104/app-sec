@@ -34,7 +34,7 @@ use sqlx::types::time::OffsetDateTime;
 mod db;
 mod api;
 use db::DBHandle;
-use api::{register_user, health_check};
+use api::{register_user, health_check, login_user};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -80,6 +80,7 @@ async fn main() {
         // API routes
         .route("/api/health", get(health_check))
         .route("/api/register", post(register_user))
+        .route("/api/login", post(login_user))
         // Existing routes
         .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
         .route("/ws", any(ws_upgrade_handler))

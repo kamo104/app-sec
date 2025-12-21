@@ -33,6 +33,27 @@ export interface RegistrationRequest {
 export type RegistrationResponse = ApiResponse<null>;
 
 /**
+ * Login request payload
+ */
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+/**
+ * Login response data
+ */
+export interface LoginResponseData {
+  username: string;
+  email: string;
+}
+
+/**
+ * Login response
+ */
+export type LoginResponse = ApiResponse<LoginResponseData>;
+
+/**
  * API Error for structured error handling
  */
 export class ApiError extends Error {
@@ -142,4 +163,16 @@ export async function healthCheck(): Promise<ApiResponse<{ status: string }>> {
       data: null,
     };
   }
+}
+
+/**
+ * Login a user
+ */
+export async function loginUser(
+  data: LoginRequest
+): Promise<LoginResponse> {
+  return apiFetch<LoginResponseData>('/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }

@@ -316,7 +316,7 @@ const handleSubmit = async () => {
     })
 
     if (response.success) {
-      showMessage(response.message || 'Registration successful! Welcome aboard! 🎉', 'success')
+      showMessage(response.message || 'Registration successful! Welcome aboard!', 'success')
     } else {
       // Handle non-success response
       console.error('Registration failed:', response.message)

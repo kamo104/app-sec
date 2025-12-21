@@ -330,36 +330,3 @@ impl DBHandle {
     }
 }
 
-/* --- API RESPONSE TYPES --- */
-#[derive(Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    pub fn success(data: T, message: &str) -> Self {
-        ApiResponse {
-            success: true,
-            message: message.to_string(),
-            data: Some(data),
-        }
-    }
-
-    pub fn error(message: &str) -> Self {
-        ApiResponse {
-            success: false,
-            message: message.to_string(),
-            data: None,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RegistrationRequest {
-    pub username: String,
-    pub email: String,
-    pub password: String,
-}
-/* --- API RESPONSE TYPES --- */
