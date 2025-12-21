@@ -37,7 +37,7 @@ const DEV_DATABASE_KEY: &str = "\"x'DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEAD
 /* This table is used to store user sessions */
 #[derive(FromRow, Clone, Debug)]
 pub struct UserSession {
-    pub username: String,
+    pub user_id: i64,
     pub session_id: Vec<u8>,
     pub session_expiry: OffsetDateTime,
 }
@@ -49,10 +49,10 @@ impl UserSessionsTable {
     pub const TABLE_NAME: &str = "user_sessions";
     const TABLE_CREATION: &str = formatcp!(
         "CREATE TABLE IF NOT EXISTS {} (\
-            username TEXT NOT NULL CONSTRAINT uname REFERENCES {} (username) ON DELETE CASCADE ON UPDATE CASCADE, \
+            user_id INTEGER NOT NULL CONSTRAINT uname REFERENCES {} (user_id) ON DELETE CASCADE ON UPDATE CASCADE, \
             session_id BLOB NOT NULL, \
             session_expiry INTEGER NOT NULL, \
-            CONSTRAINT pkey PRIMARY KEY (username, session_id)\
+            CONSTRAINT pkey PRIMARY KEY (user_id, session_id)\
         )",
         UserSessionsTable::TABLE_NAME,
         UserLoginTable::TABLE_NAME,
@@ -66,13 +66,13 @@ impl UserSessionsTable {
     pub async fn insert(&self, row: &UserSession) -> Result<()> {
         sqlx::query(formatcp!(
             "INSERT INTO {} (\
-                username, \
+                user_id, \
                 session_id, \
                 session_expiry\
             ) VALUES ($1, $2, $3)",
             UserSessionsTable::TABLE_NAME
         ))
-        .bind(&row.username)
+        .bind(row.user_id)
         .bind(&row.session_id)
         .bind(row.session_expiry)
         .execute(&self.conn_pool)
@@ -81,10 +81,10 @@ impl UserSessionsTable {
     }
     pub async fn delete(&self, row: &UserSession) -> Result<()> {
         sqlx::query(formatcp!(
-            "DELETE FROM {} WHERE username = $1 AND session_id = $2",
+            "DELETE FROM {} WHERE user_id = $1 AND session_id = $2",
             UserSessionsTable::TABLE_NAME
         ))
-        .bind(&row.username)
+        .bind(row.user_id)
         .bind(&row.session_id)
         .execute(&self.conn_pool)
         .await?;
@@ -104,6 +104,7 @@ impl UserSessionsTable {
 /* This table is used to store login information */
 #[derive(FromRow, Clone, Debug, Serialize, Deserialize)]
 pub struct UserLogin {
+    pub user_id: i64,
     pub username: String,
     pub email: String,
     pub password: Option<String>, // hash in the PHC string format, NULL on password reset
@@ -117,7 +118,8 @@ impl UserLoginTable {
     pub const TABLE_NAME: &str = "user_login";
     const TABLE_CREATION: &str = formatcp!(
         "CREATE TABLE IF NOT EXISTS {} (\
-            username TEXT PRIMARY KEY, \
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT, \
+            username TEXT UNIQUE NOT NULL, \
             email TEXT NOT NULL, \
             password TEXT\
         )",
@@ -188,6 +190,34 @@ impl UserLoginTable {
             UserLoginTable::TABLE_NAME
         ))
         .bind(username)
+        .fetch_one(&self.conn_pool)
+        .await?;
+        Ok(out)
+    }
+
+    pub async fn get_user_id_by_username(
+        &self,
+        username: &str,
+    ) -> std::result::Result<i64, sqlx::Error> {
+        let row = sqlx::query(formatcp!(
+            "SELECT user_id FROM {} WHERE username = $1",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(username)
+        .fetch_one(&self.conn_pool)
+        .await?;
+        Ok(row.get("user_id"))
+    }
+
+    pub async fn get_by_user_id(
+        &self,
+        user_id: i64,
+    ) -> std::result::Result<UserLogin, sqlx::Error> {
+        let out = sqlx::query_as::<_, UserLogin>(formatcp!(
+            "SELECT * FROM {} WHERE user_id = $1",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(user_id)
         .fetch_one(&self.conn_pool)
         .await?;
         Ok(out)
