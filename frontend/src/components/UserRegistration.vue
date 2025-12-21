@@ -179,20 +179,7 @@ onMounted(async () => {
 // Combined password rules that uses WebAssembly validation
 const passwordRulesCombined: Array<(value: string) => Promise<string | boolean>> = [
   async (value: string): Promise<string | boolean> => {
-    if (!value) {
-      // Only show error if field has been touched
-      if (passwordTouched.value) {
-        passwordErrors.value = ['Password is required']
-        passwordScore.value = null
-        return 'Password is required'
-      }
-      // Return true (valid) if not touched yet, to prevent showing errors prematurely
-      passwordErrors.value = []
-      passwordScore.value = null
-      return true
-    }
-
-    // Use WebAssembly validation
+    // Use WebAssembly validation - it handles empty strings and all other cases
     try {
       const [result, score] = await Promise.all([
         validatePassword(value),
@@ -317,17 +304,18 @@ const handlePasswordInput = async (value: string) => {
   }
   clearMessage()
 
-  // Update score immediately on input
-  if (value && wasmInitialized.value) {
+  // Update score and errors immediately on input using WASM
+  if (wasmInitialized.value) {
     try {
-      const score = await getPasswordScore(value)
+      const [result, score] = await Promise.all([
+        validatePassword(value),
+        getPasswordScore(value)
+      ])
+      passwordErrors.value = result.errors
       passwordScore.value = score
     } catch (error) {
       console.error('Error getting password score:', error)
     }
-  } else if (!value) {
-    passwordScore.value = null
-    passwordErrors.value = []
   }
 }
 
