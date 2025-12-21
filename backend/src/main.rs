@@ -1,41 +1,47 @@
 use axum::{
     Router,
-    body::Bytes,
-    extract::ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
-    response::IntoResponse,
+    body::Body,
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    http::{Request, StatusCode},
+    response::{IntoResponse, Response},
     routing::{any, get, post},
 };
 use axum_extra::TypedHeader;
-use tokio::sync::{OnceCell, mpsc};
-
-use std::{net::Ipv4Addr, ops::ControlFlow, sync::Arc};
-use std::{net::SocketAddr, path::PathBuf};
+use std::convert::Infallible;
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll};
+use tokio::sync::OnceCell;
+use tower::Service;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
 
+use std::net::{Ipv4Addr, SocketAddr};
+use std::ops::ControlFlow;
+
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 //allows to extract the IP of connecting user
 use axum::extract::connect_info::ConnectInfo;
-use axum::extract::ws::CloseFrame;
 
 //allows to split the websocket stream into separate TX and RX branches
 use futures_util::{sink::SinkExt, stream::StreamExt};
 
 // use log::{debug, error, info, warn};
-use tracing::{debug, error, info, instrument::WithSubscriber, warn};
+use tracing::{debug, info, warn};
 
 use clap::Parser;
-use sqlx::types::time::OffsetDateTime;
 
 mod db;
 mod api;
 mod generated;
 use db::DBHandle;
-use api::{register_user, health_check, login_user};
+use api::{register_user, health_check, login_user, verify_email};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -49,6 +55,71 @@ struct Args {
 }
 
 static DB_HANDLE: OnceCell<Arc<DBHandle>> = OnceCell::const_new();
+
+/// A custom service that wraps ServeDir to provide SPA fallback behavior
+/// For non-file requests, it serves index.html so Vue Router can handle the route
+#[derive(Clone)]
+struct SpaFallbackService {
+    serve_dir: ServeDir,
+    assets_dir: PathBuf,
+}
+
+impl SpaFallbackService {
+    fn new(assets_dir: PathBuf) -> Self {
+        Self {
+            serve_dir: ServeDir::new(assets_dir.clone()).append_index_html_on_directories(true),
+            assets_dir,
+        }
+    }
+}
+
+impl Service<Request<Body>> for SpaFallbackService {
+    type Response = Response;
+    type Error = Infallible;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request<Body>) -> Self::Future {
+        let uri = req.uri().clone();
+        let path = uri.path();
+
+        // Check if this is a file request (has extension)
+        let is_file_request = path.contains('.') && !path.ends_with('/');
+
+        // Clone the necessary data for the async block
+        let mut serve_dir = self.serve_dir.clone();
+        let assets_dir = self.assets_dir.clone();
+
+        Box::pin(async move {
+            // If it's a file request, try to serve it
+            if is_file_request {
+                // Use tower::Service::call directly
+                match Service::<Request<Body>>::call(&mut serve_dir, req).await {
+                    Ok(response) => Ok(response.map(Body::new)),
+                    Err(_) => Ok(Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .body(Body::from("File not found"))
+                        .unwrap()),
+                }
+            } else {
+                // For non-file requests (SPA routes), serve index.html
+                let index_path = assets_dir.join("index.html");
+                let contents = std::fs::read_to_string(&index_path)
+                    .unwrap_or_else(|_| "Not Found".to_string());
+
+                Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .header("Content-Type", "text/html")
+                    .body(Body::from(contents))
+                    .unwrap())
+            }
+        })
+    }
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
@@ -82,9 +153,11 @@ async fn main() {
         .route("/api/health", get(health_check))
         .route("/api/register", post(register_user))
         .route("/api/login", post(login_user))
-        // Existing routes
-        .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
+        .route("/api/verify-email", post(verify_email))
+        // WebSocket route
         .route("/ws", any(ws_upgrade_handler))
+        // SPA fallback - serve index.html for all other routes
+        .fallback_service(SpaFallbackService::new(assets_dir))
         // Add DB state
         .with_state(db_handle)
         // CORS layer - allow all origins in dev mode

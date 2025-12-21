@@ -1,5 +1,5 @@
 <template>
-  <AuthFormLayout title="User Registration" ref="authFormLayout">
+  <AuthFormLayout title="Register" ref="authFormLayout">
     <template #default="{ handleSubmit: formSubmit }">
       <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
         <!-- Username Field -->
@@ -49,6 +49,18 @@
           @click="() => formSubmit(handleSubmit)"
         />
       </v-form>
+    </template>
+
+    <template #navigation>
+      <v-btn
+        variant="text"
+        color="primary"
+        to="/login"
+        class="text-none"
+        prepend-icon="mdi-login"
+      >
+        Already have an account? Login here
+      </v-btn>
     </template>
   </AuthFormLayout>
 </template>

@@ -40,3 +40,8 @@ message LoginResponseData {
   string username = 1;
   string email = 2;
 }
+
+// Email verification request
+message EmailVerificationRequest {
+  string token = 1;
+}

@@ -58,3 +58,9 @@ pub struct LoginResponseData {
     #[prost(string, tag = "2")]
     pub email: ::prost::alloc::string::String,
 }
+/// Email verification request
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EmailVerificationRequest {
+    #[prost(string, tag = "1")]
+    pub token: ::prost::alloc::string::String,
+}

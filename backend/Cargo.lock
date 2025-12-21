@@ -141,6 +141,7 @@ dependencies = [
  "field-validator",
  "futures-util",
  "headers",
+ "hex",
  "keyring",
  "libsqlite3-sys",
  "num-traits",
@@ -150,11 +151,13 @@ dependencies = [
  "rand_core 0.9.3",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "strum",
  "time",
  "tokio",
  "tokio-tungstenite",
+ "tower",
  "tower-cookies",
  "tower-http",
  "tracing",
@@ -792,6 +795,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
 dependencies = [
  "powerfmt",
+ "serde_core",
 ]
 
 [[package]]

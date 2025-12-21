@@ -16,12 +16,9 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
 
-pub type DBError = Box<dyn std::error::Error + Send + Sync>;
-// pub type Result<T> = std::result::Result<T, DBError>;
-
 /* --- KEYRING constants --- */
-const KEYRING_SERVICE_NAME: &str = "FreeTrack_DB_KEY";
-const KEYRING_USERNAME: &str = "freetrack";
+const KEYRING_SERVICE_NAME: &str = "APPSEC_DB_KEY";
+const KEYRING_USERNAME: &str = "APPSEC";
 const KEYRING_DB_KEY_LEN: usize = 32;
 /* --- KEYRING constants --- */
 
@@ -30,18 +27,43 @@ const KEYRING_DB_KEY_LEN: usize = 32;
 const DEV_DATABASE_PATH: &str = "data_dev.db";
 /// Static encryption key for development mode - eliminates keyring dependency during development
 /// Uses SQLCipher key format: "x'hexkey'"
-const DEV_DATABASE_KEY: &str = "\"x'DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF'\"";
+const DEV_DATABASE_KEY: &str =
+    "\"x'DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF'\"";
 /* --- DEVELOPMENT MODE constants --- */
+
+/* --- EMAIL VERIFICATION constants --- */
+const EMAIL_VERIFICATION_TOKEN_BYTES: usize = 32; // 32 bytes = 64 hex characters
+/* --- EMAIL VERIFICATION constants --- */
+
+/* --- EMAIL VERIFICATION UTILITIES --- */
+/// Generate a cryptographically secure random token
+pub fn generate_verification_token() -> String {
+    let mut token_bytes = [0u8; EMAIL_VERIFICATION_TOKEN_BYTES];
+    OsRng.try_fill_bytes(&mut token_bytes).unwrap();
+    hex::encode(token_bytes)
+}
+
+/// Hash a token using SHA256 for deterministic lookup
+pub fn hash_token(token: &str) -> Result<String> {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(token.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+/* --- EMAIL VERIFICATION UTILITIES --- */
 
 /* --- USER_SESSIONS_TABLE --- */
 /* This table is used to store user sessions */
 #[derive(FromRow, Clone, Debug)]
+#[allow(dead_code)] // Session management for future authentication
 pub struct UserSession {
     pub user_id: i64,
     pub session_id: Vec<u8>,
     pub session_expiry: OffsetDateTime,
 }
 #[derive(Debug)]
+#[allow(dead_code)] // Session management is implemented but not yet used in current endpoints
 pub struct UserSessionsTable {
     conn_pool: SqlitePool,
 }
@@ -63,6 +85,7 @@ impl UserSessionsTable {
             .await?;
         Ok(())
     }
+    #[allow(dead_code)] // Session management for future authentication
     pub async fn insert(&self, row: &UserSession) -> Result<()> {
         sqlx::query(formatcp!(
             "INSERT INTO {} (\
@@ -79,6 +102,7 @@ impl UserSessionsTable {
         .await?;
         Ok(())
     }
+    #[allow(dead_code)] // Session management for future authentication
     pub async fn delete(&self, row: &UserSession) -> Result<()> {
         sqlx::query(formatcp!(
             "DELETE FROM {} WHERE user_id = $1 AND session_id = $2",
@@ -90,6 +114,7 @@ impl UserSessionsTable {
         .await?;
         Ok(())
     }
+    #[allow(dead_code)] // Session management for future authentication
     pub async fn cleanup_expired_sessions(&self) -> Result<()> {
         sqlx::query("DELETE FROM user_sessions WHERE session_expiry < $1")
             .bind(OffsetDateTime::now_utc())
@@ -100,6 +125,106 @@ impl UserSessionsTable {
 }
 /* --- USER_SESSIONS_TABLE --- */
 
+/* --- EMAIL_VERIFICATION_TOKENS_TABLE --- */
+/* This table is used to store email verification tokens */
+#[derive(FromRow, Clone, Debug)]
+#[allow(dead_code)] // Fields used for token lifecycle management
+pub struct EmailVerificationToken {
+    pub user_id: i64,
+    pub token_hash: String,
+    pub expires_at: OffsetDateTime,
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)] // Email verification is implemented but cleanup method is not yet scheduled
+pub struct EmailVerificationTokensTable {
+    conn_pool: SqlitePool,
+}
+
+impl EmailVerificationTokensTable {
+    pub const TABLE_NAME: &str = "email_verification_tokens";
+    const TABLE_CREATION: &str = formatcp!(
+        "CREATE TABLE IF NOT EXISTS {} (\
+            user_id INTEGER NOT NULL CONSTRAINT fk_user REFERENCES {} (user_id) ON DELETE CASCADE ON UPDATE CASCADE, \
+            token_hash TEXT NOT NULL, \
+            expires_at INTEGER NOT NULL, \
+            created_at INTEGER NOT NULL, \
+            CONSTRAINT pkey PRIMARY KEY (user_id)\
+        )",
+        EmailVerificationTokensTable::TABLE_NAME,
+        UserLoginTable::TABLE_NAME,
+    );
+
+    async fn create_table(&self) -> Result<()> {
+        self.conn_pool
+            .execute(EmailVerificationTokensTable::TABLE_CREATION)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn insert(
+        &self,
+        user_id: i64,
+        token_hash: &str,
+        expires_at: OffsetDateTime,
+    ) -> Result<()> {
+        sqlx::query(formatcp!(
+            "INSERT INTO {} (\
+                user_id, \
+                token_hash, \
+                expires_at, \
+                created_at\
+            ) VALUES ($1, $2, $3, $4) \
+                ON CONFLICT(user_id) DO \
+                UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at, created_at = excluded.created_at",
+            EmailVerificationTokensTable::TABLE_NAME
+        ))
+        .bind(user_id)
+        .bind(token_hash)
+        .bind(expires_at)
+        .bind(OffsetDateTime::now_utc())
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_by_token_hash(
+        &self,
+        token_hash: &str,
+    ) -> std::result::Result<EmailVerificationToken, sqlx::Error> {
+        let out = sqlx::query_as::<_, EmailVerificationToken>(formatcp!(
+            "SELECT * FROM {} WHERE token_hash = $1",
+            EmailVerificationTokensTable::TABLE_NAME
+        ))
+        .bind(token_hash)
+        .fetch_one(&self.conn_pool)
+        .await?;
+        Ok(out)
+    }
+
+    pub async fn delete_by_user_id(&self, user_id: i64) -> Result<()> {
+        sqlx::query(formatcp!(
+            "DELETE FROM {} WHERE user_id = $1",
+            EmailVerificationTokensTable::TABLE_NAME
+        ))
+        .bind(user_id)
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+
+    #[allow(dead_code)] // Cleanup method for scheduled maintenance
+    pub async fn cleanup_expired_tokens(&self) -> Result<()> {
+        sqlx::query("DELETE FROM email_verification_tokens WHERE expires_at < $1")
+            .bind(OffsetDateTime::now_utc())
+            .execute(&self.conn_pool)
+            .await?;
+        Ok(())
+    }
+}
+/* --- EMAIL_VERIFICATION_TOKENS_TABLE --- */
+
 /* --- USER_LOGIN_TABLE --- */
 /* This table is used to store login information */
 #[derive(FromRow, Clone, Debug, Serialize, Deserialize)]
@@ -108,6 +233,8 @@ pub struct UserLogin {
     pub username: String,
     pub email: String,
     pub password: Option<String>, // hash in the PHC string format, NULL on password reset
+    pub email_verified: bool,     // Whether the email has been verified
+    pub email_verified_at: Option<OffsetDateTime>, // When the email was verified
 }
 
 #[derive(Debug)]
@@ -121,7 +248,9 @@ impl UserLoginTable {
             user_id INTEGER PRIMARY KEY AUTOINCREMENT, \
             username TEXT UNIQUE NOT NULL, \
             email TEXT NOT NULL, \
-            password TEXT\
+            password TEXT, \
+            email_verified INTEGER NOT NULL DEFAULT 0, \
+            email_verified_at INTEGER\
         )",
         UserLoginTable::TABLE_NAME,
     );
@@ -136,19 +265,25 @@ impl UserLoginTable {
             "INSERT INTO {} (\
                 username, \
                 email, \
-                password\
-            ) VALUES ($1, $2, $3) \
+                password, \
+                email_verified, \
+                email_verified_at\
+            ) VALUES ($1, $2, $3, $4, $5) \
                 ON CONFLICT(username) DO \
-                UPDATE SET email = excluded.email, password = excluded.password",
+                UPDATE SET email = excluded.email, password = excluded.password, \
+                email_verified = excluded.email_verified, email_verified_at = excluded.email_verified_at",
             UserLoginTable::TABLE_NAME
         ))
         .bind(&row.username)
         .bind(&row.email)
         .bind(&row.password)
+        .bind(row.email_verified)
+        .bind(row.email_verified_at)
         .execute(&self.conn_pool)
         .await?;
         Ok(())
     }
+    #[allow(dead_code)] // Future feature for email updates
     pub async fn set_email(&self, username: &str, new_email: &str) -> Result<()> {
         sqlx::query(formatcp!(
             "UPDATE {} SET (email) = ($1) WHERE username = $2",
@@ -160,6 +295,7 @@ impl UserLoginTable {
         .await?;
         Ok(())
     }
+    #[allow(dead_code)] // Future feature for password reset
     pub async fn reset_password(&self, username: &str) -> Result<()> {
         sqlx::query(formatcp!(
             "UPDATE {} SET (password) = (NULL) WHERE username = $1",
@@ -170,6 +306,7 @@ impl UserLoginTable {
         .await?;
         Ok(())
     }
+    #[allow(dead_code)] // Future feature for username changes
     pub async fn change_username(&self, username: &str, new_username: &str) -> Result<()> {
         sqlx::query(formatcp!(
             "UPDATE {} SET (username) = ($1) WHERE username = $2",
@@ -284,17 +421,43 @@ impl UserLoginTable {
         .await?;
         Ok(())
     }
+
+    pub async fn mark_email_verified(&self, user_id: i64) -> Result<()> {
+        sqlx::query(formatcp!(
+            "UPDATE {} SET email_verified = 1, email_verified_at = $1 WHERE user_id = $2",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(OffsetDateTime::now_utc())
+        .bind(user_id)
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+
+    #[allow(dead_code)] // Future feature for checking verification status
+    pub async fn is_email_verified(&self, username: &str) -> Result<bool> {
+        let row = sqlx::query(formatcp!(
+            "SELECT email_verified FROM {} WHERE username = $1",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(username)
+        .fetch_one(&self.conn_pool)
+        .await?;
+        Ok(row.get::<bool, _>("email_verified"))
+    }
 }
 /* --- USER_LOGIN_TABLE --- */
 #[derive(Debug)]
 pub struct DBHandle {
     pub user_login_table: UserLoginTable,
     pub user_sessions_table: UserSessionsTable,
+    pub email_verification_tokens_table: EmailVerificationTokensTable,
 }
 impl DBHandle {
     async fn create_tables(&self) -> Result<()> {
         self.user_login_table.create_table().await?;
         self.user_sessions_table.create_table().await?;
+        self.email_verification_tokens_table.create_table().await?;
         Ok(())
     }
     pub async fn open(database_path: &str) -> Result<Arc<Self>> {
@@ -353,10 +516,12 @@ impl DBHandle {
             user_sessions_table: UserSessionsTable {
                 conn_pool: conn_pool.clone(),
             },
+            email_verification_tokens_table: EmailVerificationTokensTable {
+                conn_pool: conn_pool.clone(),
+            },
         };
 
         db_handle.create_tables().await?;
         Ok(Arc::new(db_handle))
     }
 }
-

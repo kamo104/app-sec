@@ -4,6 +4,11 @@
       <v-col cols="12" md="8">
         <v-card class="pa-6" elevation="2" :title="title">
           <slot name="default" :handle-submit="handleSubmit" :form-ref="formRef"></slot>
+
+          <!-- Navigation Links -->
+          <v-card-text class="text-center pt-4">
+            <slot name="navigation"></slot>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>

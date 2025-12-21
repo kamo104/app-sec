@@ -1,5 +1,5 @@
 <template>
-  <AuthFormLayout title="User Login" ref="authFormLayout">
+  <AuthFormLayout title="Login" ref="authFormLayout">
     <template #default="{ handleSubmit: formSubmit }">
       <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
         <!-- Username Field (no length validation for login) -->
@@ -45,6 +45,18 @@
           @click="handleResetPassword"
         />
       </v-form>
+    </template>
+
+    <template #navigation>
+      <v-btn
+        variant="text"
+        color="primary"
+        to="/register"
+        class="text-none"
+        prepend-icon="mdi-account-plus"
+      >
+        Don't have an account? Register here
+      </v-btn>
     </template>
   </AuthFormLayout>
 </template>
@@ -159,8 +171,8 @@ const handleSubmit = async () => {
 
     // Handle specific error cases
     if (apiError.status === 401) {
-      // Unauthorized - invalid credentials
-      showMessage('Invalid username or password', 'error')
+      // Use the actual error message from the backend
+      showMessage(apiError.message || 'Invalid username or password', 'error')
     } else if (apiError.status === 0) {
       // Network error - backend not running
       showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')

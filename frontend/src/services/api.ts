@@ -12,6 +12,7 @@ import {
   LoginResponseData,
   HealthData,
   EmptyData,
+  EmailVerificationRequest,
 } from '@/generated/api';
 
 // Base URL for API requests
@@ -181,5 +182,16 @@ export async function loginUser(
   return apiFetchProtobuf('/login', requestBytes);
 }
 
+/**
+ * Verify email with token
+ */
+export async function verifyEmail(token: string): Promise<ApiResponse> {
+  const request: EmailVerificationRequest = {
+    token: token,
+  };
+  const requestBytes = encodeProtobuf(request, EmailVerificationRequest.encode);
+  return apiFetchProtobuf('/verify-email', requestBytes);
+}
+
 // Re-export types for convenience
-export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData };
+export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData, EmailVerificationRequest };

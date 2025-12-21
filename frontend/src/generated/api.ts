@@ -46,6 +46,11 @@ export interface LoginResponseData {
   email: string;
 }
 
+/** Email verification request */
+export interface EmailVerificationRequest {
+  token: string;
+}
+
 function createBaseApiResponse(): ApiResponse {
   return { success: false, message: "", loginResponse: undefined, healthData: undefined, empty: undefined };
 }
@@ -517,6 +522,64 @@ export const LoginResponseData: MessageFns<LoginResponseData> = {
     const message = createBaseLoginResponseData();
     message.username = object.username ?? "";
     message.email = object.email ?? "";
+    return message;
+  },
+};
+
+function createBaseEmailVerificationRequest(): EmailVerificationRequest {
+  return { token: "" };
+}
+
+export const EmailVerificationRequest: MessageFns<EmailVerificationRequest> = {
+  encode(message: EmailVerificationRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): EmailVerificationRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEmailVerificationRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): EmailVerificationRequest {
+    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
+  },
+
+  toJSON(message: EmailVerificationRequest): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<EmailVerificationRequest>, I>>(base?: I): EmailVerificationRequest {
+    return EmailVerificationRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EmailVerificationRequest>, I>>(object: I): EmailVerificationRequest {
+    const message = createBaseEmailVerificationRequest();
+    message.token = object.token ?? "";
     return message;
   },
 };

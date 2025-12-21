@@ -4,10 +4,11 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::protobuf::Protobuf;
+use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::debug;
 
-use crate::db::{DBHandle, UserLogin};
+use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::generated::v1::{api_response, ApiResponse, EmptyData, HealthData, LoginResponseData};
 
 /// Handler for user registration
@@ -114,6 +115,8 @@ pub async fn register_user(
         username: payload.username.clone(),
         email: payload.email.clone(),
         password: None, // Initially no password, will be set separately
+        email_verified: false, // Initially not verified
+        email_verified_at: None, // Will be set when verified
     };
 
     // Insert user into database
@@ -127,12 +130,69 @@ pub async fn register_user(
             {
                 Ok(_) => {
                     debug!("Password set successfully for '{}'", payload.username);
-                    let response = ApiResponse {
-                        success: true,
-                        message: "User registered successfully".to_string(),
-                        data: Some(api_response::Data::Empty(EmptyData {})),
+
+                    // Get the user_id for token storage
+                    let user_id = match db.user_login_table.get_user_id_by_username(&payload.username).await {
+                        Ok(id) => id,
+                        Err(e) => {
+                            debug!("Failed to get user_id for '{}': {:?}", payload.username, e);
+                            // Still return success since password was set
+                            let response = ApiResponse {
+                                success: true,
+                                message: "User registered successfully (email verification pending)".to_string(),
+                                data: Some(api_response::Data::Empty(EmptyData {})),
+                            };
+                            return (StatusCode::CREATED, Protobuf(response));
+                        }
                     };
-                    (StatusCode::CREATED, Protobuf(response))
+
+                    // Generate verification token
+                    let token = generate_verification_token();
+                    let token_hash = match hash_token(&token) {
+                        Ok(hash) => hash,
+                        Err(e) => {
+                            debug!("Failed to hash token for '{}': {:?}", payload.username, e);
+                            let response = ApiResponse {
+                                success: true,
+                                message: "User registered successfully (email verification pending)".to_string(),
+                                data: Some(api_response::Data::Empty(EmptyData {})),
+                            };
+                            return (StatusCode::CREATED, Protobuf(response));
+                        }
+                    };
+
+                    // Set token expiry (2 hours from now)
+                    let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(2);
+
+                    // Store token in database
+                    match db.email_verification_tokens_table.insert(user_id, &token_hash, expires_at).await {
+                        Ok(_) => {
+                            debug!("Verification token stored for user_id: {}", user_id);
+                            // Mock email service - log the verification link
+                            let verification_link = format!(
+                                "https://example.com/verify-email?token={}",
+                                token
+                            );
+                            debug!("MOCK EMAIL: Send verification link to {}: {}", payload.email, verification_link);
+
+                            let response = ApiResponse {
+                                success: true,
+                                message: "User registered successfully. Please check your email to verify your account.".to_string(),
+                                data: Some(api_response::Data::Empty(EmptyData {})),
+                            };
+                            (StatusCode::CREATED, Protobuf(response))
+                        }
+                        Err(e) => {
+                            debug!("Failed to store verification token for user_id {}: {:?}", user_id, e);
+                            // Still return success since user was created
+                            let response = ApiResponse {
+                                success: true,
+                                message: "User registered successfully (email verification pending)".to_string(),
+                                data: Some(api_response::Data::Empty(EmptyData {})),
+                            };
+                            (StatusCode::CREATED, Protobuf(response))
+                        }
+                    }
                 }
                 Err(e) => {
                     debug!(
@@ -244,6 +304,20 @@ pub async fn login_user(
         }
     };
 
+    // Check if email is verified
+    if !user.email_verified {
+        debug!(
+            "Login failed: user '{}' has not verified their email",
+            payload.username
+        );
+        let response = ApiResponse {
+            success: false,
+            message: "Email not verified. Please verify your email before logging in.".to_string(),
+            data: None,
+        };
+        return (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response();
+    }
+
     // Verify password
     match db.user_login_table
         .is_password_correct(&payload.username, &payload.password)
@@ -282,6 +356,128 @@ pub async fn login_user(
                 data: None,
             };
             (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
+        }
+    }
+}
+
+/// Handler for email verification
+pub async fn verify_email(
+    State(db): State<Arc<DBHandle>>,
+    Protobuf(payload): Protobuf<crate::generated::v1::EmailVerificationRequest>,
+) -> impl IntoResponse {
+    debug!(
+        "Received email verification request - token: {}",
+        payload.token
+    );
+
+    if payload.token.is_empty() {
+        debug!("Email verification failed: token is empty");
+        let response = ApiResponse {
+            success: false,
+            message: "Invalid or expired link".to_string(),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
+    // Hash the provided token
+    let token_hash = match hash_token(&payload.token) {
+        Ok(hash) => hash,
+        Err(e) => {
+            debug!("Failed to hash verification token: {:?}", e);
+            let response = ApiResponse {
+                success: false,
+                message: "Invalid or expired link".to_string(),
+                data: None,
+            };
+            return (StatusCode::BAD_REQUEST, Protobuf(response));
+        }
+    };
+
+    // Look up the token in the database
+    let token_record = match db.email_verification_tokens_table.get_by_token_hash(&token_hash).await {
+        Ok(record) => record,
+        Err(sqlx::Error::RowNotFound) => {
+            debug!("Verification token not found in database");
+            let response = ApiResponse {
+                success: false,
+                message: "Invalid or expired link".to_string(),
+                data: None,
+            };
+            return (StatusCode::BAD_REQUEST, Protobuf(response));
+        }
+        Err(e) => {
+            debug!("Database error looking up token: {:?}", e);
+            let response = ApiResponse {
+                success: false,
+                message: "Invalid or expired link".to_string(),
+                data: None,
+            };
+            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
+        }
+    };
+
+    // Check if token is expired
+    if OffsetDateTime::now_utc() > token_record.expires_at {
+        debug!("Verification token has expired");
+        let response = ApiResponse {
+            success: false,
+            message: "Invalid or expired link".to_string(),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
+    // Check if user is already verified
+    let user = match db.user_login_table.get_by_user_id(token_record.user_id).await {
+        Ok(user) => user,
+        Err(e) => {
+            debug!("Failed to get user for verification: {:?}", e);
+            let response = ApiResponse {
+                success: false,
+                message: "Invalid or expired link".to_string(),
+                data: None,
+            };
+            return (StatusCode::BAD_REQUEST, Protobuf(response));
+        }
+    };
+
+    if user.email_verified {
+        debug!("User already verified");
+        let response = ApiResponse {
+            success: true,
+            message: "Email already verified".to_string(),
+            data: Some(api_response::Data::Empty(EmptyData {})),
+        };
+        return (StatusCode::OK, Protobuf(response));
+    }
+
+    // Mark email as verified
+    match db.user_login_table.mark_email_verified(token_record.user_id).await {
+        Ok(_) => {
+            debug!("Email verified successfully for user_id: {}", token_record.user_id);
+
+            // Delete the token to ensure single-use
+            match db.email_verification_tokens_table.delete_by_user_id(token_record.user_id).await {
+                Ok(_) => debug!("Verification token deleted for user_id: {}", token_record.user_id),
+                Err(e) => debug!("Failed to delete token for user_id {}: {:?}", token_record.user_id, e),
+            }
+
+            let response = ApiResponse {
+                success: true,
+                message: "Email verified successfully".to_string(),
+                data: Some(api_response::Data::Empty(EmptyData {})),
+            };
+            (StatusCode::OK, Protobuf(response))
+        }
+        Err(e) => {
+            debug!("Failed to mark email as verified: {:?}", e);
+            let response = ApiResponse {
+                success: false,
+                message: "Failed to verify email".to_string(),
+                data: None,
+            };
+            (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response))
         }
     }
 }
