@@ -88,3 +88,21 @@ export async function getPasswordStrengthInfo(password: string): Promise<{
     score: result.score,
   }
 }
+
+/**
+ * Get password score only
+ * @param password - The password to analyze
+ * @returns Numerical score (0-7)
+ */
+export async function getPasswordScore(password: string): Promise<number> {
+  if (!wasmInitialized) {
+    await initializePasswordValidator()
+  }
+
+  const strengthJson = get_password_strength(password)
+  const result = JSON.parse(strengthJson) as {
+    score: number
+  }
+
+  return result.score
+}

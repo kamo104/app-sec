@@ -61,16 +61,16 @@
                 </template>
               </v-text-field>
 
-              <!-- Password Strength Indicator -->
-              <div v-if="passwordStrength && passwordTouched" class="password-strength-indicator">
+              <!-- Password Strength Indicator - always visible when touched and score exists -->
+              <div v-if="passwordTouched && passwordScore !== null" class="password-strength-indicator">
                 <div class="strength-label">
-                  Strength: <span :class="['strength-value', passwordStrength.toLowerCase()]">{{ passwordStrength }}</span>
+                  Score: <span :class="['strength-value', getStrengthClass(passwordScore)]">{{ passwordScore }}</span> / 7
                 </div>
                 <div class="strength-bar-container">
                   <div
                     class="strength-bar"
-                    :class="passwordStrength.toLowerCase()"
-                    :style="{ width: (passwordScore * 20) + '%' }"
+                    :class="getStrengthClass(passwordScore)"
+                    :style="{ width: (passwordScore / 7 * 100) + '%' }"
                   ></div>
                 </div>
               </div>
@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { registerUser, type ApiError } from '@/services/api'
-import { initializePasswordValidator, validatePassword, getPasswordStrengthInfo } from '@/services/passwordValidator'
+import { initializePasswordValidator, validatePassword, getPasswordScore } from '@/services/passwordValidator'
 
 interface FormData {
   username: string
@@ -164,8 +164,7 @@ const emailHasError = ref(false)
 const passwordErrors = ref<string[]>([])
 const confirmPasswordHasError = ref(false)
 const wasmInitialized = ref(false)
-const passwordStrength = ref<'Weak' | 'Medium' | 'Strong' | null>(null)
-const passwordScore = ref<number>(0)
+const passwordScore = ref<number | null>(null)
 
 // Initialize WebAssembly on component mount
 onMounted(async () => {
@@ -184,17 +183,24 @@ const passwordRulesCombined: Array<(value: string) => Promise<string | boolean>>
       // Only show error if field has been touched
       if (passwordTouched.value) {
         passwordErrors.value = ['Password is required']
+        passwordScore.value = null
         return 'Password is required'
       }
       // Return true (valid) if not touched yet, to prevent showing errors prematurely
       passwordErrors.value = []
+      passwordScore.value = null
       return true
     }
 
     // Use WebAssembly validation
     try {
-      const result = await validatePassword(value)
+      const [result, score] = await Promise.all([
+        validatePassword(value),
+        getPasswordScore(value)
+      ])
+
       passwordErrors.value = result.errors
+      passwordScore.value = score
 
       if (result.errors.length > 0) {
         return result.errors[0]!
@@ -311,20 +317,17 @@ const handlePasswordInput = async (value: string) => {
   }
   clearMessage()
 
-  // Update password strength when WASM is initialized
-  if (wasmInitialized.value && value.length > 0) {
+  // Update score immediately on input
+  if (value && wasmInitialized.value) {
     try {
-      const strengthInfo = await getPasswordStrengthInfo(value)
-      passwordStrength.value = strengthInfo.strength
-      passwordScore.value = strengthInfo.score
+      const score = await getPasswordScore(value)
+      passwordScore.value = score
     } catch (error) {
-      console.error('Error getting password strength:', error)
-      passwordStrength.value = null
-      passwordScore.value = 0
+      console.error('Error getting password score:', error)
     }
-  } else if (value.length === 0) {
-    passwordStrength.value = null
-    passwordScore.value = 0
+  } else if (!value) {
+    passwordScore.value = null
+    passwordErrors.value = []
   }
 }
 
@@ -333,6 +336,14 @@ const handleConfirmPasswordInput = (value: string) => {
     confirmPasswordTouched.value = true
   }
   clearMessage()
+}
+
+// Get CSS class for strength based on score
+const getStrengthClass = (score: number | null): string => {
+  if (score === null) return ''
+  if (score <= 3) return 'weak'
+  if (score <= 5) return 'medium'
+  return 'strong'
 }
 
 // Main form submission handler
@@ -388,19 +399,19 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* Remove all default spacing between fields */
+/* Add consistent spacing between form fields */
 .form-field-wrapper {
-  margin-bottom: 0;
-}
-
-/* Add spacing between form fields only when field has been touched AND has an error */
-.form-field-wrapper.has-error {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 /* Remove extra spacing after the last field */
-.form-field-wrapper:last-child.has-error {
+.form-field-wrapper:last-child {
   margin-bottom: 0;
+}
+
+/* Add more spacing when there are errors to accommodate the error messages */
+.form-field-wrapper.has-error {
+  margin-bottom: 24px;
 }
 
 /* Remove Vuetify's default margin on text fields */
@@ -430,13 +441,36 @@ const handleSubmit = async () => {
   margin-bottom: 0;
 }
 
-/* Password Strength Indicator Styles */
+/* Password Strength Indicator Styles - positioned after the input field */
 .password-strength-indicator {
-  margin-top: 8px;
-  padding: 8px 12px;
+  margin-top: 2px;
+  padding: 6px 10px;
   background: rgba(0, 0, 0, 0.02);
   border-radius: 4px;
   border-left: 3px solid transparent;
+}
+
+/* Hide Vuetify's message area when there are no errors */
+.form-field-wrapper:not(.has-error) :deep(.v-messages) {
+  min-height: 0 !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure the message wrapper itself has no height when empty */
+.form-field-wrapper:not(.has-error) :deep(.v-messages__wrapper) {
+  min-height: 0 !important;
+  height: 0 !important;
+  max-height: 0 !important;
+}
+
+/* Remove padding from input details area when no errors */
+.form-field-wrapper:not(.has-error) :deep(.v-input__details) {
+  padding: 0 !important;
+  min-height: 0 !important;
 }
 
 .password-strength-indicator.weak {
@@ -454,7 +488,7 @@ const handleSubmit = async () => {
 .strength-label {
   font-size: 0.875rem;
   font-weight: 500;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -482,12 +516,14 @@ const handleSubmit = async () => {
   border-radius: 2px;
   overflow: hidden;
   width: 100%;
+  margin-top: 4px;
 }
 
 .strength-bar {
   height: 100%;
   transition: width 0.3s ease, background-color 0.3s ease;
   border-radius: 2px;
+  min-width: 2px;
 }
 
 .strength-bar.weak {
