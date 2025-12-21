@@ -1,57 +1,22 @@
 /**
  * API Service
  *
- * Handles communication with the backend API server.
+ * Handles communication with the backend API server using protobuf binary format.
  */
+
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import {
+  ApiResponse,
+  RegistrationRequest,
+  LoginRequest,
+  LoginResponseData,
+  HealthData,
+  EmptyData,
+} from '@/generated/api';
 
 // Base URL for API requests
 // In production, this would be configured via environment variables
 const API_BASE_URL = 'http://localhost:4000/api';
-
-/**
- * Generic API response type matching the backend ApiResponse<T>
- */
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  message: string;
-  data: T | null;
-}
-
-/**
- * Registration request payload
- */
-export interface RegistrationRequest {
-  username: string;
-  email: string;
-  password: string;
-}
-
-/**
- * Registration response data
- * Currently the backend returns empty data on success, but we keep this extensible
- */
-export type RegistrationResponse = ApiResponse<null>;
-
-/**
- * Login request payload
- */
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-/**
- * Login response data
- */
-export interface LoginResponseData {
-  username: string;
-  email: string;
-}
-
-/**
- * Login response
- */
-export type LoginResponse = ApiResponse<LoginResponseData>;
 
 /**
  * API Error for structured error handling
@@ -68,24 +33,37 @@ export class ApiError extends Error {
 }
 
 /**
- * Generic fetch wrapper for API calls
+ * Encode a protobuf message to Uint8Array
  */
-async function apiFetch<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${endpoint}`;
+function encodeProtobuf<T>(message: T, encodeFn: (msg: T, writer?: BinaryWriter) => BinaryWriter): Uint8Array {
+  const writer = encodeFn(message);
+  return writer.finish();
+}
 
-  // Set up default headers
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...options.headers as Record<string, string>,
-  };
+/**
+ * Decode a protobuf response from Uint8Array
+ */
+function decodeProtobuf<T>(data: Uint8Array, decodeFn: (reader: BinaryReader | Uint8Array, length?: number) => T): T {
+  return decodeFn(data);
+}
+
+/**
+ * Generic fetch wrapper for protobuf API calls
+ */
+async function apiFetchProtobuf<T>(
+  endpoint: string,
+  requestBytes: Uint8Array
+): Promise<ApiResponse> {
+  const url = `${API_BASE_URL}${endpoint}`;
 
   try {
     const response = await fetch(url, {
-      ...options,
-      headers,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-protobuf',
+        'Accept': 'application/x-protobuf',
+      },
+      body: requestBytes as unknown as BodyInit,
     });
 
     // Handle non-2xx responses
@@ -93,24 +71,26 @@ async function apiFetch<T>(
       let errorMessage = `HTTP ${response.status}`;
       let errorCode: string | undefined;
 
-      // Try to parse error response
+      // Try to parse error response as protobuf
       try {
-        const errorData: ApiResponse<null> = await response.json();
-        errorMessage = errorData.message;
+        const errorData = await response.arrayBuffer();
+        const decoded = decodeProtobuf(new Uint8Array(errorData), ApiResponse.decode);
+        errorMessage = decoded.message;
         errorCode = response.status === 409 ? 'CONFLICT' :
                     response.status === 400 ? 'BAD_REQUEST' :
                     response.status === 401 ? 'UNAUTHORIZED' : undefined;
       } catch {
-        // Fallback if response body isn't JSON
+        // Fallback if response body isn't protobuf
         errorMessage = await response.text();
       }
 
       throw new ApiError(errorMessage, response.status, errorCode);
     }
 
-    // Parse successful response
-    const data: ApiResponse<T> = await response.json();
-    return data;
+    // Parse successful protobuf response
+    const responseData = await response.arrayBuffer();
+    const decoded = decodeProtobuf(new Uint8Array(responseData), ApiResponse.decode);
+    return decoded;
   } catch (error) {
     // Re-throw ApiError instances, wrap others
     if (error instanceof ApiError) {
@@ -138,29 +118,51 @@ async function apiFetch<T>(
  * Register a new user
  */
 export async function registerUser(
-  data: RegistrationRequest
-): Promise<RegistrationResponse> {
-  return apiFetch<null>('/register', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  data: { username: string; email: string; password: string }
+): Promise<ApiResponse> {
+  const request: RegistrationRequest = {
+    username: data.username,
+    email: data.email,
+    password: data.password,
+  };
+  const requestBytes = encodeProtobuf(request, RegistrationRequest.encode);
+  return apiFetchProtobuf('/register', requestBytes);
 }
 
 /**
  * Health check for the API
  */
-export async function healthCheck(): Promise<ApiResponse<{ status: string }>> {
+export async function healthCheck(): Promise<ApiResponse> {
   try {
-    const result = await apiFetch<{ status: string }>('/health', {
+    const requestBytes = new Uint8Array(0); // Empty request for GET-like behavior
+    const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
+      headers: {
+        'Accept': 'application/x-protobuf',
+      },
     });
-    return result;
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `HTTP ${response.status}`,
+        loginResponse: undefined,
+        healthData: undefined,
+        empty: undefined,
+      };
+    }
+
+    const responseData = await response.arrayBuffer();
+    const decoded = decodeProtobuf(new Uint8Array(responseData), ApiResponse.decode);
+    return decoded;
   } catch (error) {
     // Return a failed response for health check
     return {
       success: false,
       message: error instanceof ApiError ? error.message : 'Health check failed',
-      data: null,
+      loginResponse: undefined,
+      healthData: undefined,
+      empty: undefined,
     };
   }
 }
@@ -169,10 +171,15 @@ export async function healthCheck(): Promise<ApiResponse<{ status: string }>> {
  * Login a user
  */
 export async function loginUser(
-  data: LoginRequest
-): Promise<LoginResponse> {
-  return apiFetch<LoginResponseData>('/login', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  data: { username: string; password: string }
+): Promise<ApiResponse> {
+  const request: LoginRequest = {
+    username: data.username,
+    password: data.password,
+  };
+  const requestBytes = encodeProtobuf(request, LoginRequest.encode);
+  return apiFetchProtobuf('/login', requestBytes);
 }
+
+// Re-export types for convenience
+export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData };

@@ -2,70 +2,18 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
-use serde::{Deserialize, Serialize};
+use axum_extra::protobuf::Protobuf;
 use std::sync::Arc;
 use tracing::debug;
 
 use crate::db::{DBHandle, UserLogin};
+use crate::generated::v1::{api_response, ApiResponse, EmptyData, HealthData, LoginResponseData};
 
-/* --- API REQUEST/RESPONSE TYPES --- */
-
-/// Generic API response type
-#[derive(Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    pub fn success(data: T, message: &str) -> Self {
-        ApiResponse {
-            success: true,
-            message: message.to_string(),
-            data: Some(data),
-        }
-    }
-
-    pub fn error(message: &str) -> Self {
-        ApiResponse {
-            success: false,
-            message: message.to_string(),
-            data: None,
-        }
-    }
-}
-
-/// Registration request payload
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RegistrationRequest {
-    pub username: String,
-    pub email: String,
-    pub password: String,
-}
-
-/// Login request payload
-#[derive(Debug, Deserialize)]
-pub struct LoginRequest {
-    pub username: String,
-    pub password: String,
-}
-
-/// Login response data
-#[derive(Debug, Serialize)]
-pub struct LoginResponse {
-    pub username: String,
-    pub email: String,
-}
-
-/* --- API REQUEST/RESPONSE TYPES --- */
-
-/// Handler for user login
+/// Handler for user registration
 pub async fn register_user(
     State(db): State<Arc<DBHandle>>,
-    Json(payload): Json<RegistrationRequest>,
+    Protobuf(payload): Protobuf<crate::generated::v1::RegistrationRequest>,
 ) -> impl IntoResponse {
     debug!(
         "Received registration request - username: {}, email: {}",
@@ -78,8 +26,12 @@ pub async fn register_user(
             "Registration validation failed for '{}': fields cannot be empty",
             payload.username
         );
-        let response = ApiResponse::<()>::error("Username, email, and password are required");
-        return (StatusCode::BAD_REQUEST, Json(response));
+        let response = ApiResponse {
+            success: false,
+            message: "Username, email, and password are required".to_string(),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
 
     // Check if username already exists
@@ -89,16 +41,24 @@ pub async fn register_user(
         }
         Ok(false) => {
             debug!("Registration failed: username '{}' already taken", payload.username);
-            let response = ApiResponse::<()>::error("Username already taken");
-            return (StatusCode::CONFLICT, Json(response));
+            let response = ApiResponse {
+                success: false,
+                message: "Username already taken".to_string(),
+                data: None,
+            };
+            return (StatusCode::CONFLICT, Protobuf(response));
         }
         Err(e) => {
             debug!(
                 "Database error checking username '{}': {:?}",
                 payload.username, e
             );
-            let response = ApiResponse::<()>::error("Database error while checking username");
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response));
+            let response = ApiResponse {
+                success: false,
+                message: "Database error while checking username".to_string(),
+                data: None,
+            };
+            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
         }
     }
 
@@ -120,8 +80,12 @@ pub async fn register_user(
             {
                 Ok(_) => {
                     debug!("Password set successfully for '{}'", payload.username);
-                    let response = ApiResponse::<()>::success((), "User registered successfully");
-                    (StatusCode::CREATED, Json(response))
+                    let response = ApiResponse {
+                        success: true,
+                        message: "User registered successfully".to_string(),
+                        data: Some(api_response::Data::Empty(EmptyData {})),
+                    };
+                    (StatusCode::CREATED, Protobuf(response))
                 }
                 Err(e) => {
                     debug!(
@@ -130,8 +94,12 @@ pub async fn register_user(
                     );
                     // If password setting fails, try to clean up the user
                     let _ = db.user_login_table.delete(&payload.username).await;
-                    let response = ApiResponse::<()>::error("Failed to set password");
-                    (StatusCode::INTERNAL_SERVER_ERROR, Json(response))
+                    let response = ApiResponse {
+                        success: false,
+                        message: "Failed to set password".to_string(),
+                        data: None,
+                    };
+                    (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response))
                 }
             }
         }
@@ -142,29 +110,32 @@ pub async fn register_user(
                 "Failed to create user"
             };
             debug!("Failed to create user '{}': {}", payload.username, error_msg);
-            let response = ApiResponse::<()>::error(error_msg);
-            (StatusCode::BAD_REQUEST, Json(response))
+            let response = ApiResponse {
+                success: false,
+                message: error_msg.to_string(),
+                data: None,
+            };
+            (StatusCode::BAD_REQUEST, Protobuf(response))
         }
     }
 }
 
 /// Health check endpoint
 pub async fn health_check() -> impl IntoResponse {
-    #[derive(Serialize)]
-    struct HealthData {
-        status: String,
-    }
-    let response = ApiResponse::success(
-        HealthData { status: "healthy".to_string() },
-        "Service is running"
-    );
-    (StatusCode::OK, Json(response))
+    let response = ApiResponse {
+        success: true,
+        message: "Service is running".to_string(),
+        data: Some(api_response::Data::HealthData(HealthData {
+            status: "healthy".to_string(),
+        })),
+    };
+    (StatusCode::OK, Protobuf(response))
 }
 
 /// Handler for user login
 pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
-    Json(payload): Json<LoginRequest>,
+    Protobuf(payload): Protobuf<crate::generated::v1::LoginRequest>,
 ) -> impl IntoResponse {
     debug!(
         "Received login request - username: {}",
@@ -177,8 +148,12 @@ pub async fn login_user(
             "Login validation failed for '{}': fields cannot be empty",
             payload.username
         );
-        let response = ApiResponse::<()>::error("Username and password are required");
-        return (StatusCode::BAD_REQUEST, Json(response)).into_response();
+        let response = ApiResponse {
+            success: false,
+            message: "Username and password are required".to_string(),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
     }
 
     // Check if user exists
@@ -186,16 +161,24 @@ pub async fn login_user(
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Login failed: user '{}' not found", payload.username);
-            let response = ApiResponse::<()>::error("Invalid username or password");
-            return (StatusCode::UNAUTHORIZED, Json(response)).into_response();
+            let response = ApiResponse {
+                success: false,
+                message: "Invalid username or password".to_string(),
+                data: None,
+            };
+            return (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response();
         }
         Err(e) => {
             debug!(
                 "Database error checking user '{}': {:?}",
                 payload.username, e
             );
-            let response = ApiResponse::<()>::error("Database error while checking user");
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response();
+            let response = ApiResponse {
+                success: false,
+                message: "Database error while checking user".to_string(),
+                data: None,
+            };
+            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response)).into_response();
         }
     };
 
@@ -206,25 +189,37 @@ pub async fn login_user(
     {
         Ok(true) => {
             debug!("Login successful for '{}'", payload.username);
-            let response_data = LoginResponse {
+            let response_data = LoginResponseData {
                 username: user.username,
                 email: user.email,
             };
-            let response = ApiResponse::success(response_data, "Login successful");
-            (StatusCode::OK, Json(response)).into_response()
+            let response = ApiResponse {
+                success: true,
+                message: "Login successful".to_string(),
+                data: Some(api_response::Data::LoginResponse(response_data)),
+            };
+            (StatusCode::OK, Protobuf(response)).into_response()
         }
         Ok(false) => {
             debug!("Login failed: incorrect password for '{}'", payload.username);
-            let response = ApiResponse::<()>::error("Invalid username or password");
-            (StatusCode::UNAUTHORIZED, Json(response)).into_response()
+            let response = ApiResponse {
+                success: false,
+                message: "Invalid username or password".to_string(),
+                data: None,
+            };
+            (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
         }
         Err(e) => {
             debug!(
                 "Password verification error for '{}': {:?}",
                 payload.username, e
             );
-            let response = ApiResponse::<()>::error(&e.to_string());
-            (StatusCode::UNAUTHORIZED, Json(response)).into_response()
+            let response = ApiResponse {
+                success: false,
+                message: e.to_string(),
+                data: None,
+            };
+            (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
         }
     }
 }

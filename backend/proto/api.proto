@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package api.v1;
+
+// Generic API response wrapper
+message ApiResponse {
+  bool success = 1;
+  string message = 2;
+  // For responses with data, use oneof to handle different data types
+  oneof data {
+    LoginResponseData login_response = 3;
+    HealthData health_data = 4;
+    EmptyData empty = 5;
+  }
+}
+
+// Empty data for responses without payload
+message EmptyData {}
+
+// Health check response data
+message HealthData {
+  string status = 1;
+}
+
+// Registration request
+message RegistrationRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+// Login request
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// Login response data
+message LoginResponseData {
+  string username = 1;
+  string email = 2;
+}

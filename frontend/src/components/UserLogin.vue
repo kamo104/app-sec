@@ -207,17 +207,17 @@ const handleSubmit = async () => {
       password: formData.password,
     })
 
-    if (response.success && response.data) {
-      showMessage(`Welcome back, ${response.data.username}!`, 'success')
+    if (response.success && response.loginResponse) {
+      showMessage(`Welcome back, ${response.loginResponse.username}!`, 'success')
 
       // Store user info if "Remember me" is checked
       if (formData.rememberMe) {
-        localStorage.setItem('user', JSON.stringify(response.data))
+        localStorage.setItem('user', JSON.stringify(response.loginResponse))
       }
 
       // TODO: Redirect to dashboard or home page
       // For now, just show success message
-      console.log('Login successful:', response.data)
+      console.log('Login successful:', response.loginResponse)
     } else {
       // Handle non-success response
       console.error('Login failed:', response.message)

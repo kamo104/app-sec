@@ -35,3 +35,10 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 tokio = { version = "1.48.0", features = ["full"] }
 anyhow = { version = "1.0.100", features = ["backtrace"] }
 
+### PROTOBUF:
+prost = "0.13"
+prost-types = "0.13"
+
+[build-dependencies]
+prost-build = "0.13"
+

@@ -33,6 +33,7 @@ use sqlx::types::time::OffsetDateTime;
 
 mod db;
 mod api;
+mod generated;
 use db::DBHandle;
 use api::{register_user, health_check, login_user};
 
