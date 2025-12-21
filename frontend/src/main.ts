@@ -14,7 +14,9 @@ import App from './App.vue'
 import { createApp } from 'vue'
 
 // Styles
-import 'unfonts.css'
+// Import Vuetify styles (configured via vite.config.mts -> settings.scss)
+// Then override fonts with system fonts
+import '@/styles/main.css'
 
 const app = createApp(App)
 
