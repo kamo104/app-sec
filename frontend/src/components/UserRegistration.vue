@@ -67,7 +67,9 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { registerUser, type ApiError } from '@/services/api'
+import { registerUser, type ApiError, ResponseCode } from '@/services/api'
+import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js'
+import { FieldType } from '@/generated/api'
 
 // Import reusable components
 import AuthFormLayout from './auth/AuthFormLayout.vue'
@@ -170,18 +172,43 @@ const handleSubmit = async () => {
     })
 
     if (response.success) {
-      showMessage(response.message || 'Registration successful! Welcome aboard!', 'success')
+      const message = translate_response_code(response.code, undefined)
+      showMessage(message, 'success')
     } else {
       // Handle non-success response
-      console.error('Registration failed:', response.message)
-      showMessage(response.message || 'Registration failed', 'error')
+      const message = translate_response_code(response.code, undefined)
+      console.error('Registration failed:', message)
+      showMessage(message, 'error')
     }
   } catch (error) {
     const apiError = error as ApiError
     console.error('Registration error:', apiError)
 
     // Handle specific error cases
-    if (apiError.status === 409) {
+    if (apiError.validationError) {
+      const { field, errors } = apiError.validationError
+      const translatedErrors = errors.map(err => {
+        try {
+          // If it's already a JSON string (as stored in proto), we might need to parse it if translate_validation_error expects an object
+          // But our Rust translate_validation_error expects a JSON string, so we pass it directly
+          return translate_validation_error(err, undefined)
+        } catch {
+          return err
+        }
+      })
+
+      if (field === FieldType.FIELD_TYPE_USERNAME) {
+        usernameField.value.errors = translatedErrors
+        usernameField.value.hasError = true
+      } else if (field === FieldType.FIELD_TYPE_EMAIL) {
+        emailField.value.errors = translatedErrors
+        emailField.value.hasError = true
+      } else if (field === FieldType.FIELD_TYPE_PASSWORD) {
+        passwordField.value.errors = translatedErrors
+        passwordField.value.hasError = true
+      }
+      showMessage('Please fix the validation errors.', 'error')
+    } else if (apiError.status === 409) {
       // Username already taken - show error message
       showMessage('Username already exists. Please choose a different one.', 'error')
     } else if (apiError.status === 0) {

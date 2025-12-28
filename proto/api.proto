@@ -5,13 +5,50 @@ package api.v1;
 // Generic API response wrapper
 message ApiResponse {
   bool success = 1;
-  string message = 2;
+  ResponseCode code = 2;
   // For responses with data, use oneof to handle different data types
   oneof data {
     LoginResponseData login_response = 3;
     HealthData health_data = 4;
     EmptyData empty = 5;
+    ValidationErrorData validation_error = 6;
   }
+}
+
+// API Response Codes
+enum ResponseCode {
+  RESPONSE_CODE_UNSPECIFIED = 0;
+
+  // Success codes
+  SUCCESS_OK = 1;
+  SUCCESS_REGISTERED = 2;
+  SUCCESS_REGISTERED_VERIFICATION_PENDING = 3;
+  SUCCESS_LOGIN = 4;
+  SUCCESS_EMAIL_VERIFIED = 5;
+  SUCCESS_EMAIL_ALREADY_VERIFIED = 6;
+
+  // Error codes
+  ERROR_INVALID_INPUT = 100;
+  ERROR_USERNAME_TAKEN = 101;
+  ERROR_INVALID_CREDENTIALS = 102;
+  ERROR_EMAIL_NOT_VERIFIED = 103;
+  ERROR_INVALID_TOKEN = 104;
+  ERROR_DATABASE = 105;
+  ERROR_INTERNAL = 106;
+  ERROR_VALIDATION = 107;
+}
+
+// Error details for validation
+message ValidationErrorData {
+  FieldType field = 1;
+  repeated string errors = 2; // JSON strings of field_validator::ValidationError
+}
+
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  FIELD_TYPE_USERNAME = 1;
+  FIELD_TYPE_EMAIL = 2;
+  FIELD_TYPE_PASSWORD = 3;
 }
 
 // Empty data for responses without payload
@@ -44,4 +81,12 @@ message LoginResponseData {
 // Email verification request
 message EmailVerificationRequest {
   string token = 1;
+}
+
+// Password strength levels
+enum PasswordStrength {
+  PASSWORD_STRENGTH_UNSPECIFIED = 0;
+  PASSWORD_STRENGTH_WEAK = 1;
+  PASSWORD_STRENGTH_MEDIUM = 2;
+  PASSWORD_STRENGTH_STRONG = 3;
 }

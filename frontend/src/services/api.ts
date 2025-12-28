@@ -13,7 +13,11 @@ import {
   HealthData,
   EmptyData,
   EmailVerificationRequest,
+  ValidationErrorData,
+  ResponseCode,
 } from '@/generated/api';
+import { initializeWasm } from '@/services/wasmLoader';
+import { translate_response_code } from '@/wasm/api-translator.js';
 
 // Base URL for API requests
 // In production, this would be configured via environment variables
@@ -26,7 +30,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public code?: string
+    public code?: ResponseCode,
+    public validationError?: ValidationErrorData
   ) {
     super(message);
     this.name = 'ApiError';
@@ -70,22 +75,23 @@ async function apiFetchProtobuf<T>(
     // Handle non-2xx responses
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
-      let errorCode: string | undefined;
+      let responseCode: ResponseCode | undefined;
 
       // Try to parse error response as protobuf
       try {
         const errorData = await response.arrayBuffer();
         const decoded = decodeProtobuf(new Uint8Array(errorData), ApiResponse.decode);
-        errorMessage = decoded.message;
-        errorCode = response.status === 409 ? 'CONFLICT' :
-                    response.status === 400 ? 'BAD_REQUEST' :
-                    response.status === 401 ? 'UNAUTHORIZED' : undefined;
-      } catch {
+        responseCode = decoded.code;
+        errorMessage = translate_response_code(decoded.code, undefined);
+
+        throw new ApiError(errorMessage, response.status, responseCode, decoded.validationError);
+      } catch (e) {
+        if (e instanceof ApiError) throw e;
         // Fallback if response body isn't protobuf
         errorMessage = await response.text();
       }
 
-      throw new ApiError(errorMessage, response.status, errorCode);
+      throw new ApiError(errorMessage, response.status, responseCode);
     }
 
     // Parse successful protobuf response
@@ -103,14 +109,14 @@ async function apiFetchProtobuf<T>(
       throw new ApiError(
         'Cannot connect to the server. Please ensure the backend is running.',
         0,
-        'NETWORK_ERROR'
+        ResponseCode.RESPONSE_CODE_UNSPECIFIED
       );
     }
 
     throw new ApiError(
       (error as Error).message || 'An unexpected error occurred',
       500,
-      'UNKNOWN_ERROR'
+      ResponseCode.RESPONSE_CODE_UNSPECIFIED
     );
   }
 }
@@ -135,7 +141,6 @@ export async function registerUser(
  */
 export async function healthCheck(): Promise<ApiResponse> {
   try {
-    const requestBytes = new Uint8Array(0); // Empty request for GET-like behavior
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
       headers: {
@@ -146,7 +151,7 @@ export async function healthCheck(): Promise<ApiResponse> {
     if (!response.ok) {
       return {
         success: false,
-        message: `HTTP ${response.status}`,
+        code: ResponseCode.ERROR_INTERNAL,
         loginResponse: undefined,
         healthData: undefined,
         empty: undefined,
@@ -160,7 +165,7 @@ export async function healthCheck(): Promise<ApiResponse> {
     // Return a failed response for health check
     return {
       success: false,
-      message: error instanceof ApiError ? error.message : 'Health check failed',
+      code: ResponseCode.ERROR_INTERNAL,
       loginResponse: undefined,
       healthData: undefined,
       empty: undefined,
@@ -195,3 +200,4 @@ export async function verifyEmail(token: string): Promise<ApiResponse> {
 
 // Re-export types for convenience
 export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData, EmailVerificationRequest };
+export { ResponseCode };

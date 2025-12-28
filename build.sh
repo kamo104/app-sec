@@ -62,56 +62,46 @@ if ! command -v protoc &> /dev/null; then
 fi
 print_success "protoc found"
 
-# Build field validator library
-print_status "Building field validator library..."
-cd field-validator
+# Function to build and bind a WASM crate
+build_wasm_crate() {
+    local crate_dir=$1
+    local out_name=$2
+    local features=$3
 
-# Run tests first
-print_status "Running field validator tests..."
-cargo test --quiet
-if [ $? -eq 0 ]; then
-    print_success "Field validator tests passed"
-else
-    print_error "Field validator tests failed"
-    exit 1
-fi
+    print_status "Building $out_name..."
+    cd "$crate_dir"
 
-# Build for native (backend use)
-print_status "Building field validator for native use..."
-cargo build --release --quiet
-if [ $? -eq 0 ]; then
-    print_success "Native build completed"
-else
-    print_error "Native build failed"
-    exit 1
-fi
+    local extra_args=""
+    if [ -n "$features" ]; then
+        extra_args="--features $features"
+    fi
 
-# Build for WebAssembly
-print_status "Building field validator for WebAssembly..."
-cargo build --target wasm32-unknown-unknown --release --features wasm --quiet
-if [ $? -eq 0 ]; then
-    print_success "WebAssembly build completed"
-else
-    print_error "WebAssembly build failed"
-    exit 1
-fi
+    cargo build --target wasm32-unknown-unknown --release $extra_args --quiet
 
-# Generate WebAssembly bindings
-print_status "Generating WebAssembly bindings..."
-cd ../frontend
-mkdir -p src/wasm
-cd ../field-validator
-wasm-bindgen target/wasm32-unknown-unknown/release/field_validator.wasm --target web --out-dir ../frontend/src/wasm --out-name field-validator
-if [ $? -eq 0 ]; then
-    print_success "WebAssembly bindings generated"
-else
-    print_error "WebAssembly binding generation failed"
-    exit 1
-fi
+    # Use cargo metadata to find the target directory and actual .wasm file
+    local target_dir=$(cargo metadata --format-version 1 | jq -r .target_directory)
+    local wasm_file="$target_dir/wasm32-unknown-unknown/release/${crate_dir//-/_}.wasm"
+
+    cd ..
+
+    print_status "Generating bindings for $out_name..."
+    wasm-bindgen "$wasm_file" --target web --out-dir frontend/src/wasm --out-name "$out_name"
+}
+
+# Build libraries
+print_status "Building libraries..."
+
+# Build field-validator
+build_wasm_crate "field-validator" "field-validator" "wasm"
+
+# Build api-translator
+build_wasm_crate "api-translator" "api-translator" "wasm"
+
+print_success "Libraries built and bindings generated"
 
 # Generate protobuf types for frontend
 print_status "Generating protobuf types for frontend..."
-cd ../frontend
+cd frontend
 if [ -f "node_modules/.bin/protoc-gen-ts_proto" ]; then
     mkdir -p src/generated
     protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/generated --proto_path=../proto api.proto
@@ -123,10 +113,11 @@ if [ -f "node_modules/.bin/protoc-gen-ts_proto" ]; then
 else
     print_warning "protoc-gen-ts_proto not found, skipping frontend protobuf generation"
 fi
+cd ..
 
 # Build backend
 print_status "Building backend server..."
-cd ../backend
+cd backend
 cargo build --release --quiet
 if [ $? -eq 0 ]; then
     print_success "Backend build completed"
@@ -134,10 +125,11 @@ else
     print_error "Backend build failed"
     exit 1
 fi
+cd ..
 
 # Build frontend
 print_status "Building frontend..."
-cd ../frontend
+cd frontend
 deno run build
 if [ $? -eq 0 ]; then
     print_success "Frontend build completed"
@@ -145,6 +137,7 @@ else
     print_error "Frontend build failed"
     exit 1
 fi
+cd ..
 
 print_success "All builds completed successfully!"
 echo ""

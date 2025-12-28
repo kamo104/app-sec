@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tracing::debug;
 
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
-use crate::generated::v1::{api_response, ApiResponse, EmptyData, HealthData, LoginResponseData};
+use crate::generated::v1::{api_response, ApiResponse, EmptyData, FieldType, HealthData, LoginResponseData, ResponseCode, ValidationErrorData};
 
 /// Handler for user registration
 pub async fn register_user(
@@ -29,7 +29,7 @@ pub async fn register_user(
         );
         let response = ApiResponse {
             success: false,
-            message: "Username, email, and password are required".to_string(),
+            code: ResponseCode::ErrorInvalidInput.into(),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -44,8 +44,11 @@ pub async fn register_user(
         );
         let response = ApiResponse {
             success: false,
-            message: format!("Username does not meet requirements: {}", username_result.errors.join(", ")),
-            data: None,
+            code: ResponseCode::ErrorValidation.into(),
+            data: Some(api_response::Data::ValidationError(ValidationErrorData {
+                field: FieldType::Username.into(),
+                errors: username_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+            })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
@@ -59,8 +62,11 @@ pub async fn register_user(
         );
         let response = ApiResponse {
             success: false,
-            message: format!("Email does not meet requirements: {}", email_result.errors.join(", ")),
-            data: None,
+            code: ResponseCode::ErrorValidation.into(),
+            data: Some(api_response::Data::ValidationError(ValidationErrorData {
+                field: FieldType::Email.into(),
+                errors: email_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+            })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
@@ -74,8 +80,11 @@ pub async fn register_user(
         );
         let response = ApiResponse {
             success: false,
-            message: format!("Password does not meet requirements: {}", password_result.errors.join(", ")),
-            data: None,
+            code: ResponseCode::ErrorValidation.into(),
+            data: Some(api_response::Data::ValidationError(ValidationErrorData {
+                field: FieldType::Password.into(),
+                errors: password_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+            })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
@@ -89,7 +98,7 @@ pub async fn register_user(
             debug!("Registration failed: username '{}' already taken", payload.username);
             let response = ApiResponse {
                 success: false,
-                message: "Username already taken".to_string(),
+                code: ResponseCode::ErrorUsernameTaken.into(),
                 data: None,
             };
             return (StatusCode::CONFLICT, Protobuf(response));
@@ -101,7 +110,7 @@ pub async fn register_user(
             );
             let response = ApiResponse {
                 success: false,
-                message: "Database error while checking username".to_string(),
+                code: ResponseCode::ErrorDatabase.into(),
                 data: None,
             };
             return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
@@ -139,7 +148,7 @@ pub async fn register_user(
                             // Still return success since password was set
                             let response = ApiResponse {
                                 success: true,
-                                message: "User registered successfully (email verification pending)".to_string(),
+                                code: ResponseCode::SuccessRegisteredVerificationPending.into(),
                                 data: Some(api_response::Data::Empty(EmptyData {})),
                             };
                             return (StatusCode::CREATED, Protobuf(response));
@@ -154,7 +163,7 @@ pub async fn register_user(
                             debug!("Failed to hash token for '{}': {:?}", payload.username, e);
                             let response = ApiResponse {
                                 success: true,
-                                message: "User registered successfully (email verification pending)".to_string(),
+                                code: ResponseCode::SuccessRegisteredVerificationPending.into(),
                                 data: Some(api_response::Data::Empty(EmptyData {})),
                             };
                             return (StatusCode::CREATED, Protobuf(response));
@@ -177,7 +186,7 @@ pub async fn register_user(
 
                             let response = ApiResponse {
                                 success: true,
-                                message: "User registered successfully. Please check your email to verify your account.".to_string(),
+                                code: ResponseCode::SuccessRegistered.into(),
                                 data: Some(api_response::Data::Empty(EmptyData {})),
                             };
                             (StatusCode::CREATED, Protobuf(response))
@@ -187,7 +196,7 @@ pub async fn register_user(
                             // Still return success since user was created
                             let response = ApiResponse {
                                 success: true,
-                                message: "User registered successfully (email verification pending)".to_string(),
+                                code: ResponseCode::SuccessRegisteredVerificationPending.into(),
                                 data: Some(api_response::Data::Empty(EmptyData {})),
                             };
                             (StatusCode::CREATED, Protobuf(response))
@@ -203,7 +212,7 @@ pub async fn register_user(
                     let _ = db.user_login_table.delete(&payload.username).await;
                     let response = ApiResponse {
                         success: false,
-                        message: "Failed to set password".to_string(),
+                        code: ResponseCode::ErrorInternal.into(),
                         data: None,
                     };
                     (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response))
@@ -211,18 +220,18 @@ pub async fn register_user(
             }
         }
         Err(e) => {
-            let error_msg = if e.to_string().contains("username already taken") {
-                "Username already taken"
+            let (code, status) = if e.to_string().contains("username already taken") {
+                (ResponseCode::ErrorUsernameTaken, StatusCode::CONFLICT)
             } else {
-                "Failed to create user"
+                (ResponseCode::ErrorInternal, StatusCode::BAD_REQUEST)
             };
-            debug!("Failed to create user '{}': {}", payload.username, error_msg);
+            debug!("Failed to create user '{}': {:?}", payload.username, e);
             let response = ApiResponse {
                 success: false,
-                message: error_msg.to_string(),
+                code: code.into(),
                 data: None,
             };
-            (StatusCode::BAD_REQUEST, Protobuf(response))
+            (status, Protobuf(response))
         }
     }
 }
@@ -231,7 +240,7 @@ pub async fn register_user(
 pub async fn health_check() -> impl IntoResponse {
     let response = ApiResponse {
         success: true,
-        message: "Service is running".to_string(),
+        code: ResponseCode::SuccessOk.into(),
         data: Some(api_response::Data::HealthData(HealthData {
             status: "healthy".to_string(),
         })),
@@ -257,7 +266,7 @@ pub async fn login_user(
         );
         let response = ApiResponse {
             success: false,
-            message: "Username and password are required".to_string(),
+            code: ResponseCode::ErrorInvalidInput.into(),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
@@ -272,8 +281,11 @@ pub async fn login_user(
         );
         let response = ApiResponse {
             success: false,
-            message: format!("Invalid username format: {}", username_result.errors.join(", ")),
-            data: None,
+            code: ResponseCode::ErrorValidation.into(),
+            data: Some(api_response::Data::ValidationError(ValidationErrorData {
+                field: FieldType::Username.into(),
+                errors: username_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+            })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
     }
@@ -285,7 +297,7 @@ pub async fn login_user(
             debug!("Login failed: user '{}' not found", payload.username);
             let response = ApiResponse {
                 success: false,
-                message: "Invalid username or password".to_string(),
+                code: ResponseCode::ErrorInvalidCredentials.into(),
                 data: None,
             };
             return (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response();
@@ -297,7 +309,7 @@ pub async fn login_user(
             );
             let response = ApiResponse {
                 success: false,
-                message: "Database error while checking user".to_string(),
+                code: ResponseCode::ErrorDatabase.into(),
                 data: None,
             };
             return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response)).into_response();
@@ -312,7 +324,7 @@ pub async fn login_user(
         );
         let response = ApiResponse {
             success: false,
-            message: "Email not verified. Please verify your email before logging in.".to_string(),
+            code: ResponseCode::ErrorEmailNotVerified.into(),
             data: None,
         };
         return (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response();
@@ -331,7 +343,7 @@ pub async fn login_user(
             };
             let response = ApiResponse {
                 success: true,
-                message: "Login successful".to_string(),
+                code: ResponseCode::SuccessLogin.into(),
                 data: Some(api_response::Data::LoginResponse(response_data)),
             };
             (StatusCode::OK, Protobuf(response)).into_response()
@@ -340,7 +352,7 @@ pub async fn login_user(
             debug!("Login failed: incorrect password for '{}'", payload.username);
             let response = ApiResponse {
                 success: false,
-                message: "Invalid username or password".to_string(),
+                code: ResponseCode::ErrorInvalidCredentials.into(),
                 data: None,
             };
             (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
@@ -352,7 +364,7 @@ pub async fn login_user(
             );
             let response = ApiResponse {
                 success: false,
-                message: e.to_string(),
+                code: ResponseCode::ErrorInternal.into(),
                 data: None,
             };
             (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
@@ -374,7 +386,7 @@ pub async fn verify_email(
         debug!("Email verification failed: token is empty");
         let response = ApiResponse {
             success: false,
-            message: "Invalid or expired link".to_string(),
+            code: ResponseCode::ErrorInvalidToken.into(),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -387,7 +399,7 @@ pub async fn verify_email(
             debug!("Failed to hash verification token: {:?}", e);
             let response = ApiResponse {
                 success: false,
-                message: "Invalid or expired link".to_string(),
+                code: ResponseCode::ErrorInvalidToken.into(),
                 data: None,
             };
             return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -401,7 +413,7 @@ pub async fn verify_email(
             debug!("Verification token not found in database");
             let response = ApiResponse {
                 success: false,
-                message: "Invalid or expired link".to_string(),
+                code: ResponseCode::ErrorInvalidToken.into(),
                 data: None,
             };
             return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -410,7 +422,7 @@ pub async fn verify_email(
             debug!("Database error looking up token: {:?}", e);
             let response = ApiResponse {
                 success: false,
-                message: "Invalid or expired link".to_string(),
+                code: ResponseCode::ErrorDatabase.into(),
                 data: None,
             };
             return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
@@ -422,7 +434,7 @@ pub async fn verify_email(
         debug!("Verification token has expired");
         let response = ApiResponse {
             success: false,
-            message: "Invalid or expired link".to_string(),
+            code: ResponseCode::ErrorInvalidToken.into(),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -435,7 +447,7 @@ pub async fn verify_email(
             debug!("Failed to get user for verification: {:?}", e);
             let response = ApiResponse {
                 success: false,
-                message: "Invalid or expired link".to_string(),
+                code: ResponseCode::ErrorInternal.into(),
                 data: None,
             };
             return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -446,7 +458,7 @@ pub async fn verify_email(
         debug!("User already verified");
         let response = ApiResponse {
             success: true,
-            message: "Email already verified".to_string(),
+            code: ResponseCode::SuccessEmailAlreadyVerified.into(),
             data: Some(api_response::Data::Empty(EmptyData {})),
         };
         return (StatusCode::OK, Protobuf(response));
@@ -465,7 +477,7 @@ pub async fn verify_email(
 
             let response = ApiResponse {
                 success: true,
-                message: "Email verified successfully".to_string(),
+                code: ResponseCode::SuccessEmailVerified.into(),
                 data: Some(api_response::Data::Empty(EmptyData {})),
             };
             (StatusCode::OK, Protobuf(response))
@@ -474,7 +486,7 @@ pub async fn verify_email(
             debug!("Failed to mark email as verified: {:?}", e);
             let response = ApiResponse {
                 success: false,
-                message: "Failed to verify email".to_string(),
+                code: ResponseCode::ErrorDatabase.into(),
                 data: None,
             };
             (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response))

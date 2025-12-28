@@ -63,7 +63,9 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { loginUser, type ApiError } from '@/services/api'
+import { loginUser, type ApiError, ResponseCode } from '@/services/api'
+import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js'
+import { FieldType } from '@/generated/api'
 
 // Import reusable components
 import AuthFormLayout from './auth/AuthFormLayout.vue'
@@ -150,7 +152,8 @@ const handleSubmit = async () => {
     })
 
     if (response.success && response.loginResponse) {
-      showMessage(`Welcome back, ${response.loginResponse.username}!`, 'success')
+      const message = translate_response_code(response.code, undefined)
+      showMessage(message, 'success')
 
       // Store user info if "Remember me" is checked
       if (formData.rememberMe) {
@@ -162,15 +165,34 @@ const handleSubmit = async () => {
       console.log('Login successful:', response.loginResponse)
     } else {
       // Handle non-success response
-      console.error('Login failed:', response.message)
-      showMessage(response.message || 'Login failed', 'error')
+      const message = translate_response_code(response.code, undefined)
+      console.error('Login failed:', message)
+      showMessage(message, 'error')
     }
   } catch (error) {
     const apiError = error as ApiError
     console.error('Login error:', apiError)
 
     // Handle specific error cases
-    if (apiError.status === 401) {
+    if (apiError.validationError) {
+      const { field, errors } = apiError.validationError
+      const translatedErrors = errors.map(err => {
+        try {
+          return translate_validation_error(err, undefined)
+        } catch {
+          return err
+        }
+      })
+
+      if (field === FieldType.FIELD_TYPE_USERNAME) {
+        usernameField.value.errors = translatedErrors
+        usernameField.value.hasError = true
+      } else if (field === FieldType.FIELD_TYPE_PASSWORD) {
+        passwordField.value.errors = translatedErrors
+        passwordField.value.hasError = true
+      }
+      showMessage('Please fix the validation errors.', 'error')
+    } else if (apiError.status === 401) {
       // Use the actual error message from the backend
       showMessage(apiError.message || 'Invalid username or password', 'error')
     } else if (apiError.status === 0) {

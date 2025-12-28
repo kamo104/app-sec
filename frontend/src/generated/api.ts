@@ -9,13 +9,226 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "api.v1";
 
+/** API Response Codes */
+export enum ResponseCode {
+  RESPONSE_CODE_UNSPECIFIED = 0,
+  /** SUCCESS_OK - Success codes */
+  SUCCESS_OK = 1,
+  SUCCESS_REGISTERED = 2,
+  SUCCESS_REGISTERED_VERIFICATION_PENDING = 3,
+  SUCCESS_LOGIN = 4,
+  SUCCESS_EMAIL_VERIFIED = 5,
+  SUCCESS_EMAIL_ALREADY_VERIFIED = 6,
+  /** ERROR_INVALID_INPUT - Error codes */
+  ERROR_INVALID_INPUT = 100,
+  ERROR_USERNAME_TAKEN = 101,
+  ERROR_INVALID_CREDENTIALS = 102,
+  ERROR_EMAIL_NOT_VERIFIED = 103,
+  ERROR_INVALID_TOKEN = 104,
+  ERROR_DATABASE = 105,
+  ERROR_INTERNAL = 106,
+  ERROR_VALIDATION = 107,
+  UNRECOGNIZED = -1,
+}
+
+export function responseCodeFromJSON(object: any): ResponseCode {
+  switch (object) {
+    case 0:
+    case "RESPONSE_CODE_UNSPECIFIED":
+      return ResponseCode.RESPONSE_CODE_UNSPECIFIED;
+    case 1:
+    case "SUCCESS_OK":
+      return ResponseCode.SUCCESS_OK;
+    case 2:
+    case "SUCCESS_REGISTERED":
+      return ResponseCode.SUCCESS_REGISTERED;
+    case 3:
+    case "SUCCESS_REGISTERED_VERIFICATION_PENDING":
+      return ResponseCode.SUCCESS_REGISTERED_VERIFICATION_PENDING;
+    case 4:
+    case "SUCCESS_LOGIN":
+      return ResponseCode.SUCCESS_LOGIN;
+    case 5:
+    case "SUCCESS_EMAIL_VERIFIED":
+      return ResponseCode.SUCCESS_EMAIL_VERIFIED;
+    case 6:
+    case "SUCCESS_EMAIL_ALREADY_VERIFIED":
+      return ResponseCode.SUCCESS_EMAIL_ALREADY_VERIFIED;
+    case 100:
+    case "ERROR_INVALID_INPUT":
+      return ResponseCode.ERROR_INVALID_INPUT;
+    case 101:
+    case "ERROR_USERNAME_TAKEN":
+      return ResponseCode.ERROR_USERNAME_TAKEN;
+    case 102:
+    case "ERROR_INVALID_CREDENTIALS":
+      return ResponseCode.ERROR_INVALID_CREDENTIALS;
+    case 103:
+    case "ERROR_EMAIL_NOT_VERIFIED":
+      return ResponseCode.ERROR_EMAIL_NOT_VERIFIED;
+    case 104:
+    case "ERROR_INVALID_TOKEN":
+      return ResponseCode.ERROR_INVALID_TOKEN;
+    case 105:
+    case "ERROR_DATABASE":
+      return ResponseCode.ERROR_DATABASE;
+    case 106:
+    case "ERROR_INTERNAL":
+      return ResponseCode.ERROR_INTERNAL;
+    case 107:
+    case "ERROR_VALIDATION":
+      return ResponseCode.ERROR_VALIDATION;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return ResponseCode.UNRECOGNIZED;
+  }
+}
+
+export function responseCodeToJSON(object: ResponseCode): string {
+  switch (object) {
+    case ResponseCode.RESPONSE_CODE_UNSPECIFIED:
+      return "RESPONSE_CODE_UNSPECIFIED";
+    case ResponseCode.SUCCESS_OK:
+      return "SUCCESS_OK";
+    case ResponseCode.SUCCESS_REGISTERED:
+      return "SUCCESS_REGISTERED";
+    case ResponseCode.SUCCESS_REGISTERED_VERIFICATION_PENDING:
+      return "SUCCESS_REGISTERED_VERIFICATION_PENDING";
+    case ResponseCode.SUCCESS_LOGIN:
+      return "SUCCESS_LOGIN";
+    case ResponseCode.SUCCESS_EMAIL_VERIFIED:
+      return "SUCCESS_EMAIL_VERIFIED";
+    case ResponseCode.SUCCESS_EMAIL_ALREADY_VERIFIED:
+      return "SUCCESS_EMAIL_ALREADY_VERIFIED";
+    case ResponseCode.ERROR_INVALID_INPUT:
+      return "ERROR_INVALID_INPUT";
+    case ResponseCode.ERROR_USERNAME_TAKEN:
+      return "ERROR_USERNAME_TAKEN";
+    case ResponseCode.ERROR_INVALID_CREDENTIALS:
+      return "ERROR_INVALID_CREDENTIALS";
+    case ResponseCode.ERROR_EMAIL_NOT_VERIFIED:
+      return "ERROR_EMAIL_NOT_VERIFIED";
+    case ResponseCode.ERROR_INVALID_TOKEN:
+      return "ERROR_INVALID_TOKEN";
+    case ResponseCode.ERROR_DATABASE:
+      return "ERROR_DATABASE";
+    case ResponseCode.ERROR_INTERNAL:
+      return "ERROR_INTERNAL";
+    case ResponseCode.ERROR_VALIDATION:
+      return "ERROR_VALIDATION";
+    case ResponseCode.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+export enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0,
+  FIELD_TYPE_USERNAME = 1,
+  FIELD_TYPE_EMAIL = 2,
+  FIELD_TYPE_PASSWORD = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function fieldTypeFromJSON(object: any): FieldType {
+  switch (object) {
+    case 0:
+    case "FIELD_TYPE_UNSPECIFIED":
+      return FieldType.FIELD_TYPE_UNSPECIFIED;
+    case 1:
+    case "FIELD_TYPE_USERNAME":
+      return FieldType.FIELD_TYPE_USERNAME;
+    case 2:
+    case "FIELD_TYPE_EMAIL":
+      return FieldType.FIELD_TYPE_EMAIL;
+    case 3:
+    case "FIELD_TYPE_PASSWORD":
+      return FieldType.FIELD_TYPE_PASSWORD;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return FieldType.UNRECOGNIZED;
+  }
+}
+
+export function fieldTypeToJSON(object: FieldType): string {
+  switch (object) {
+    case FieldType.FIELD_TYPE_UNSPECIFIED:
+      return "FIELD_TYPE_UNSPECIFIED";
+    case FieldType.FIELD_TYPE_USERNAME:
+      return "FIELD_TYPE_USERNAME";
+    case FieldType.FIELD_TYPE_EMAIL:
+      return "FIELD_TYPE_EMAIL";
+    case FieldType.FIELD_TYPE_PASSWORD:
+      return "FIELD_TYPE_PASSWORD";
+    case FieldType.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+/** Password strength levels */
+export enum PasswordStrength {
+  PASSWORD_STRENGTH_UNSPECIFIED = 0,
+  PASSWORD_STRENGTH_WEAK = 1,
+  PASSWORD_STRENGTH_MEDIUM = 2,
+  PASSWORD_STRENGTH_STRONG = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function passwordStrengthFromJSON(object: any): PasswordStrength {
+  switch (object) {
+    case 0:
+    case "PASSWORD_STRENGTH_UNSPECIFIED":
+      return PasswordStrength.PASSWORD_STRENGTH_UNSPECIFIED;
+    case 1:
+    case "PASSWORD_STRENGTH_WEAK":
+      return PasswordStrength.PASSWORD_STRENGTH_WEAK;
+    case 2:
+    case "PASSWORD_STRENGTH_MEDIUM":
+      return PasswordStrength.PASSWORD_STRENGTH_MEDIUM;
+    case 3:
+    case "PASSWORD_STRENGTH_STRONG":
+      return PasswordStrength.PASSWORD_STRENGTH_STRONG;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return PasswordStrength.UNRECOGNIZED;
+  }
+}
+
+export function passwordStrengthToJSON(object: PasswordStrength): string {
+  switch (object) {
+    case PasswordStrength.PASSWORD_STRENGTH_UNSPECIFIED:
+      return "PASSWORD_STRENGTH_UNSPECIFIED";
+    case PasswordStrength.PASSWORD_STRENGTH_WEAK:
+      return "PASSWORD_STRENGTH_WEAK";
+    case PasswordStrength.PASSWORD_STRENGTH_MEDIUM:
+      return "PASSWORD_STRENGTH_MEDIUM";
+    case PasswordStrength.PASSWORD_STRENGTH_STRONG:
+      return "PASSWORD_STRENGTH_STRONG";
+    case PasswordStrength.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 /** Generic API response wrapper */
 export interface ApiResponse {
   success: boolean;
-  message: string;
+  code: ResponseCode;
   loginResponse?: LoginResponseData | undefined;
   healthData?: HealthData | undefined;
   empty?: EmptyData | undefined;
+  validationError?: ValidationErrorData | undefined;
+}
+
+/** Error details for validation */
+export interface ValidationErrorData {
+  field: FieldType;
+  /** JSON strings of field_validator::ValidationError */
+  errors: string[];
 }
 
 /** Empty data for responses without payload */
@@ -52,7 +265,14 @@ export interface EmailVerificationRequest {
 }
 
 function createBaseApiResponse(): ApiResponse {
-  return { success: false, message: "", loginResponse: undefined, healthData: undefined, empty: undefined };
+  return {
+    success: false,
+    code: 0,
+    loginResponse: undefined,
+    healthData: undefined,
+    empty: undefined,
+    validationError: undefined,
+  };
 }
 
 export const ApiResponse: MessageFns<ApiResponse> = {
@@ -60,8 +280,8 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     if (message.success !== false) {
       writer.uint32(8).bool(message.success);
     }
-    if (message.message !== "") {
-      writer.uint32(18).string(message.message);
+    if (message.code !== 0) {
+      writer.uint32(16).int32(message.code);
     }
     if (message.loginResponse !== undefined) {
       LoginResponseData.encode(message.loginResponse, writer.uint32(26).fork()).join();
@@ -71,6 +291,9 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     }
     if (message.empty !== undefined) {
       EmptyData.encode(message.empty, writer.uint32(42).fork()).join();
+    }
+    if (message.validationError !== undefined) {
+      ValidationErrorData.encode(message.validationError, writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -91,11 +314,11 @@ export const ApiResponse: MessageFns<ApiResponse> = {
           continue;
         }
         case 2: {
-          if (tag !== 18) {
+          if (tag !== 16) {
             break;
           }
 
-          message.message = reader.string();
+          message.code = reader.int32() as any;
           continue;
         }
         case 3: {
@@ -122,6 +345,14 @@ export const ApiResponse: MessageFns<ApiResponse> = {
           message.empty = EmptyData.decode(reader, reader.uint32());
           continue;
         }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.validationError = ValidationErrorData.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -134,10 +365,11 @@ export const ApiResponse: MessageFns<ApiResponse> = {
   fromJSON(object: any): ApiResponse {
     return {
       success: isSet(object.success) ? globalThis.Boolean(object.success) : false,
-      message: isSet(object.message) ? globalThis.String(object.message) : "",
+      code: isSet(object.code) ? responseCodeFromJSON(object.code) : 0,
       loginResponse: isSet(object.loginResponse) ? LoginResponseData.fromJSON(object.loginResponse) : undefined,
       healthData: isSet(object.healthData) ? HealthData.fromJSON(object.healthData) : undefined,
       empty: isSet(object.empty) ? EmptyData.fromJSON(object.empty) : undefined,
+      validationError: isSet(object.validationError) ? ValidationErrorData.fromJSON(object.validationError) : undefined,
     };
   },
 
@@ -146,8 +378,8 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     if (message.success !== false) {
       obj.success = message.success;
     }
-    if (message.message !== "") {
-      obj.message = message.message;
+    if (message.code !== 0) {
+      obj.code = responseCodeToJSON(message.code);
     }
     if (message.loginResponse !== undefined) {
       obj.loginResponse = LoginResponseData.toJSON(message.loginResponse);
@@ -158,6 +390,9 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     if (message.empty !== undefined) {
       obj.empty = EmptyData.toJSON(message.empty);
     }
+    if (message.validationError !== undefined) {
+      obj.validationError = ValidationErrorData.toJSON(message.validationError);
+    }
     return obj;
   },
 
@@ -167,7 +402,7 @@ export const ApiResponse: MessageFns<ApiResponse> = {
   fromPartial<I extends Exact<DeepPartial<ApiResponse>, I>>(object: I): ApiResponse {
     const message = createBaseApiResponse();
     message.success = object.success ?? false;
-    message.message = object.message ?? "";
+    message.code = object.code ?? 0;
     message.loginResponse = (object.loginResponse !== undefined && object.loginResponse !== null)
       ? LoginResponseData.fromPartial(object.loginResponse)
       : undefined;
@@ -177,6 +412,85 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     message.empty = (object.empty !== undefined && object.empty !== null)
       ? EmptyData.fromPartial(object.empty)
       : undefined;
+    message.validationError = (object.validationError !== undefined && object.validationError !== null)
+      ? ValidationErrorData.fromPartial(object.validationError)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseValidationErrorData(): ValidationErrorData {
+  return { field: 0, errors: [] };
+}
+
+export const ValidationErrorData: MessageFns<ValidationErrorData> = {
+  encode(message: ValidationErrorData, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.field !== 0) {
+      writer.uint32(8).int32(message.field);
+    }
+    for (const v of message.errors) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ValidationErrorData {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseValidationErrorData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.field = reader.int32() as any;
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.errors.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ValidationErrorData {
+    return {
+      field: isSet(object.field) ? fieldTypeFromJSON(object.field) : 0,
+      errors: globalThis.Array.isArray(object?.errors) ? object.errors.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: ValidationErrorData): unknown {
+    const obj: any = {};
+    if (message.field !== 0) {
+      obj.field = fieldTypeToJSON(message.field);
+    }
+    if (message.errors?.length) {
+      obj.errors = message.errors;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ValidationErrorData>, I>>(base?: I): ValidationErrorData {
+    return ValidationErrorData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ValidationErrorData>, I>>(object: I): ValidationErrorData {
+    const message = createBaseValidationErrorData();
+    message.field = object.field ?? 0;
+    message.errors = object.errors?.map((e) => e) || [];
     return message;
   },
 };

@@ -5,6 +5,11 @@
 
 use std::fmt;
 
+pub mod generated;
+
+pub const SCORE_WEAK_MAX: u32 = 3;
+pub const SCORE_MEDIUM_MAX: u32 = 5;
+
 /// Represents the type of field being validated.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FieldType {
@@ -14,15 +19,45 @@ pub enum FieldType {
     Generic,
 }
 
+/// Represents a specific validation error.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(tag = "type", content = "params")]
+pub enum ValidationError {
+    // Username errors
+    UsernameRequired,
+    UsernameTooShort { min: usize },
+    UsernameTooLong { max: usize },
+    UsernameInvalidCharacters,
+
+    // Email errors
+    EmailRequired,
+    EmailInvalidFormat,
+    EmailMissingAt,
+    EmailInvalidDomainCharacters,
+    EmailMissingDot,
+
+    // Password errors
+    PasswordRequired,
+    PasswordTooShort { min: usize },
+    PasswordNoUppercase,
+    PasswordNoLowercase,
+    PasswordNoNumber,
+    PasswordNoSpecialChar,
+
+    // Generic
+    FieldRequired,
+}
+
 /// Represents the result of a field validation check.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FieldValidationResult {
     pub is_valid: bool,
-    pub errors: Vec<String>,
+    pub errors: Vec<ValidationError>,
 }
 
 impl FieldValidationResult {
-    pub fn new(is_valid: bool, errors: Vec<String>) -> Self {
+    pub fn new(is_valid: bool, errors: Vec<ValidationError>) -> Self {
         Self { is_valid, errors }
     }
 
@@ -33,7 +68,7 @@ impl FieldValidationResult {
         }
     }
 
-    pub fn invalid(errors: Vec<String>) -> Self {
+    pub fn invalid(errors: Vec<ValidationError>) -> Self {
         Self {
             is_valid: false,
             errors,
@@ -46,7 +81,7 @@ impl fmt::Display for FieldValidationResult {
         if self.is_valid {
             write!(f, "Valid")
         } else {
-            write!(f, "Invalid: {}", self.errors.join(", "))
+            write!(f, "Invalid: {:?}", self.errors)
         }
     }
 }
@@ -72,21 +107,21 @@ pub fn validate_username(
     let mut errors = Vec::new();
 
     if username.is_empty() {
-        return FieldValidationResult::invalid(vec!["Username is required".to_string()]);
+        return FieldValidationResult::invalid(vec![ValidationError::UsernameRequired]);
     }
 
     if validate_length {
         if username.len() < min_length {
-            errors.push(format!("Username must be at least {} characters", min_length));
+            errors.push(ValidationError::UsernameTooShort { min: min_length });
         }
         if username.len() > max_length {
-            errors.push(format!("Username must be less than {} characters", max_length));
+            errors.push(ValidationError::UsernameTooLong { max: max_length });
         }
     }
 
     // Check for valid characters (letters, numbers, underscores)
     if !username.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-        errors.push("Username can only contain letters, numbers, and underscores".to_string());
+        errors.push(ValidationError::UsernameInvalidCharacters);
     }
 
     if errors.is_empty() {
@@ -106,25 +141,25 @@ pub fn validate_email(email: &str) -> FieldValidationResult {
     let mut errors = Vec::new();
 
     if email.is_empty() {
-        return FieldValidationResult::invalid(vec!["Email is required".to_string()]);
+        return FieldValidationResult::invalid(vec![ValidationError::EmailRequired]);
     }
 
     // Basic email validation
     if !email.contains('@') {
-        errors.push("Email must contain @ symbol".to_string());
+        errors.push(ValidationError::EmailMissingAt);
     } else {
         let parts: Vec<&str> = email.split('@').collect();
         if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-            errors.push("Email must have a valid format (user@domain)".to_string());
+            errors.push(ValidationError::EmailInvalidFormat);
         }
 
         // Check for valid domain characters
         if let Some(domain) = parts.get(1) {
             if !domain.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_') {
-                errors.push("Email domain contains invalid characters".to_string());
+                errors.push(ValidationError::EmailInvalidDomainCharacters);
             }
             if !domain.contains('.') {
-                errors.push("Email domain must contain a dot".to_string());
+                errors.push(ValidationError::EmailMissingDot);
             }
         }
     }
@@ -148,32 +183,32 @@ pub fn validate_password(password: &str) -> FieldValidationResult {
     let mut errors = Vec::new();
 
     if password.is_empty() {
-        return FieldValidationResult::invalid(vec!["Password is required".to_string()]);
+        return FieldValidationResult::invalid(vec![ValidationError::PasswordRequired]);
     }
 
     // Check length
     if password.len() < 8 {
-        errors.push("Password must be at least 8 characters".to_string());
+        errors.push(ValidationError::PasswordTooShort { min: 8 });
     }
 
     // Check for uppercase letter
     if !password.chars().any(|c| c.is_ascii_uppercase()) {
-        errors.push("Password must contain at least one uppercase letter".to_string());
+        errors.push(ValidationError::PasswordNoUppercase);
     }
 
     // Check for lowercase letter
     if !password.chars().any(|c| c.is_ascii_lowercase()) {
-        errors.push("Password must contain at least one lowercase letter".to_string());
+        errors.push(ValidationError::PasswordNoLowercase);
     }
 
     // Check for number
     if !password.chars().any(|c| c.is_ascii_digit()) {
-        errors.push("Password must contain at least one number".to_string());
+        errors.push(ValidationError::PasswordNoNumber);
     }
 
     // Check for special character
     if !password.chars().any(|c| !c.is_ascii_alphanumeric()) {
-        errors.push("Password must contain at least one special character".to_string());
+        errors.push(ValidationError::PasswordNoSpecialChar);
     }
 
     if errors.is_empty() {
@@ -209,7 +244,7 @@ pub fn validate_field(
         FieldType::Password => validate_password(value),
         FieldType::Generic => {
             if value.is_empty() {
-                FieldValidationResult::invalid(vec!["Field is required".to_string()])
+                FieldValidationResult::invalid(vec![ValidationError::FieldRequired])
             } else {
                 FieldValidationResult::valid()
             }
@@ -229,13 +264,13 @@ pub enum PasswordStrength {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PasswordValidationDetailed {
     pub is_valid: bool,
-    pub errors: Vec<String>,
+    pub errors: Vec<ValidationError>,
     pub strength: PasswordStrength,
     pub score: u32,
 }
 
 impl PasswordValidationDetailed {
-    pub fn new(is_valid: bool, errors: Vec<String>, strength: PasswordStrength, score: u32) -> Self {
+    pub fn new(is_valid: bool, errors: Vec<ValidationError>, strength: PasswordStrength, score: u32) -> Self {
         Self {
             is_valid,
             errors,
@@ -260,9 +295,9 @@ pub fn validate_password_detailed(password: &str) -> PasswordValidationDetailed 
     if password.chars().any(|c| !c.is_ascii_alphanumeric()) { score += 1; }
     if password.len() >= 16 { score += 1; }
 
-    let strength = if score <= 3 {
+    let strength = if score <= SCORE_WEAK_MAX {
         PasswordStrength::Weak
-    } else if score <= 5 {
+    } else if score <= SCORE_MEDIUM_MAX {
         PasswordStrength::Medium
     } else {
         PasswordStrength::Strong
@@ -303,7 +338,7 @@ pub mod wasm {
         let result = validate_field(field_type, value, Some(min_length), Some(max_length), Some(validate_length));
         serde_json::to_string(&result).unwrap_or_else(|_| {
             serde_json::to_string(&FieldValidationResult::invalid(vec![
-                "Internal error".to_string()
+                ValidationError::FieldRequired
             ])).unwrap()
         })
     }
@@ -314,7 +349,7 @@ pub mod wasm {
         let result = validate_username(username, min_length, max_length, validate_length);
         serde_json::to_string(&result).unwrap_or_else(|_| {
             serde_json::to_string(&FieldValidationResult::invalid(vec![
-                "Internal error".to_string()
+                ValidationError::UsernameRequired
             ])).unwrap()
         })
     }
@@ -325,7 +360,7 @@ pub mod wasm {
         let result = validate_email(email);
         serde_json::to_string(&result).unwrap_or_else(|_| {
             serde_json::to_string(&FieldValidationResult::invalid(vec![
-                "Internal error".to_string()
+                ValidationError::EmailRequired
             ])).unwrap()
         })
     }
@@ -336,7 +371,7 @@ pub mod wasm {
         let result = validate_password(password);
         serde_json::to_string(&result).unwrap_or_else(|_| {
             serde_json::to_string(&FieldValidationResult::invalid(vec![
-                "Internal error".to_string()
+                ValidationError::PasswordRequired
             ])).unwrap()
         })
     }
@@ -361,11 +396,23 @@ pub mod wasm {
         serde_json::to_string(&result).unwrap_or_else(|_| {
             serde_json::to_string(&PasswordValidationDetailed::new(
                 false,
-                vec!["Internal error".to_string()],
+                vec![ValidationError::PasswordRequired],
                 PasswordStrength::Weak,
                 0,
             )).unwrap()
         })
+    }
+
+    /// Returns the strength level as an integer matching the protobuf definition.
+    #[wasm_bindgen]
+    pub fn get_password_strength_class(score: u32) -> i32 {
+        if score <= SCORE_WEAK_MAX {
+            generated::v1::PasswordStrength::Weak as i32
+        } else if score <= SCORE_MEDIUM_MAX {
+            generated::v1::PasswordStrength::Medium as i32
+        } else {
+            generated::v1::PasswordStrength::Strong as i32
+        }
     }
 
     /// Validates username and returns a boolean indicating validity.
@@ -390,28 +437,28 @@ mod tests {
     fn test_empty_username() {
         let result = validate_username("", 3, 20, true);
         assert!(!result.is_valid);
-        assert_eq!(result.errors, vec!["Username is required".to_string()]);
+        assert_eq!(result.errors, vec![ValidationError::UsernameRequired]);
     }
 
     #[test]
     fn test_short_username() {
         let result = validate_username("ab", 3, 20, true);
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Username must be at least 3 characters".to_string()));
+        assert!(result.errors.contains(&ValidationError::UsernameTooShort { min: 3 }));
     }
 
     #[test]
     fn test_long_username() {
         let result = validate_username("thisusernameistoolong", 3, 10, true);
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Username must be less than 10 characters".to_string()));
+        assert!(result.errors.contains(&ValidationError::UsernameTooLong { max: 10 }));
     }
 
     #[test]
     fn test_invalid_username_chars() {
         let result = validate_username("user@name", 3, 20, true);
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Username can only contain letters, numbers, and underscores".to_string()));
+        assert!(result.errors.contains(&ValidationError::UsernameInvalidCharacters));
     }
 
     #[test]
@@ -433,21 +480,21 @@ mod tests {
     fn test_empty_email() {
         let result = validate_email("");
         assert!(!result.is_valid);
-        assert_eq!(result.errors, vec!["Email is required".to_string()]);
+        assert_eq!(result.errors, vec![ValidationError::EmailRequired]);
     }
 
     #[test]
     fn test_invalid_email_no_at() {
         let result = validate_email("userdomain.com");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Email must contain @ symbol".to_string()));
+        assert!(result.errors.contains(&ValidationError::EmailMissingAt));
     }
 
     #[test]
     fn test_invalid_email_format() {
         let result = validate_email("@domain.com");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Email must have a valid format (user@domain)".to_string()));
+        assert!(result.errors.contains(&ValidationError::EmailInvalidFormat));
     }
 
     #[test]
@@ -462,42 +509,42 @@ mod tests {
     fn test_empty_password() {
         let result = validate_password("");
         assert!(!result.is_valid);
-        assert_eq!(result.errors, vec!["Password is required".to_string()]);
+        assert_eq!(result.errors, vec![ValidationError::PasswordRequired]);
     }
 
     #[test]
     fn test_short_password() {
         let result = validate_password("Short1!");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Password must be at least 8 characters".to_string()));
+        assert!(result.errors.contains(&ValidationError::PasswordTooShort { min: 8 }));
     }
 
     #[test]
     fn test_no_uppercase() {
         let result = validate_password("password123!");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Password must contain at least one uppercase letter".to_string()));
+        assert!(result.errors.contains(&ValidationError::PasswordNoUppercase));
     }
 
     #[test]
     fn test_no_lowercase() {
         let result = validate_password("PASSWORD123!");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Password must contain at least one lowercase letter".to_string()));
+        assert!(result.errors.contains(&ValidationError::PasswordNoLowercase));
     }
 
     #[test]
     fn test_no_number() {
         let result = validate_password("Password!");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Password must contain at least one number".to_string()));
+        assert!(result.errors.contains(&ValidationError::PasswordNoNumber));
     }
 
     #[test]
     fn test_no_special_char() {
         let result = validate_password("Password123");
         assert!(!result.is_valid);
-        assert!(result.errors.contains(&"Password must contain at least one special character".to_string()));
+        assert!(result.errors.contains(&ValidationError::PasswordNoSpecialChar));
     }
 
     #[test]
@@ -512,7 +559,7 @@ mod tests {
     fn test_generic_field_empty() {
         let result = validate_field(FieldType::Generic, "", None, None, None);
         assert!(!result.is_valid);
-        assert_eq!(result.errors, vec!["Field is required".to_string()]);
+        assert_eq!(result.errors, vec![ValidationError::FieldRequired]);
     }
 
     #[test]

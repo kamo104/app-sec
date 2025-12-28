@@ -93,6 +93,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { verifyEmail, type ApiError } from '@/services/api'
+import { translate_response_code } from '@/wasm/api-translator.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,10 +122,10 @@ const verifyToken = async () => {
 
     if (response.success) {
       success.value = true
-      message.value = response.message || 'Your email has been successfully verified.'
+      message.value = translate_response_code(response.code, undefined)
     } else {
       error.value = true
-      message.value = response.message || 'Verification failed. The link may be expired or invalid.'
+      message.value = translate_response_code(response.code, undefined)
     }
   } catch (err) {
     const apiError = err as ApiError

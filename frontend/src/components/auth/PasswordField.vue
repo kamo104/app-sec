@@ -41,10 +41,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  validatePassword,
-  getPasswordScore,
-  getPasswordStrengthInfo
-} from '@/services/fieldValidator'
+  validate_password_wasm,
+  get_password_strength,
+  get_password_strength_class
+} from '@/wasm/field-validator.js'
+import { translate_validation_error } from '@/wasm/api-translator.js'
+import { PasswordStrength } from '@/generated/api'
 
 interface Props {
   modelValue: string
@@ -95,20 +97,16 @@ const handleInput = async (value: string) => {
 }
 
 const updateStrengthInfo = async (value: string) => {
-  if (!value) {
-    errors.value = []
-    score.value = null
-    return
-  }
-
   try {
-    const result = await getPasswordStrengthInfo(value)
+    const strengthJson = get_password_strength(value)
+    const result = JSON.parse(strengthJson)
 
-    errors.value = result.errors
+    const translatedErrors = result.errors.map((err: any) => translate_validation_error(JSON.stringify(err), undefined))
+    errors.value = translatedErrors
     score.value = result.score
-    hasError.value = result.errors.length > 0
+    hasError.value = translatedErrors.length > 0
 
-    emit('validation', result.isValid, result.errors)
+    emit('validation', result.is_valid, translatedErrors)
   } catch (error) {
     console.error('Password validation error:', error)
     errors.value = []
@@ -118,23 +116,22 @@ const updateStrengthInfo = async (value: string) => {
 
 const getStrengthClass = (scoreValue: number | null): string => {
   if (scoreValue === null) return ''
-  if (scoreValue <= 3) return 'weak'
-  if (scoreValue <= 5) return 'medium'
-  return 'strong'
+  const strength = get_password_strength_class(scoreValue) as PasswordStrength
+  switch (strength) {
+    case PasswordStrength.PASSWORD_STRENGTH_WEAK:
+      return 'weak'
+    case PasswordStrength.PASSWORD_STRENGTH_MEDIUM:
+      return 'medium'
+    case PasswordStrength.PASSWORD_STRENGTH_STRONG:
+      return 'strong'
+    default:
+      return ''
+  }
 }
 
 // Rules - use WASM validation only if validate prop is true
 const rules = [
   async (value: string): Promise<string | boolean> => {
-    if (!value) {
-      if (touched.value) {
-        hasError.value = true
-        return 'Password is required'
-      }
-      hasError.value = false
-      return true
-    }
-
     // Skip validation rules if disabled
     if (!props.validate) {
       hasError.value = false
@@ -142,17 +139,18 @@ const rules = [
     }
 
     try {
-      const result = await validatePassword(value)
-      const passwordScore = await getPasswordScore(value)
+      const strengthJson = get_password_strength(value)
+      const strengthResult = JSON.parse(strengthJson)
+      const translatedErrors = strengthResult.errors.map((err: any) => translate_validation_error(JSON.stringify(err), undefined))
 
-      errors.value = result.errors
-      score.value = passwordScore
-      hasError.value = result.errors.length > 0
+      errors.value = translatedErrors
+      score.value = strengthResult.score
+      hasError.value = translatedErrors.length > 0
 
-      emit('validation', result.isValid, result.errors)
+      emit('validation', strengthResult.is_valid, translatedErrors)
 
-      if (result.errors.length > 0) {
-        return result.errors[0]!
+      if (touched.value && translatedErrors.length > 0) {
+        return translatedErrors[0]!
       }
       return true
     } catch (error) {
@@ -171,12 +169,6 @@ const validate = async (): Promise<{ valid: boolean; errors: string[] }> => {
     touched.value = true
   }
 
-  if (!props.modelValue) {
-    errors.value = ['Password is required']
-    hasError.value = true
-    return { valid: false, errors: ['Password is required'] }
-  }
-
   // Skip validation if disabled
   if (!props.validate) {
     errors.value = []
@@ -185,13 +177,15 @@ const validate = async (): Promise<{ valid: boolean; errors: string[] }> => {
   }
 
   try {
-    const result = await getPasswordStrengthInfo(props.modelValue)
+    const strengthJson = get_password_strength(props.modelValue)
+    const result = JSON.parse(strengthJson)
+    const translatedErrors = result.errors.map((err: any) => translate_validation_error(JSON.stringify(err), undefined))
 
-    errors.value = result.errors
+    errors.value = translatedErrors
     score.value = result.score
-    hasError.value = result.errors.length > 0
+    hasError.value = translatedErrors.length > 0
 
-    return { valid: result.isValid, errors: result.errors }
+    return { valid: result.is_valid, errors: translatedErrors }
   } catch (error) {
     console.error('Password validation error:', error)
     // If WASM fails, return empty errors (cannot validate)
