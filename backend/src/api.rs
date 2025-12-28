@@ -1,16 +1,90 @@
+use async_trait::async_trait;
 use axum::{
-    extract::State,
-    http::StatusCode,
+    extract::{FromRef, FromRequestParts, State},
+    http::{StatusCode, header, request::Parts},
     response::IntoResponse,
 };
-use axum_extra::protobuf::Protobuf;
+use axum_extra::{
+    extract::{
+        CookieJar,
+        cookie::{Cookie, SameSite},
+    },
+    protobuf::Protobuf,
+};
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
 
-use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
-use crate::generated::v1::{api_response, ApiResponse, EmptyData, FieldType, HealthData, LoginResponseData, ResponseCode, ValidationErrorData};
+use crate::db::{
+    DBHandle, UserLogin, UserSession, generate_session_id, generate_session_token,
+    generate_verification_token, hash_token,
+};
 use crate::email::EmailSender;
+use crate::generated::v1::{
+    ApiResponse, CounterData, EmptyData, FieldType, HealthData, LoginResponseData, ResponseCode,
+    ValidationErrorData, api_response,
+};
+
+fn auth_error() -> (StatusCode, Protobuf<ApiResponse>) {
+    (
+        StatusCode::UNAUTHORIZED,
+        Protobuf(ApiResponse {
+            success: false,
+            code: ResponseCode::ErrorInvalidCredentials.into(),
+            data: None,
+        }),
+    )
+}
+
+fn internal_error() -> (StatusCode, Protobuf<ApiResponse>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Protobuf(ApiResponse {
+            success: false,
+            code: ResponseCode::ErrorInternal.into(),
+            data: None,
+        }),
+    )
+}
+
+/// Extractor for the current user session
+pub struct AuthenticatedUser {
+    pub user: UserLogin,
+}
+
+impl<S> FromRequestParts<S> for AuthenticatedUser
+where
+    S: Send + Sync,
+    Arc<DBHandle>: FromRef<S>,
+{
+    type Rejection = (StatusCode, Protobuf<ApiResponse>);
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let db = Arc::<DBHandle>::from_ref(state);
+        let jar = CookieJar::from_headers(&parts.headers);
+
+        let token = jar.get("session_token").ok_or(auth_error())?;
+        let hash = hash_token(token.value()).map_err(|_| internal_error())?;
+
+        let session = db
+            .user_sessions_table
+            .get_by_hash(&hash)
+            .await
+            .map_err(|_| auth_error())?;
+
+        if session.session_expiry < OffsetDateTime::now_utc() {
+            return Err(auth_error());
+        }
+
+        let user = db
+            .user_login_table
+            .get_by_user_id(session.user_id)
+            .await
+            .map_err(|_| auth_error())?;
+
+        Ok(Self { user })
+    }
+}
 
 /// Handler for user registration
 pub async fn register_user(
@@ -48,7 +122,11 @@ pub async fn register_user(
             code: ResponseCode::ErrorValidation.into(),
             data: Some(api_response::Data::ValidationError(ValidationErrorData {
                 field: FieldType::Username.into(),
-                errors: username_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+                errors: username_result
+                    .errors
+                    .iter()
+                    .map(|e| serde_json::to_string(e).unwrap_or_default())
+                    .collect(),
             })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -66,7 +144,11 @@ pub async fn register_user(
             code: ResponseCode::ErrorValidation.into(),
             data: Some(api_response::Data::ValidationError(ValidationErrorData {
                 field: FieldType::Email.into(),
-                errors: email_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+                errors: email_result
+                    .errors
+                    .iter()
+                    .map(|e| serde_json::to_string(e).unwrap_or_default())
+                    .collect(),
             })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
@@ -84,19 +166,30 @@ pub async fn register_user(
             code: ResponseCode::ErrorValidation.into(),
             data: Some(api_response::Data::ValidationError(ValidationErrorData {
                 field: FieldType::Password.into(),
-                errors: password_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+                errors: password_result
+                    .errors
+                    .iter()
+                    .map(|e| serde_json::to_string(e).unwrap_or_default())
+                    .collect(),
             })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
 
     // Check if username already exists
-    match db.user_login_table.is_username_free(&payload.username).await {
+    match db
+        .user_login_table
+        .is_username_free(&payload.username)
+        .await
+    {
         Ok(true) => {
             debug!("Username '{}' is available", payload.username);
         }
         Ok(false) => {
-            debug!("Registration failed: username '{}' already taken", payload.username);
+            debug!(
+                "Registration failed: username '{}' already taken",
+                payload.username
+            );
             let response = ApiResponse {
                 success: false,
                 code: ResponseCode::ErrorUsernameTaken.into(),
@@ -109,12 +202,7 @@ pub async fn register_user(
                 "Database error checking username '{}': {:?}",
                 payload.username, e
             );
-            let response = ApiResponse {
-                success: false,
-                code: ResponseCode::ErrorDatabase.into(),
-                data: None,
-            };
-            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
+            return internal_error();
         }
     }
 
@@ -123,13 +211,11 @@ pub async fn register_user(
     let hashed_password = match crate::db::hash_password(&payload.password) {
         Ok(h) => h,
         Err(e) => {
-            debug!("Failed to hash password for '{}': {:?}", payload.username, e);
-            let response = ApiResponse {
-                success: false,
-                code: ResponseCode::ErrorInternal.into(),
-                data: None,
-            };
-            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
+            debug!(
+                "Failed to hash password for '{}': {:?}",
+                payload.username, e
+            );
+            return internal_error();
         }
     };
 
@@ -138,31 +224,37 @@ pub async fn register_user(
         username: payload.username.clone(),
         email: payload.email.clone(),
         password: Some(hashed_password),
-        email_verified: false, // Initially not verified
+        email_verified: false,   // Initially not verified
         email_verified_at: None, // Will be set when verified
+        counter: 0,
+        password_reset: false,
     };
 
     // Insert user into database
     match db.user_login_table.new_user(&user_login).await {
         Ok(user_id) => {
-            debug!("User record created for '{}' with id {}", payload.username, user_id);
+            debug!(
+                "User record created for '{}' with id {}",
+                payload.username, user_id
+            );
 
             // Generate verification token
             let token = generate_verification_token();
             let token_hash = match hash_token(&token) {
                 Ok(hash) => hash,
                 Err(e) => {
-                    debug!("Failed to hash token for '{}': {:?}. Attempting cleanup...", payload.username, e);
+                    debug!(
+                        "Failed to hash token for '{}': {:?}. Attempting cleanup...",
+                        payload.username, e
+                    );
                     match db.user_login_table.delete(&payload.username).await {
                         Ok(_) => debug!("Cleanup successful: deleted user '{}'", payload.username),
-                        Err(cleanup_e) => error!("Cleanup failed for user '{}': {:?}", payload.username, cleanup_e),
+                        Err(cleanup_e) => error!(
+                            "Cleanup failed for user '{}': {:?}",
+                            payload.username, cleanup_e
+                        ),
                     }
-                    let response = ApiResponse {
-                        success: false,
-                        code: ResponseCode::ErrorInternal.into(),
-                        data: None,
-                    };
-                    return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
+                    return internal_error();
                 }
             };
 
@@ -170,7 +262,11 @@ pub async fn register_user(
             let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(2);
 
             // Store token in database
-            match db.email_verification_tokens_table.insert(user_id, &token_hash, expires_at).await {
+            match db
+                .email_verification_tokens_table
+                .insert(user_id, &token_hash, expires_at)
+                .await
+            {
                 Ok(_) => {
                     debug!("Verification token stored for user_id: {}", user_id);
 
@@ -181,26 +277,28 @@ pub async fn register_user(
                         "https://example.com"
                     };
 
-                    let verification_link = format!(
-                        "{}/verify-email?token={}",
-                        base_url,
-                        token
-                    );
+                    let verification_link = format!("{}/verify-email?token={}", base_url, token);
 
                     // Send real email via MailHog
                     let email_sender = EmailSender::new_mailhog();
-                    if let Err(e) = email_sender.send_verification_email(&payload.email, &verification_link).await {
-                        error!("Failed to send verification email to {}: {:?}. Attempting cleanup...", payload.email, e);
+                    if let Err(e) = email_sender
+                        .send_verification_email(&payload.email, &verification_link)
+                        .await
+                    {
+                        error!(
+                            "Failed to send verification email to {}: {:?}. Attempting cleanup...",
+                            payload.email, e
+                        );
                         match db.user_login_table.delete(&payload.username).await {
-                            Ok(_) => debug!("Cleanup successful: deleted user '{}'", payload.username),
-                            Err(cleanup_e) => error!("Cleanup failed for user '{}': {:?}", payload.username, cleanup_e),
+                            Ok(_) => {
+                                debug!("Cleanup successful: deleted user '{}'", payload.username)
+                            }
+                            Err(cleanup_e) => error!(
+                                "Cleanup failed for user '{}': {:?}",
+                                payload.username, cleanup_e
+                            ),
                         }
-                        let response = ApiResponse {
-                            success: false,
-                            code: ResponseCode::ErrorInternal.into(),
-                            data: None,
-                        };
-                        return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
+                        return internal_error();
                     }
 
                     let response = ApiResponse {
@@ -211,17 +309,18 @@ pub async fn register_user(
                     (StatusCode::CREATED, Protobuf(response))
                 }
                 Err(e) => {
-                    debug!("Failed to store verification token for user_id {}: {:?}. Attempting cleanup...", user_id, e);
+                    debug!(
+                        "Failed to store verification token for user_id {}: {:?}. Attempting cleanup...",
+                        user_id, e
+                    );
                     match db.user_login_table.delete(&payload.username).await {
                         Ok(_) => debug!("Cleanup successful: deleted user '{}'", payload.username),
-                        Err(cleanup_e) => error!("Cleanup failed for user '{}': {:?}", payload.username, cleanup_e),
+                        Err(cleanup_e) => error!(
+                            "Cleanup failed for user '{}': {:?}",
+                            payload.username, cleanup_e
+                        ),
                     }
-                    let response = ApiResponse {
-                        success: false,
-                        code: ResponseCode::ErrorDatabase.into(),
-                        data: None,
-                    };
-                    (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response))
+                    return internal_error();
                 }
             }
         }
@@ -259,10 +358,7 @@ pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
     Protobuf(payload): Protobuf<crate::generated::v1::LoginRequest>,
 ) -> impl IntoResponse {
-    debug!(
-        "Received login request - username: {}",
-        payload.username
-    );
+    debug!("Received login request - username: {}", payload.username);
 
     // Validate input
     if payload.username.is_empty() || payload.password.is_empty() {
@@ -290,7 +386,11 @@ pub async fn login_user(
             code: ResponseCode::ErrorValidation.into(),
             data: Some(api_response::Data::ValidationError(ValidationErrorData {
                 field: FieldType::Username.into(),
-                errors: username_result.errors.iter().map(|e| serde_json::to_string(e).unwrap_or_default()).collect(),
+                errors: username_result
+                    .errors
+                    .iter()
+                    .map(|e| serde_json::to_string(e).unwrap_or_default())
+                    .collect(),
             })),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
@@ -313,12 +413,7 @@ pub async fn login_user(
                 "Database error checking user '{}': {:?}",
                 payload.username, e
             );
-            let response = ApiResponse {
-                success: false,
-                code: ResponseCode::ErrorDatabase.into(),
-                data: None,
-            };
-            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response)).into_response();
+            return internal_error().into_response();
         }
     };
 
@@ -337,12 +432,46 @@ pub async fn login_user(
     }
 
     // Verify password
-    match db.user_login_table
+    match db
+        .user_login_table
         .is_password_correct(&payload.username, &payload.password)
         .await
     {
         Ok(true) => {
             debug!("Login successful for '{}'", payload.username);
+
+            // Create a session
+            let session_token = generate_session_token();
+            let session_hash = match hash_token(&session_token) {
+                Ok(hash) => hash,
+                Err(e) => {
+                    error!("Failed to hash session token: {:?}", e);
+                    return internal_error().into_response();
+                }
+            };
+
+            let expiry = OffsetDateTime::now_utc() + time::Duration::days(7);
+            let session = UserSession {
+                user_id: user.user_id,
+                session_id: generate_session_id(),
+                session_hash,
+                session_expiry: expiry,
+            };
+
+            if let Err(e) = db.user_sessions_table.insert(&session).await {
+                error!("Failed to store session: {:?}", e);
+                return internal_error().into_response();
+            }
+
+            // Create cookie
+            let cookie = Cookie::build(("session_token", session_token))
+                .path("/")
+                .http_only(true)
+                .secure(!db.is_dev)
+                .same_site(SameSite::Lax)
+                .expires(Some(expiry.into()))
+                .build();
+
             let response_data = LoginResponseData {
                 username: user.username,
                 email: user.email,
@@ -352,10 +481,19 @@ pub async fn login_user(
                 code: ResponseCode::SuccessLogin.into(),
                 data: Some(api_response::Data::LoginResponse(response_data)),
             };
-            (StatusCode::OK, Protobuf(response)).into_response()
+
+            (
+                StatusCode::OK,
+                [(header::SET_COOKIE, cookie.to_string())],
+                Protobuf(response),
+            )
+                .into_response()
         }
         Ok(false) => {
-            debug!("Login failed: incorrect password for '{}'", payload.username);
+            debug!(
+                "Login failed: incorrect password for '{}'",
+                payload.username
+            );
             let response = ApiResponse {
                 success: false,
                 code: ResponseCode::ErrorInvalidCredentials.into(),
@@ -413,7 +551,11 @@ pub async fn verify_email(
     };
 
     // Look up the token in the database
-    let token_record = match db.email_verification_tokens_table.get_by_token_hash(&token_hash).await {
+    let token_record = match db
+        .email_verification_tokens_table
+        .get_by_token_hash(&token_hash)
+        .await
+    {
         Ok(record) => record,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Verification token not found in database");
@@ -426,12 +568,7 @@ pub async fn verify_email(
         }
         Err(e) => {
             debug!("Database error looking up token: {:?}", e);
-            let response = ApiResponse {
-                success: false,
-                code: ResponseCode::ErrorDatabase.into(),
-                data: None,
-            };
-            return (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response));
+            return internal_error();
         }
     };
 
@@ -447,7 +584,11 @@ pub async fn verify_email(
     }
 
     // Check if user is already verified
-    let user = match db.user_login_table.get_by_user_id(token_record.user_id).await {
+    let user = match db
+        .user_login_table
+        .get_by_user_id(token_record.user_id)
+        .await
+    {
         Ok(user) => user,
         Err(e) => {
             debug!("Failed to get user for verification: {:?}", e);
@@ -471,14 +612,31 @@ pub async fn verify_email(
     }
 
     // Mark email as verified
-    match db.user_login_table.mark_email_verified(token_record.user_id).await {
+    match db
+        .user_login_table
+        .mark_email_verified(token_record.user_id)
+        .await
+    {
         Ok(_) => {
-            debug!("Email verified successfully for user_id: {}", token_record.user_id);
+            debug!(
+                "Email verified successfully for user_id: {}",
+                token_record.user_id
+            );
 
             // Delete the token to ensure single-use
-            match db.email_verification_tokens_table.delete_by_user_id(token_record.user_id).await {
-                Ok(_) => debug!("Verification token deleted for user_id: {}", token_record.user_id),
-                Err(e) => debug!("Failed to delete token for user_id {}: {:?}", token_record.user_id, e),
+            match db
+                .email_verification_tokens_table
+                .delete_by_user_id(token_record.user_id)
+                .await
+            {
+                Ok(_) => debug!(
+                    "Verification token deleted for user_id: {}",
+                    token_record.user_id
+                ),
+                Err(e) => debug!(
+                    "Failed to delete token for user_id {}: {:?}",
+                    token_record.user_id, e
+                ),
             }
 
             let response = ApiResponse {
@@ -490,12 +648,228 @@ pub async fn verify_email(
         }
         Err(e) => {
             debug!("Failed to mark email as verified: {:?}", e);
-            let response = ApiResponse {
-                success: false,
-                code: ResponseCode::ErrorDatabase.into(),
-                data: None,
-            };
-            (StatusCode::INTERNAL_SERVER_ERROR, Protobuf(response))
+            return internal_error();
         }
     }
+}
+
+/// Handler to get the current counter value
+pub async fn get_counter(auth: AuthenticatedUser) -> impl IntoResponse {
+    let response = ApiResponse {
+        success: true,
+        code: ResponseCode::SuccessOk.into(),
+        data: Some(api_response::Data::CounterData(CounterData {
+            value: auth.user.counter,
+        })),
+    };
+    (StatusCode::OK, Protobuf(response))
+}
+
+/// Handler to set the counter value
+pub async fn set_counter(
+    State(db): State<Arc<DBHandle>>,
+    auth: AuthenticatedUser,
+    Protobuf(payload): Protobuf<crate::generated::v1::SetCounterRequest>,
+) -> impl IntoResponse {
+    match db
+        .user_login_table
+        .update_counter(auth.user.user_id, payload.value)
+        .await
+    {
+        Ok(_) => {
+            let response = ApiResponse {
+                success: true,
+                code: ResponseCode::SuccessOk.into(),
+                data: Some(api_response::Data::Empty(EmptyData {})),
+            };
+            (StatusCode::OK, Protobuf(response))
+        }
+        Err(e) => {
+            error!("Failed to update counter: {:?}", e);
+            return internal_error();
+        }
+    }
+}
+
+/// Handler to initiate password reset
+pub async fn request_password_reset(
+    State(db): State<Arc<DBHandle>>,
+    Protobuf(payload): Protobuf<crate::generated::v1::PasswordResetRequest>,
+) -> impl IntoResponse {
+    debug!("Received password reset request for '{}'", payload.email);
+
+    // Check if user exists
+    let user = match db.user_login_table.get_by_username(&payload.email).await {
+        Ok(user) => user,
+        Err(sqlx::Error::RowNotFound) => {
+            // Security: Don't reveal if user exists
+            let response = ApiResponse {
+                success: true,
+                code: ResponseCode::SuccessPasswordResetRequested.into(),
+                data: Some(api_response::Data::Empty(EmptyData {})),
+            };
+            return (StatusCode::OK, Protobuf(response));
+        }
+        Err(e) => {
+            error!("Database error checking user: {:?}", e);
+            return internal_error();
+        }
+    };
+
+    // Generate reset token
+    let token = generate_verification_token();
+    let token_hash = match hash_token(&token) {
+        Ok(hash) => hash,
+        Err(e) => {
+            error!("Failed to hash reset token: {:?}", e);
+            return internal_error();
+        }
+    };
+
+    let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(1);
+
+    // Store reset token
+    if let Err(e) = db.password_reset_tokens_table.insert(user.user_id, &token_hash, expires_at).await {
+        error!("Failed to store reset token: {:?}", e);
+        return internal_error();
+    }
+
+    // Set password reset flag
+    if let Err(e) = db.user_login_table.set_password_reset_flag(user.user_id, true).await {
+        error!("Failed to set password reset flag: {:?}", e);
+        return internal_error();
+    }
+
+    // Send email
+    let base_url = if db.is_dev {
+        "http://localhost:4000"
+    } else {
+        "https://example.com"
+    };
+    let reset_link = format!("{}/reset-password?token={}", base_url, token);
+    let email_sender = EmailSender::new_mailhog();
+
+    if let Err(e) = email_sender.send_password_reset_email(&user.email, &reset_link).await {
+        error!("Failed to send reset email: {:?}", e);
+        return internal_error();
+    }
+
+    let response = ApiResponse {
+        success: true,
+        code: ResponseCode::SuccessPasswordResetRequested.into(),
+        data: Some(api_response::Data::Empty(EmptyData {})),
+    };
+    (StatusCode::OK, Protobuf(response))
+}
+
+/// Handler to complete password reset
+pub async fn complete_password_reset(
+    State(db): State<Arc<DBHandle>>,
+    Protobuf(payload): Protobuf<crate::generated::v1::PasswordResetCompleteRequest>,
+) -> impl IntoResponse {
+    debug!("Received password reset completion request");
+
+    // Validate token
+    let token_hash = match hash_token(&payload.token) {
+        Ok(hash) => hash,
+        Err(e) => {
+            error!("Failed to hash reset token: {:?}", e);
+            return internal_error();
+        }
+    };
+
+    let reset_record = match db.password_reset_tokens_table.get_by_token_hash(&token_hash).await {
+        Ok(record) => record,
+        Err(sqlx::Error::RowNotFound) => {
+            let response = ApiResponse {
+                success: false,
+                code: ResponseCode::ErrorInvalidToken.into(),
+                data: None,
+            };
+            return (StatusCode::BAD_REQUEST, Protobuf(response));
+        }
+        Err(e) => {
+            error!("Database error looking up reset token: {:?}", e);
+            return internal_error();
+        }
+    };
+
+    if OffsetDateTime::now_utc() > reset_record.expires_at {
+        let response = ApiResponse {
+            success: false,
+            code: ResponseCode::ErrorInvalidToken.into(),
+            data: None,
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
+    // Validate new password
+    let password_result = field_validator::validate_password(&payload.new_password);
+    if !password_result.is_valid {
+        let response = ApiResponse {
+            success: false,
+            code: ResponseCode::ErrorValidation.into(),
+            data: Some(api_response::Data::ValidationError(ValidationErrorData {
+                field: FieldType::Password.into(),
+                errors: password_result
+                    .errors
+                    .iter()
+                    .map(|e| serde_json::to_string(e).unwrap_or_default())
+                    .collect(),
+            })),
+        };
+        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    }
+
+    // Update password
+    match db.user_login_table.set_password_by_user_id(reset_record.user_id, &payload.new_password).await {
+        Ok(_) => {
+            // Clear flag and delete token
+            let _ = db.user_login_table.set_password_reset_flag(reset_record.user_id, false).await;
+            let _ = db.password_reset_tokens_table.delete_by_user_id(reset_record.user_id).await;
+
+            let response = ApiResponse {
+                success: true,
+                code: ResponseCode::SuccessPasswordReset.into(),
+                data: Some(api_response::Data::Empty(EmptyData {})),
+            };
+            (StatusCode::OK, Protobuf(response))
+        }
+        Err(e) => {
+            error!("Failed to update password: {:?}", e);
+            internal_error()
+        }
+    }
+}
+
+/// Handler for user logout
+pub async fn logout_user(
+    State(db): State<Arc<DBHandle>>,
+    jar: CookieJar,
+) -> impl IntoResponse {
+    if let Some(token) = jar.get("session_token") {
+        if let Ok(hash) = hash_token(token.value()) {
+            let _ = db.user_sessions_table.delete_by_hash(&hash).await;
+        }
+    }
+
+    let cookie = Cookie::build(("session_token", ""))
+        .path("/")
+        .http_only(true)
+        .secure(!db.is_dev)
+        .same_site(SameSite::Lax)
+        .expires(OffsetDateTime::UNIX_EPOCH)
+        .build();
+
+    let response = ApiResponse {
+        success: true,
+        code: ResponseCode::SuccessOk.into(),
+        data: Some(api_response::Data::Empty(EmptyData {})),
+    };
+
+    (
+        StatusCode::OK,
+        jar.add(cookie),
+        Protobuf(response),
+    )
 }

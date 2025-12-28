@@ -41,9 +41,7 @@
         />
 
         <!-- Forgot Password Link -->
-        <ForgotPasswordLink
-          @click="handleResetPassword"
-        />
+        <ForgotPasswordLink />
       </v-form>
     </template>
 
@@ -63,7 +61,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { loginUser, type ApiError, ResponseCode } from '@/services/api'
+import { useRouter } from 'vue-router'
+import { loginUser, requestPasswordReset, type ApiError, ResponseCode } from '@/services/api'
 import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js'
 import { FieldType } from '@/generated/api'
 
@@ -88,6 +87,7 @@ const formData = reactive<FormData>({
   rememberMe: false,
 })
 
+const router = useRouter()
 const loading = ref(false)
 const statusMessage = ref('')
 const messageType = ref<'success' | 'error' | 'warning' | 'info'>('success')
@@ -119,11 +119,6 @@ const showMessage = (message: string, type: 'success' | 'error' | 'warning' | 'i
   messageType.value = type
 }
 
-// Handle reset password
-const handleResetPassword = () => {
-  showMessage('Password reset functionality will be implemented soon!', 'info')
-}
-
 // Main form submission handler
 const handleSubmit = async () => {
   // Reset messages
@@ -152,7 +147,7 @@ const handleSubmit = async () => {
     })
 
     if (response.success && response.loginResponse) {
-      const message = translate_response_code(response.code, undefined)
+      const message = translate_response_code(response.code, 'en')
       showMessage(message, 'success')
 
       // Store user info if "Remember me" is checked
@@ -160,12 +155,12 @@ const handleSubmit = async () => {
         localStorage.setItem('user', JSON.stringify(response.loginResponse))
       }
 
-      // TODO: Redirect to dashboard or home page
-      // For now, just show success message
+      // Redirect to dashboard
       console.log('Login successful:', response.loginResponse)
+      router.push('/dashboard')
     } else {
       // Handle non-success response
-      const message = translate_response_code(response.code, undefined)
+      const message = translate_response_code(response.code, 'en')
       console.error('Login failed:', message)
       showMessage(message, 'error')
     }
@@ -178,7 +173,7 @@ const handleSubmit = async () => {
       const { field, errors } = apiError.validationError
       const translatedErrors = errors.map(err => {
         try {
-          return translate_validation_error(err, undefined)
+          return translate_validation_error(err, 'en')
         } catch {
           return err
         }

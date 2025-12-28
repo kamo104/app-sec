@@ -15,6 +15,10 @@ import {
   EmailVerificationRequest,
   ValidationErrorData,
   ResponseCode,
+  CounterData,
+  SetCounterRequest,
+  PasswordResetRequest,
+  PasswordResetCompleteRequest,
 } from '@/generated/api';
 import { initializeWasm } from '@/services/wasmLoader';
 import { translate_response_code } from '@/wasm/api-translator.js';
@@ -58,17 +62,19 @@ function decodeProtobuf<T>(data: Uint8Array, decodeFn: (reader: BinaryReader | U
  */
 async function apiFetchProtobuf<T>(
   endpoint: string,
-  requestBytes: Uint8Array
+  requestBytes: Uint8Array | null,
+  method: 'GET' | 'POST' = 'POST'
 ): Promise<ApiResponse> {
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
     const response = await fetch(url, {
-      method: 'POST',
+      method,
       headers: {
         'Content-Type': 'application/x-protobuf',
         'Accept': 'application/x-protobuf',
       },
+      credentials: 'include',
       body: requestBytes as unknown as BodyInit,
     });
 
@@ -198,6 +204,52 @@ export async function verifyEmail(token: string): Promise<ApiResponse> {
   return apiFetchProtobuf('/verify-email', requestBytes);
 }
 
+/**
+ * Get current counter value
+ */
+export async function getCounter(): Promise<ApiResponse> {
+  return apiFetchProtobuf('/counter/get', null, 'GET');
+}
+
+/**
+ * Set counter value
+ */
+export async function setCounter(value: number): Promise<ApiResponse> {
+  const request: SetCounterRequest = {
+    value,
+  };
+  const requestBytes = encodeProtobuf(request, SetCounterRequest.encode);
+  return apiFetchProtobuf('/counter/set', requestBytes);
+}
+
+/**
+ * Logout user and invalidate session
+ */
+export async function logoutUser(): Promise<ApiResponse> {
+  return apiFetchProtobuf('/logout', new Uint8Array());
+}
+
+/**
+ * Request password reset
+ */
+export async function requestPasswordReset(email: string): Promise<ApiResponse> {
+  const request: PasswordResetRequest = { email };
+  const requestBytes = encodeProtobuf(request, PasswordResetRequest.encode);
+  return apiFetchProtobuf('/request-password-reset', requestBytes);
+}
+
+/**
+ * Complete password reset
+ */
+export async function completePasswordReset(data: { token: string; newPassword: string }): Promise<ApiResponse> {
+  const request: PasswordResetCompleteRequest = {
+    token: data.token,
+    newPassword: data.newPassword,
+  };
+  const requestBytes = encodeProtobuf(request, PasswordResetCompleteRequest.encode);
+  return apiFetchProtobuf('/complete-password-reset', requestBytes);
+}
+
 // Re-export types for convenience
-export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData, EmailVerificationRequest };
+export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData, EmailVerificationRequest, CounterData, SetCounterRequest, PasswordResetRequest, PasswordResetCompleteRequest };
 export { ResponseCode };

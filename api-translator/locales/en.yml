@@ -5,6 +5,8 @@ SUCCESS_REGISTERED_VERIFICATION_PENDING: "User registered successfully (email ve
 SUCCESS_LOGIN: "Login successful"
 SUCCESS_EMAIL_VERIFIED: "Email verified successfully"
 SUCCESS_EMAIL_ALREADY_VERIFIED: "Email already verified"
+SUCCESS_PASSWORD_RESET_REQUESTED: "If an account with that email exists, a reset link has been sent."
+SUCCESS_PASSWORD_RESET: "Your password has been reset successfully. You can now log in with your new password."
 
 # Error codes
 ERROR_INVALID_INPUT: "Username, email, and password are required"

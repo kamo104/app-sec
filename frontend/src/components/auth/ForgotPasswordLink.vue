@@ -5,7 +5,7 @@
       color="info"
       size="small"
       class="auth-forgot-password-button"
-      @click="handleClick"
+      to="/forgot-password"
     >
       {{ label }}
     </v-btn>

@@ -12,6 +12,7 @@ message ApiResponse {
     HealthData health_data = 4;
     EmptyData empty = 5;
     ValidationErrorData validation_error = 6;
+    CounterData counter_data = 7;
   }
 }
 
@@ -26,6 +27,8 @@ enum ResponseCode {
   SUCCESS_LOGIN = 4;
   SUCCESS_EMAIL_VERIFIED = 5;
   SUCCESS_EMAIL_ALREADY_VERIFIED = 6;
+  SUCCESS_PASSWORD_RESET_REQUESTED = 7;
+  SUCCESS_PASSWORD_RESET = 8;
 
   // Error codes
   ERROR_INVALID_INPUT = 100;
@@ -81,6 +84,27 @@ message LoginResponseData {
 // Email verification request
 message EmailVerificationRequest {
   string token = 1;
+}
+
+// Counter data
+message CounterData {
+  int64 value = 1;
+}
+
+// Set counter request
+message SetCounterRequest {
+  int64 value = 1;
+}
+
+// Password reset request (initial step)
+message PasswordResetRequest {
+  string email = 1;
+}
+
+// Password reset completion request
+message PasswordResetCompleteRequest {
+  string token = 1;
+  string new_password = 2;
 }
 
 // Password strength levels

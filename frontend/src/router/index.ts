@@ -8,10 +8,32 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
+import { getCounter } from '@/services/api'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: setupLayouts(routes),
+})
+
+router.beforeEach(async (to, from, next) => {
+  if (to.path === '/dashboard') {
+    try {
+      const response = await getCounter()
+      if (response.success) {
+        // Store counter temporarily in meta or a store if needed,
+        // but for now we just allow navigation
+        to.meta.initialCounter = response.counterData?.value
+        next()
+      } else {
+        next('/')
+      }
+    } catch (e) {
+      console.error('Auth check failed', e)
+      next('/')
+    }
+  } else {
+    next()
+  }
 })
 
 // Workaround for https://github.com/vitejs/vite/issues/11804

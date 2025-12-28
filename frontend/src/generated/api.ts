@@ -19,6 +19,8 @@ export enum ResponseCode {
   SUCCESS_LOGIN = 4,
   SUCCESS_EMAIL_VERIFIED = 5,
   SUCCESS_EMAIL_ALREADY_VERIFIED = 6,
+  SUCCESS_PASSWORD_RESET_REQUESTED = 7,
+  SUCCESS_PASSWORD_RESET = 8,
   /** ERROR_INVALID_INPUT - Error codes */
   ERROR_INVALID_INPUT = 100,
   ERROR_USERNAME_TAKEN = 101,
@@ -54,6 +56,12 @@ export function responseCodeFromJSON(object: any): ResponseCode {
     case 6:
     case "SUCCESS_EMAIL_ALREADY_VERIFIED":
       return ResponseCode.SUCCESS_EMAIL_ALREADY_VERIFIED;
+    case 7:
+    case "SUCCESS_PASSWORD_RESET_REQUESTED":
+      return ResponseCode.SUCCESS_PASSWORD_RESET_REQUESTED;
+    case 8:
+    case "SUCCESS_PASSWORD_RESET":
+      return ResponseCode.SUCCESS_PASSWORD_RESET;
     case 100:
     case "ERROR_INVALID_INPUT":
       return ResponseCode.ERROR_INVALID_INPUT;
@@ -101,6 +109,10 @@ export function responseCodeToJSON(object: ResponseCode): string {
       return "SUCCESS_EMAIL_VERIFIED";
     case ResponseCode.SUCCESS_EMAIL_ALREADY_VERIFIED:
       return "SUCCESS_EMAIL_ALREADY_VERIFIED";
+    case ResponseCode.SUCCESS_PASSWORD_RESET_REQUESTED:
+      return "SUCCESS_PASSWORD_RESET_REQUESTED";
+    case ResponseCode.SUCCESS_PASSWORD_RESET:
+      return "SUCCESS_PASSWORD_RESET";
     case ResponseCode.ERROR_INVALID_INPUT:
       return "ERROR_INVALID_INPUT";
     case ResponseCode.ERROR_USERNAME_TAKEN:
@@ -222,6 +234,7 @@ export interface ApiResponse {
   healthData?: HealthData | undefined;
   empty?: EmptyData | undefined;
   validationError?: ValidationErrorData | undefined;
+  counterData?: CounterData | undefined;
 }
 
 /** Error details for validation */
@@ -264,6 +277,27 @@ export interface EmailVerificationRequest {
   token: string;
 }
 
+/** Counter data */
+export interface CounterData {
+  value: number;
+}
+
+/** Set counter request */
+export interface SetCounterRequest {
+  value: number;
+}
+
+/** Password reset request (initial step) */
+export interface PasswordResetRequest {
+  email: string;
+}
+
+/** Password reset completion request */
+export interface PasswordResetCompleteRequest {
+  token: string;
+  newPassword: string;
+}
+
 function createBaseApiResponse(): ApiResponse {
   return {
     success: false,
@@ -272,6 +306,7 @@ function createBaseApiResponse(): ApiResponse {
     healthData: undefined,
     empty: undefined,
     validationError: undefined,
+    counterData: undefined,
   };
 }
 
@@ -294,6 +329,9 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     }
     if (message.validationError !== undefined) {
       ValidationErrorData.encode(message.validationError, writer.uint32(50).fork()).join();
+    }
+    if (message.counterData !== undefined) {
+      CounterData.encode(message.counterData, writer.uint32(58).fork()).join();
     }
     return writer;
   },
@@ -353,6 +391,14 @@ export const ApiResponse: MessageFns<ApiResponse> = {
           message.validationError = ValidationErrorData.decode(reader, reader.uint32());
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.counterData = CounterData.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -370,6 +416,7 @@ export const ApiResponse: MessageFns<ApiResponse> = {
       healthData: isSet(object.healthData) ? HealthData.fromJSON(object.healthData) : undefined,
       empty: isSet(object.empty) ? EmptyData.fromJSON(object.empty) : undefined,
       validationError: isSet(object.validationError) ? ValidationErrorData.fromJSON(object.validationError) : undefined,
+      counterData: isSet(object.counterData) ? CounterData.fromJSON(object.counterData) : undefined,
     };
   },
 
@@ -393,6 +440,9 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     if (message.validationError !== undefined) {
       obj.validationError = ValidationErrorData.toJSON(message.validationError);
     }
+    if (message.counterData !== undefined) {
+      obj.counterData = CounterData.toJSON(message.counterData);
+    }
     return obj;
   },
 
@@ -414,6 +464,9 @@ export const ApiResponse: MessageFns<ApiResponse> = {
       : undefined;
     message.validationError = (object.validationError !== undefined && object.validationError !== null)
       ? ValidationErrorData.fromPartial(object.validationError)
+      : undefined;
+    message.counterData = (object.counterData !== undefined && object.counterData !== null)
+      ? CounterData.fromPartial(object.counterData)
       : undefined;
     return message;
   },
@@ -898,6 +951,256 @@ export const EmailVerificationRequest: MessageFns<EmailVerificationRequest> = {
   },
 };
 
+function createBaseCounterData(): CounterData {
+  return { value: 0 };
+}
+
+export const CounterData: MessageFns<CounterData> = {
+  encode(message: CounterData, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.value !== 0) {
+      writer.uint32(8).int64(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CounterData {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCounterData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.value = longToNumber(reader.int64());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CounterData {
+    return { value: isSet(object.value) ? globalThis.Number(object.value) : 0 };
+  },
+
+  toJSON(message: CounterData): unknown {
+    const obj: any = {};
+    if (message.value !== 0) {
+      obj.value = Math.round(message.value);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CounterData>, I>>(base?: I): CounterData {
+    return CounterData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CounterData>, I>>(object: I): CounterData {
+    const message = createBaseCounterData();
+    message.value = object.value ?? 0;
+    return message;
+  },
+};
+
+function createBaseSetCounterRequest(): SetCounterRequest {
+  return { value: 0 };
+}
+
+export const SetCounterRequest: MessageFns<SetCounterRequest> = {
+  encode(message: SetCounterRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.value !== 0) {
+      writer.uint32(8).int64(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetCounterRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetCounterRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.value = longToNumber(reader.int64());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetCounterRequest {
+    return { value: isSet(object.value) ? globalThis.Number(object.value) : 0 };
+  },
+
+  toJSON(message: SetCounterRequest): unknown {
+    const obj: any = {};
+    if (message.value !== 0) {
+      obj.value = Math.round(message.value);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetCounterRequest>, I>>(base?: I): SetCounterRequest {
+    return SetCounterRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetCounterRequest>, I>>(object: I): SetCounterRequest {
+    const message = createBaseSetCounterRequest();
+    message.value = object.value ?? 0;
+    return message;
+  },
+};
+
+function createBasePasswordResetRequest(): PasswordResetRequest {
+  return { email: "" };
+}
+
+export const PasswordResetRequest: MessageFns<PasswordResetRequest> = {
+  encode(message: PasswordResetRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.email !== "") {
+      writer.uint32(10).string(message.email);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PasswordResetRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasswordResetRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.email = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasswordResetRequest {
+    return { email: isSet(object.email) ? globalThis.String(object.email) : "" };
+  },
+
+  toJSON(message: PasswordResetRequest): unknown {
+    const obj: any = {};
+    if (message.email !== "") {
+      obj.email = message.email;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasswordResetRequest>, I>>(base?: I): PasswordResetRequest {
+    return PasswordResetRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasswordResetRequest>, I>>(object: I): PasswordResetRequest {
+    const message = createBasePasswordResetRequest();
+    message.email = object.email ?? "";
+    return message;
+  },
+};
+
+function createBasePasswordResetCompleteRequest(): PasswordResetCompleteRequest {
+  return { token: "", newPassword: "" };
+}
+
+export const PasswordResetCompleteRequest: MessageFns<PasswordResetCompleteRequest> = {
+  encode(message: PasswordResetCompleteRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.token !== "") {
+      writer.uint32(10).string(message.token);
+    }
+    if (message.newPassword !== "") {
+      writer.uint32(18).string(message.newPassword);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PasswordResetCompleteRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasswordResetCompleteRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.token = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.newPassword = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasswordResetCompleteRequest {
+    return {
+      token: isSet(object.token) ? globalThis.String(object.token) : "",
+      newPassword: isSet(object.newPassword) ? globalThis.String(object.newPassword) : "",
+    };
+  },
+
+  toJSON(message: PasswordResetCompleteRequest): unknown {
+    const obj: any = {};
+    if (message.token !== "") {
+      obj.token = message.token;
+    }
+    if (message.newPassword !== "") {
+      obj.newPassword = message.newPassword;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasswordResetCompleteRequest>, I>>(base?: I): PasswordResetCompleteRequest {
+    return PasswordResetCompleteRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasswordResetCompleteRequest>, I>>(object: I): PasswordResetCompleteRequest {
+    const message = createBasePasswordResetCompleteRequest();
+    message.token = object.token ?? "";
+    message.newPassword = object.newPassword ?? "";
+    return message;
+  },
+};
+
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
 export type DeepPartial<T> = T extends Builtin ? T
@@ -909,6 +1212,17 @@ export type DeepPartial<T> = T extends Builtin ? T
 type KeysOfUnion<T> = T extends T ? keyof T : never;
 export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function longToNumber(int64: { toString(): string }): number {
+  const num = globalThis.Number(int64.toString());
+  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+  }
+  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+  }
+  return num;
+}
 
 function isSet(value: any): boolean {
   return value !== null && value !== undefined;

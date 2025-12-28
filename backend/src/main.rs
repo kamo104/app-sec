@@ -42,7 +42,7 @@ mod api;
 mod generated;
 mod email;
 use db::DBHandle;
-use api::{register_user, health_check, login_user, verify_email};
+use api::{register_user, health_check, login_user, verify_email, get_counter, set_counter, logout_user, request_password_reset, complete_password_reset};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -155,6 +155,11 @@ async fn main() {
         .route("/api/register", post(register_user))
         .route("/api/login", post(login_user))
         .route("/api/verify-email", post(verify_email))
+        .route("/api/logout", post(logout_user))
+        .route("/api/request-password-reset", post(request_password_reset))
+        .route("/api/complete-password-reset", post(complete_password_reset))
+        .route("/api/counter/get", get(get_counter))
+        .route("/api/counter/set", post(set_counter))
         // WebSocket route
         .route("/ws", any(ws_upgrade_handler))
         // SPA fallback - serve index.html for all other routes

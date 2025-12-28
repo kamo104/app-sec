@@ -23,8 +23,8 @@ time = { version = "0.3.44", features = ["serde"] }
 uuid = "1.18.1"
 
 ### AXUM_WS:
-axum = { version = "0.8.6", features = ["ws"] }
-axum-extra = { version = "0.10.3", features = ["typed-header", "protobuf"] }
+axum = { version = "0.8.6", features = ["ws", "macros"] }
+axum-extra = { version = "0.10.3", features = ["typed-header", "protobuf", "cookie"] }
 lettre = { version = "0.11", features = ["tokio1-rustls", "smtp-transport", "tokio1-native-tls", "rustls-native-certs", "ring", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

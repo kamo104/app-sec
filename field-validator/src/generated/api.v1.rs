@@ -7,7 +7,7 @@ pub struct ApiResponse {
     #[prost(enumeration = "ResponseCode", tag = "2")]
     pub code: i32,
     /// For responses with data, use oneof to handle different data types
-    #[prost(oneof = "api_response::Data", tags = "3, 4, 5, 6")]
+    #[prost(oneof = "api_response::Data", tags = "3, 4, 5, 6, 7")]
     pub data: ::core::option::Option<api_response::Data>,
 }
 /// Nested message and enum types in `ApiResponse`.
@@ -23,6 +23,8 @@ pub mod api_response {
         Empty(super::EmptyData),
         #[prost(message, tag = "6")]
         ValidationError(super::ValidationErrorData),
+        #[prost(message, tag = "7")]
+        CounterData(super::CounterData),
     }
 }
 /// Error details for validation
@@ -75,6 +77,32 @@ pub struct EmailVerificationRequest {
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
+/// Counter data
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct CounterData {
+    #[prost(int64, tag = "1")]
+    pub value: i64,
+}
+/// Set counter request
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct SetCounterRequest {
+    #[prost(int64, tag = "1")]
+    pub value: i64,
+}
+/// Password reset request (initial step)
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PasswordResetRequest {
+    #[prost(string, tag = "1")]
+    pub email: ::prost::alloc::string::String,
+}
+/// Password reset completion request
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PasswordResetCompleteRequest {
+    #[prost(string, tag = "1")]
+    pub token: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub new_password: ::prost::alloc::string::String,
+}
 /// API Response Codes
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -87,6 +115,8 @@ pub enum ResponseCode {
     SuccessLogin = 4,
     SuccessEmailVerified = 5,
     SuccessEmailAlreadyVerified = 6,
+    SuccessPasswordResetRequested = 7,
+    SuccessPasswordReset = 8,
     /// Error codes
     ErrorInvalidInput = 100,
     ErrorUsernameTaken = 101,
@@ -113,6 +143,8 @@ impl ResponseCode {
             Self::SuccessLogin => "SUCCESS_LOGIN",
             Self::SuccessEmailVerified => "SUCCESS_EMAIL_VERIFIED",
             Self::SuccessEmailAlreadyVerified => "SUCCESS_EMAIL_ALREADY_VERIFIED",
+            Self::SuccessPasswordResetRequested => "SUCCESS_PASSWORD_RESET_REQUESTED",
+            Self::SuccessPasswordReset => "SUCCESS_PASSWORD_RESET",
             Self::ErrorInvalidInput => "ERROR_INVALID_INPUT",
             Self::ErrorUsernameTaken => "ERROR_USERNAME_TAKEN",
             Self::ErrorInvalidCredentials => "ERROR_INVALID_CREDENTIALS",
@@ -135,6 +167,10 @@ impl ResponseCode {
             "SUCCESS_LOGIN" => Some(Self::SuccessLogin),
             "SUCCESS_EMAIL_VERIFIED" => Some(Self::SuccessEmailVerified),
             "SUCCESS_EMAIL_ALREADY_VERIFIED" => Some(Self::SuccessEmailAlreadyVerified),
+            "SUCCESS_PASSWORD_RESET_REQUESTED" => {
+                Some(Self::SuccessPasswordResetRequested)
+            }
+            "SUCCESS_PASSWORD_RESET" => Some(Self::SuccessPasswordReset),
             "ERROR_INVALID_INPUT" => Some(Self::ErrorInvalidInput),
             "ERROR_USERNAME_TAKEN" => Some(Self::ErrorUsernameTaken),
             "ERROR_INVALID_CREDENTIALS" => Some(Self::ErrorInvalidCredentials),

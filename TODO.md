@@ -5,3 +5,6 @@ Prepare draft documentation describing your planned registration module. The doc
 - component architecture (simple diagrams, technology stack),
 - database structure (tables, fields, constraints),
 - UML sequence diagrams for registration and activation (including validations and alternative paths)
+
+CLAUDE:
+- /api/refresh
