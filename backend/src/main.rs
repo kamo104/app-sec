@@ -40,6 +40,7 @@ use clap::Parser;
 mod db;
 mod api;
 mod generated;
+mod email;
 use db::DBHandle;
 use api::{register_user, health_check, login_user, verify_email};
 

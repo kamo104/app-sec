@@ -53,6 +53,14 @@ pub fn hash_token(token: &str) -> Result<String> {
 }
 /* --- EMAIL VERIFICATION UTILITIES --- */
 
+/// Hash a password using Argon2
+pub fn hash_password(password: &str) -> Result<String> {
+    let salt = SaltString::generate(&mut argon2::password_hash::rand_core::OsRng);
+    Ok(Argon2::default()
+        .hash_password(password.as_bytes(), &salt)?
+        .to_string())
+}
+
 /* --- USER_SESSIONS_TABLE --- */
 /* This table is used to store user sessions */
 #[derive(FromRow, Clone, Debug)]
@@ -260,8 +268,8 @@ impl UserLoginTable {
             .await?;
         Ok(())
     }
-    pub async fn set(&self, row: &UserLogin) -> Result<()> {
-        sqlx::query(formatcp!(
+    pub async fn set(&self, row: &UserLogin) -> Result<i64> {
+        let result = sqlx::query(formatcp!(
             "INSERT INTO {} (\
                 username, \
                 email, \
@@ -271,7 +279,8 @@ impl UserLoginTable {
             ) VALUES ($1, $2, $3, $4, $5) \
                 ON CONFLICT(username) DO \
                 UPDATE SET email = excluded.email, password = excluded.password, \
-                email_verified = excluded.email_verified, email_verified_at = excluded.email_verified_at",
+                email_verified = excluded.email_verified, email_verified_at = excluded.email_verified_at \
+                RETURNING user_id",
             UserLoginTable::TABLE_NAME
         ))
         .bind(&row.username)
@@ -279,9 +288,9 @@ impl UserLoginTable {
         .bind(&row.password)
         .bind(row.email_verified)
         .bind(row.email_verified_at)
-        .execute(&self.conn_pool)
+        .fetch_one(&self.conn_pool)
         .await?;
-        Ok(())
+        Ok(result.get("user_id"))
     }
     #[allow(dead_code)] // Future feature for email updates
     pub async fn set_email(&self, username: &str, new_email: &str) -> Result<()> {
@@ -332,6 +341,7 @@ impl UserLoginTable {
         Ok(out)
     }
 
+    #[allow(dead_code)]
     pub async fn get_user_id_by_username(
         &self,
         username: &str,
@@ -378,11 +388,9 @@ impl UserLoginTable {
             Err(_) => Ok(false),
         };
     }
+    #[allow(dead_code)]
     pub async fn set_password(&self, username: &str, password: &str) -> Result<()> {
-        let salt = SaltString::generate(&mut argon2::password_hash::rand_core::OsRng);
-        let hash = Argon2::default()
-            .hash_password(password.as_bytes(), &salt)?
-            .to_string();
+        let hash = hash_password(password)?;
         sqlx::query(formatcp!(
             "UPDATE {} SET (password) = ($1) WHERE username = $2",
             UserLoginTable::TABLE_NAME
@@ -402,11 +410,11 @@ impl UserLoginTable {
             },
         };
     }
-    pub async fn new_user(&self, user_login: &UserLogin) -> Result<()> {
+    pub async fn new_user(&self, user_login: &UserLogin) -> Result<i64> {
         return match self.is_username_free(user_login.username.as_str()).await? {
             true => {
-                self.set(user_login).await?;
-                Ok(())
+                let user_id = self.set(user_login).await?;
+                Ok(user_id)
             }
             false => Err(anyhow!("username already taken")),
         };
@@ -452,6 +460,7 @@ pub struct DBHandle {
     pub user_login_table: UserLoginTable,
     pub user_sessions_table: UserSessionsTable,
     pub email_verification_tokens_table: EmailVerificationTokensTable,
+    pub is_dev: bool,
 }
 impl DBHandle {
     async fn create_tables(&self) -> Result<()> {
@@ -461,7 +470,7 @@ impl DBHandle {
         Ok(())
     }
     pub async fn open(database_path: &str) -> Result<Arc<Self>> {
-        DBHandle::open_with_opts(database_path, None).await
+        DBHandle::open_with_opts(database_path, None, false).await
     }
     /// Open database in development mode
     /// Uses a static key and separate database file to avoid keyring prompts during development
@@ -473,11 +482,12 @@ impl DBHandle {
             .pragma("foreign_keys", "ON")
             .create_if_missing(true);
 
-        DBHandle::open_with_opts(DEV_DATABASE_PATH, Some(opts)).await
+        DBHandle::open_with_opts(DEV_DATABASE_PATH, Some(opts), true).await
     }
     pub async fn open_with_opts(
         database_path: &str,
         opts_override: Option<SqliteConnectOptions>,
+        is_dev: bool,
     ) -> Result<Arc<Self>> {
         let mut secret_key = String::with_capacity(KEYRING_DB_KEY_LEN);
         if opts_override.is_none() {
@@ -519,6 +529,7 @@ impl DBHandle {
             email_verification_tokens_table: EmailVerificationTokensTable {
                 conn_pool: conn_pool.clone(),
             },
+            is_dev,
         };
 
         db_handle.create_tables().await?;
