@@ -2,7 +2,19 @@
   <v-container class="fill-height" max-width="600">
     <v-row justify="center">
       <v-col cols="12" md="8">
-        <v-card class="pa-6" elevation="2" :title="title">
+        <v-card class="pa-6" elevation="2">
+          <template v-slot:title>
+            <div class="d-flex justify-space-between align-center">
+              <span>{{ title }}</span>
+              <v-btn
+                icon="mdi-home"
+                variant="text"
+                density="comfortable"
+                to="/"
+                title="Go Home"
+              ></v-btn>
+            </div>
+          </template>
           <slot name="default" :handle-submit="handleSubmit" :form-ref="formRef"></slot>
 
           <!-- Navigation Links -->

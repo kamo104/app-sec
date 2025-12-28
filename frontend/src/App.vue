@@ -2,8 +2,8 @@
   <v-app>
     <v-app-bar app color="primary" density="comfortable">
       <v-app-bar-title>
-        <v-icon icon="mdi-account-circle" class="mr-2"></v-icon>
-        User Authentication Demo
+        <v-icon icon="mdi-shark" class="mr-2"></v-icon>
+        MemeShark
       </v-app-bar-title>
 
       <v-spacer></v-spacer>
@@ -70,12 +70,6 @@
     <v-main>
       <router-view />
     </v-main>
-
-    <v-footer app class="text-center">
-      <div class="text-caption">
-        Vue 3 + Vuetify 3 • Frontend Authentication Demo
-      </div>
-    </v-footer>
   </v-app>
 </template>
 
