@@ -7,5 +7,7 @@ cleanup() {
 
 trap cleanup EXIT
 
+./build.sh
+
 mailhog &
 cd backend && cargo watch -x "run -- --dev"
