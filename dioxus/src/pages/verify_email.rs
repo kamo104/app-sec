@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use crate::api::verify_email;
 use crate::components::button::Button;
 use crate::components::back_button::BackButton;
+use crate::components::dark_mode_toggle::DarkModeToggle;
 
 #[component]
 pub fn VerifyEmail() -> Element {
@@ -35,11 +36,15 @@ pub fn VerifyEmail() -> Element {
         Some(result) => match result {
             Ok(_) => rsx! {
                 div {
-                    class: "min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                    class: "min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                    div {
+                        class: "absolute top-4 right-4",
+                        DarkModeToggle {}
+                    }
                     div {
                         class: "sm:mx-auto sm:w-full sm:max-w-md",
                         div {
-                            class: "bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10",
+                            class: "bg-white dark:bg-neutral-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border dark:border-neutral-700",
                             div {
                                 class: "text-center",
                                 div {
@@ -58,11 +63,11 @@ pub fn VerifyEmail() -> Element {
                                     }
                                 }
                                 h3 {
-                                    class: "mt-2 text-xl font-medium text-gray-900",
+                                    class: "mt-2 text-xl font-medium text-gray-900 dark:text-white",
                                     "Email Verified!"
                                 }
                                 p {
-                                    class: "mt-2 text-sm text-gray-500",
+                                    class: "mt-2 text-sm text-gray-500 dark:text-gray-400",
                                     "Your email has been successfully verified. You can now access your account."
                                 }
                                 div {
@@ -81,11 +86,15 @@ pub fn VerifyEmail() -> Element {
             },
             Err(msg) => rsx! {
                 div {
-                    class: "min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                    class: "min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                    div {
+                        class: "absolute top-4 right-4",
+                        DarkModeToggle {}
+                    }
                     div {
                         class: "sm:mx-auto sm:w-full sm:max-w-md",
                         div {
-                            class: "bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10",
+                            class: "bg-white dark:bg-neutral-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border dark:border-neutral-700",
                             div {
                                 class: "text-center",
                                 div {
@@ -104,11 +113,11 @@ pub fn VerifyEmail() -> Element {
                                     }
                                 }
                                 h3 {
-                                    class: "mt-2 text-xl font-medium text-gray-900",
+                                    class: "mt-2 text-xl font-medium text-gray-900 dark:text-white",
                                     "Verification Failed"
                                 }
                                 p {
-                                    class: "mt-2 text-sm text-gray-500",
+                                    class: "mt-2 text-sm text-gray-500 dark:text-gray-400",
                                     "{msg}"
                                 }
                                 div {
@@ -126,20 +135,24 @@ pub fn VerifyEmail() -> Element {
         },
         None => rsx! {
             div {
-                class: "min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                class: "min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                div {
+                    class: "absolute top-4 right-4",
+                    DarkModeToggle {}
+                }
                 div {
                     class: "sm:mx-auto sm:w-full sm:max-w-md",
                     div {
-                        class: "bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10",
+                        class: "bg-white dark:bg-neutral-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border dark:border-neutral-700",
                         div {
                             class: "text-center",
                             div {
                                 class: "flex flex-col items-center",
                                 div {
-                                    class: "animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"
+                                    class: "animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-4"
                                 }
                                 p {
-                                    class: "text-gray-500",
+                                    class: "text-gray-500 dark:text-gray-400",
                                     "Verifying your email..."
                                 }
                             }

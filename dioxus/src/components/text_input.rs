@@ -16,20 +16,20 @@ pub fn TextInput(
     oninput: Option<EventHandler<FormEvent>>,
 ) -> Element {
     let border_class = if error.is_some() {
-        "border-red-500 text-red-900 placeholder-red-400 bg-red-50 focus:ring-red-500 focus:border-red-500"
+        "appearance-none block w-full px-3 py-2 border border-red-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
     } else {
-        "border-neutral-300 dark:border-neutral-700 placeholder-neutral-400 dark:placeholder-neutral-500 focus:ring-indigo-500 focus:border-indigo-500"
+        "appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
     };
 
     rsx! {
         div {
-            class: "mb-4",
+            class: "form-group space-y-1 mb-4",
             label {
-                class: "block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1",
+                class: "block text-sm font-medium text-gray-700",
                 "{label}"
             }
             div {
-                class: "mt-1 relative rounded-md shadow-sm",
+                class: "mt-1",
                 input {
                     r#type: "{r#type}",
                     value: "{value}",
@@ -40,13 +40,13 @@ pub fn TextInput(
                         }
                     },
                     required: required,
-                    class: "appearance-none block w-full px-3 py-2 border rounded-md shadow-sm sm:text-sm bg-[var(--surface)] text-[var(--text)] {border_class} focus:outline-none",
+                    class: "{border_class}",
                     placeholder: "{placeholder}",
                 }
             }
             if let Some(err) = error {
                 p {
-                    class: "mt-2 text-sm text-red-600 dark:text-red-400 font-medium",
+                    class: "mt-2 text-sm text-red-600",
                     "{err}"
                 }
             }

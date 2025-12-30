@@ -31,6 +31,7 @@ keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "li
 tower-cookies = { version = "0.11.0", features = ["private", "signed"], optional = true }
 axum = { version = "0.8.6", features = ["ws", "macros"], optional = true }
 libsqlite3-sys = { version = "0.30.1", features = ["bundled-sqlcipher"], optional = true }
+web-sys = { version = "0.3.83", features = ["Window", "Document", "Element", "HtmlElement", "DomTokenList", "Storage", "MediaQueryList"] }
 
 [features]
 default = ["web"]

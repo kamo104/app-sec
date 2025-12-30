@@ -3,7 +3,7 @@ use crate::api::{request_password_reset, ResetRequestData};
 use crate::components::auth_layout::AuthLayout;
 use crate::components::text_input::TextInput;
 use crate::components::button::Button;
-use crate::components::back_button::BackButton;
+use crate::components::link_button::LinkButton;
 
 #[component]
 pub fn ForgotPassword() -> Element {
@@ -17,7 +17,13 @@ pub fn ForgotPassword() -> Element {
         message.set(None);
 
         if identifier().is_empty() {
-            error_msg.set(Some("Please enter your email or username".to_string()));
+            error_msg.set(Some("Please enter your email".to_string()));
+            return;
+        }
+
+        // Simple email validation
+        if !identifier().contains('@') {
+            error_msg.set(Some("Please enter a valid email address".to_string()));
             return;
         }
 
@@ -28,7 +34,7 @@ pub fn ForgotPassword() -> Element {
         match request_password_reset(data).await {
             Ok(_) => {
                 is_submitted.set(true);
-                message.set(Some("If an account exists with that email/username, a password reset link has been sent.".to_string()));
+                message.set(Some("If an account exists with that email, a password reset link has been sent.".to_string()));
             },
             Err(e) => {
                 // For security reasons, we might want to show the same success message
@@ -91,12 +97,13 @@ pub fn ForgotPassword() -> Element {
                     onsubmit: handle_submit,
                     div {
                         class: "mb-4 text-sm text-gray-600",
-                        "Enter your email address or username and we'll send you a link to reset your password."
+                        "Enter your email address and we'll send you a link to reset your password."
                     }
 
                     TextInput {
-                        label: "Email or Username",
+                        label: "Email",
                         value: identifier,
+                        r#type: "email",
                         required: true,
                     }
 
@@ -134,20 +141,23 @@ pub fn ForgotPassword() -> Element {
                         div {
                             class: "absolute inset-0 flex items-center",
                             div {
-                                class: "w-full border-t border-neutral-300 dark:border-neutral-700",
+                                class: "w-full border-t border-gray-300",
                             }
                         }
                         div {
                             class: "relative flex justify-center text-sm",
                             span {
-                                class: "px-2 bg-white dark:bg-neutral-900 text-neutral-500 dark:text-neutral-400",
+                                class: "px-2 bg-white text-gray-500",
                                 "Or"
                             }
                         }
                     }
-                    BackButton {
-                        label: "Back to login",
-                        to: crate::Route::Login {}
+                    div {
+                        class: "mt-6",
+                        LinkButton {
+                            to: crate::Route::Login {},
+                            "Back to login"
+                        }
                     }
                 }
             }

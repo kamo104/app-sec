@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::api::logout;
+use crate::components::dark_mode_toggle::DarkModeToggle;
 
 #[component]
 pub fn Navbar() -> Element {
@@ -22,16 +23,17 @@ pub fn Navbar() -> Element {
                         div {
                             class: "flex-shrink-0 flex items-center",
                             span {
-                                class: "font-bold text-xl text-indigo-600 dark:text-indigo-400",
+                                class: "font-bold text-xl text-primary-600 dark:text-primary-400",
                                 "MemeShark"
                             }
                         }
                     }
                     div {
                         class: "flex items-center",
+                        DarkModeToggle {}
                         button {
                             onclick: handle_logout,
-                            class: "ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                            class: "ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500",
                             "Logout"
                         }
                     }

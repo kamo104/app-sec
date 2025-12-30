@@ -3737,6 +3737,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "validator",
+ "web-sys",
 ]
 
 [[package]]
