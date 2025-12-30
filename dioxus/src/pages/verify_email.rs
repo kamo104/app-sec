@@ -36,21 +36,23 @@ pub fn VerifyEmail() -> Element {
         Some(result) => match result {
             Ok(_) => rsx! {
                 div {
-                    class: "min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                    class: "flex flex-col items-center justify-center min-h-screen p-4",
                     div {
                         class: "absolute top-4 right-4",
                         DarkModeToggle {}
                     }
                     div {
-                        class: "sm:mx-auto sm:w-full sm:max-w-md",
+                        class: "w-full max-w-md",
                         div {
-                            class: "bg-white dark:bg-neutral-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border dark:border-neutral-700",
+                            class: "card",
                             div {
                                 class: "text-center",
                                 div {
-                                    class: "mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100",
+                                    class: "mx-auto flex items-center justify-center h-12 w-12 rounded-full",
+                                    style: "background-color: #dcfce7;", // green-100
                                     svg {
-                                        class: "h-6 w-6 text-green-600",
+                                        class: "h-6 w-6",
+                                        style: "color: #16a34a;", // green-600
                                         fill: "none",
                                         view_box: "0 0 24 24",
                                         stroke: "currentColor",
@@ -63,11 +65,11 @@ pub fn VerifyEmail() -> Element {
                                     }
                                 }
                                 h3 {
-                                    class: "mt-2 text-xl font-medium text-gray-900 dark:text-white",
+                                    class: "mt-2 text-xl font-medium",
                                     "Email Verified!"
                                 }
                                 p {
-                                    class: "mt-2 text-sm text-gray-500 dark:text-gray-400",
+                                    class: "mt-2 text-sm text-muted",
                                     "Your email has been successfully verified. You can now access your account."
                                 }
                                 div {
@@ -86,21 +88,23 @@ pub fn VerifyEmail() -> Element {
             },
             Err(msg) => rsx! {
                 div {
-                    class: "min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                    class: "flex flex-col items-center justify-center min-h-screen p-4",
                     div {
                         class: "absolute top-4 right-4",
                         DarkModeToggle {}
                     }
                     div {
-                        class: "sm:mx-auto sm:w-full sm:max-w-md",
+                        class: "w-full max-w-md",
                         div {
-                            class: "bg-white dark:bg-neutral-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border dark:border-neutral-700",
+                            class: "card",
                             div {
                                 class: "text-center",
                                 div {
-                                    class: "mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100",
+                                    class: "mx-auto flex items-center justify-center h-12 w-12 rounded-full",
+                                    style: "background-color: #fee2e2;", // red-100
                                     svg {
-                                        class: "h-6 w-6 text-red-600",
+                                        class: "h-6 w-6",
+                                        style: "color: #dc2626;", // red-600
                                         fill: "none",
                                         view_box: "0 0 24 24",
                                         stroke: "currentColor",
@@ -113,11 +117,11 @@ pub fn VerifyEmail() -> Element {
                                     }
                                 }
                                 h3 {
-                                    class: "mt-2 text-xl font-medium text-gray-900 dark:text-white",
+                                    class: "mt-2 text-xl font-medium",
                                     "Verification Failed"
                                 }
                                 p {
-                                    class: "mt-2 text-sm text-gray-500 dark:text-gray-400",
+                                    class: "mt-2 text-sm text-muted",
                                     "{msg}"
                                 }
                                 div {
@@ -135,24 +139,25 @@ pub fn VerifyEmail() -> Element {
         },
         None => rsx! {
             div {
-                class: "min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8",
+                class: "flex flex-col items-center justify-center min-h-screen p-4",
                 div {
                     class: "absolute top-4 right-4",
                     DarkModeToggle {}
                 }
                 div {
-                    class: "sm:mx-auto sm:w-full sm:max-w-md",
+                    class: "w-full max-w-md",
                     div {
-                        class: "bg-white dark:bg-neutral-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border dark:border-neutral-700",
+                        class: "card",
                         div {
                             class: "text-center",
                             div {
                                 class: "flex flex-col items-center",
                                 div {
-                                    class: "animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-4"
+                                    class: "rounded-full h-10 w-10 border-b-2 mb-4",
+                                    style: "border-color: var(--primary-color); animation: spin 1s linear infinite;"
                                 }
                                 p {
-                                    class: "text-gray-500 dark:text-gray-400",
+                                    class: "text-muted",
                                     "Verifying your email..."
                                 }
                             }

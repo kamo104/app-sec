@@ -16,16 +16,16 @@ pub fn TextInput(
     oninput: Option<EventHandler<FormEvent>>,
 ) -> Element {
     let border_class = if error.is_some() {
-        "appearance-none block w-full px-3 py-2 border border-red-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+        "input border-red-500 focus:border-red-500 focus:ring-red-500"
     } else {
-        "appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+        "input"
     };
 
     rsx! {
         div {
-            class: "form-group space-y-1 mb-4",
+            class: "form-group mb-4",
             label {
-                class: "block text-sm font-medium text-gray-700",
+                class: "label",
                 "{label}"
             }
             div {

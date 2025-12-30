@@ -14,7 +14,7 @@ pub fn BackButton(props: BackButtonProps) -> Element {
         div {
             class: "mt-6 text-center",
             Link {
-                class: "font-medium text-primary-600 hover:text-primary-500",
+                class: "font-medium text-primary hover:text-primary-hover",
                 to: props.to,
                 "{props.label}"
             }

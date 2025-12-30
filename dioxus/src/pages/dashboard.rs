@@ -36,33 +36,33 @@ pub fn Dashboard() -> Element {
 
     rsx! {
         div {
-            class: "min-h-screen bg-neutral-100 dark:bg-black",
+            class: "min-h-screen",
             Navbar {}
 
             main {
-                class: "max-w-7xl mx-auto py-6 sm:px-6 lg:px-8",
+                class: "container py-6",
                 div {
-                    class: "px-4 py-6 sm:px-0",
+                    class: "p-4",
                     div {
-                        class: "border-4 border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg h-96 flex flex-col items-center justify-center",
+                        class: "card flex flex-col items-center justify-center h-screen",
                         h1 {
-                            class: "text-3xl font-bold text-neutral-900 dark:text-white mb-8",
+                            class: "text-4xl font-bold mb-10",
                             "Welcome to your Dashboard"
                         }
 
                         div {
                             class: "text-center",
                             p {
-                                class: "text-lg text-neutral-500 dark:text-neutral-400 mb-4",
+                                class: "text-lg text-muted mb-4",
                                 "Your current counter value is:"
                             }
                             p {
-                                class: "text-6xl font-extrabold text-indigo-600 dark:text-indigo-400 mb-8",
+                                class: "text-4xl font-extrabold text-primary mb-10",
                                 "{counter}"
                             }
                             button {
                                 onclick: increment,
-                                class: "inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-neutral-800 dark:text-indigo-400 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                                class: "btn btn-primary",
                                 "Increment Counter"
                             }
                         }

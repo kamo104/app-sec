@@ -48,14 +48,14 @@ pub fn Login() -> Element {
 
                 if let Some(msg) = error_message() {
                     div {
-                        class: "rounded-md bg-red-50 p-4 mb-4",
+                        class: "alert alert-error",
                         div {
                             class: "flex",
                             div {
                                 class: "ml-3",
-                                h3 { class: "text-sm font-medium text-red-800", "Login Failed" }
+                                h3 { class: "text-sm font-medium", "Login Failed" }
                                 div {
-                                    class: "mt-2 text-sm text-red-700",
+                                    class: "mt-2 text-sm",
                                     p { "{msg}" }
                                 }
                             }
@@ -69,7 +69,7 @@ pub fn Login() -> Element {
                         class: "text-sm",
                         Link {
                             to: crate::Route::ForgotPassword {},
-                            class: "font-medium text-primary-600 hover:text-primary-500",
+                            class: "font-medium text-primary hover:text-primary-hover",
                             "Forgot your password?"
                         }
                     }
@@ -95,7 +95,7 @@ pub fn Login() -> Element {
                     div {
                         class: "relative flex justify-center text-sm",
                         span {
-                            class: "px-2 bg-white text-gray-500",
+                            class: "px-2 bg-white text-muted",
                             "Or"
                         }
                     }

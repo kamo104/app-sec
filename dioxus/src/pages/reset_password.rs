@@ -60,13 +60,13 @@ pub fn ResetPassword() -> Element {
             title: "Set new password".to_string(),
             if success() {
                 div {
-                    class: "rounded-md bg-green-50 p-4",
+                    class: "alert alert-success",
                     div {
                         class: "flex",
                         div {
                             class: "flex-shrink-0",
                             svg {
-                                class: "h-5 w-5 text-green-400",
+                                class: "h-5 w-5",
                                 view_box: "0 0 20 20",
                                 fill: "currentColor",
                                 path {
@@ -79,11 +79,11 @@ pub fn ResetPassword() -> Element {
                         div {
                             class: "ml-3",
                             h3 {
-                                class: "text-sm font-medium text-green-800",
+                                class: "text-sm font-medium",
                                 "Password reset successful"
                             }
                             div {
-                                class: "mt-2 text-sm text-green-700",
+                                class: "mt-2 text-sm",
                                 p {
                                     "Your password has been updated. You can now log in with your new password."
                                 }
@@ -94,7 +94,7 @@ pub fn ResetPassword() -> Element {
                                     class: "-mx-2 -my-1.5 flex",
                                     Link {
                                         to: crate::Route::Login {},
-                                        class: "bg-green-50 px-2 py-1.5 rounded-md text-sm font-medium text-green-800 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-50 focus:ring-green-600",
+                                        class: "btn btn-secondary text-sm",
                                         "Sign in"
                                     }
                                 }
@@ -121,17 +121,17 @@ pub fn ResetPassword() -> Element {
 
                     if let Some(msg) = error_msg() {
                         div {
-                            class: "rounded-md bg-red-50 p-4 mb-4",
+                            class: "alert alert-error",
                             div {
                                 class: "flex",
                                 div {
                                     class: "ml-3",
                                     h3 {
-                                        class: "text-sm font-medium text-red-800",
+                                        class: "text-sm font-medium",
                                         "Error"
                                     }
                                     div {
-                                        class: "mt-2 text-sm text-red-700",
+                                        class: "mt-2 text-sm",
                                         p { "{msg}" }
                                     }
                                 }

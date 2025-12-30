@@ -64,7 +64,7 @@ pub fn DarkModeToggle() -> Element {
     rsx! {
         button {
             onclick: toggle_theme,
-            class: "p-2 rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:text-gray-400 dark:hover:bg-gray-700",
+            class: "btn-icon",
             aria_label: "Toggle dark mode",
             if is_dark() {
                 // Sun icon for dark mode (switch to light)

@@ -34,7 +34,6 @@ enum Route {
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.generated.css");
 
 fn main() {
     #[cfg(feature = "server")]
@@ -60,7 +59,6 @@ fn main() {
 fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         Router::<Route> {}
     }
@@ -73,27 +71,27 @@ use crate::components::dark_mode_toggle::DarkModeToggle;
 fn Home() -> Element {
     rsx! {
         div {
-            class: "flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-neutral-900",
+            class: "flex flex-col items-center justify-center min-h-screen",
             div {
                 class: "absolute top-4 right-4",
                 DarkModeToggle {}
             }
             div {
                 class: "text-center mb-10",
-                h1 { class: "text-4xl font-extrabold text-primary-600 dark:text-primary-400 sm:text-5xl md:text-6xl", "MemeShark" }
-                p { class: "mt-3 max-w-md mx-auto text-base text-gray-500 dark:text-gray-400 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl", "The secure platform for your meme needs." }
+                h1 { class: "text-4xl font-extrabold text-primary", "MemeShark" }
+                p { class: "mt-4 text-base text-muted", "The secure platform for your meme needs." }
             }
 
             div {
                 class: "flex gap-4",
                 Link {
                     to: Route::Login {},
-                    class: "w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 md:py-4 md:text-lg md:px-10",
+                    class: "btn btn-primary",
                     "Sign in"
                 }
                 Link {
                     to: Route::Register {},
-                    class: "w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 md:py-4 md:text-lg md:px-10",
+                    class: "btn btn-secondary",
                     "Create account"
                 }
             }

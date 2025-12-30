@@ -50,13 +50,13 @@ pub fn ForgotPassword() -> Element {
             title: "Reset your password".to_string(),
             if is_submitted() {
                 div {
-                    class: "rounded-md bg-green-50 p-4",
+                    class: "alert alert-success",
                     div {
                         class: "flex",
                         div {
                             class: "flex-shrink-0",
                             svg {
-                                class: "h-5 w-5 text-green-400",
+                                class: "h-5 w-5",
                                 view_box: "0 0 20 20",
                                 fill: "currentColor",
                                 path {
@@ -69,11 +69,11 @@ pub fn ForgotPassword() -> Element {
                         div {
                             class: "ml-3",
                             h3 {
-                                class: "text-sm font-medium text-green-800",
+                                class: "text-sm font-medium",
                                 "Request received"
                             }
                             div {
-                                class: "mt-2 text-sm text-green-700",
+                                class: "mt-2 text-sm",
                                 p {
                                     "{message.as_ref().unwrap()}"
                                 }
@@ -84,7 +84,7 @@ pub fn ForgotPassword() -> Element {
                                     class: "-mx-2 -my-1.5 flex",
                                     Link {
                                         to: crate::Route::Login {},
-                                        class: "bg-green-50 px-2 py-1.5 rounded-md text-sm font-medium text-green-800 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-50 focus:ring-green-600",
+                                        class: "btn btn-secondary text-sm",
                                         "Return to login"
                                     }
                                 }
@@ -96,7 +96,7 @@ pub fn ForgotPassword() -> Element {
                 form {
                     onsubmit: handle_submit,
                     div {
-                        class: "mb-4 text-sm text-gray-600",
+                        class: "mb-4 text-sm text-muted",
                         "Enter your email address and we'll send you a link to reset your password."
                     }
 
@@ -109,17 +109,17 @@ pub fn ForgotPassword() -> Element {
 
                     if let Some(msg) = error_msg() {
                         div {
-                            class: "rounded-md bg-red-50 p-4 mb-4",
+                            class: "alert alert-error",
                             div {
                                 class: "flex",
                                 div {
                                     class: "ml-3",
                                     h3 {
-                                        class: "text-sm font-medium text-red-800",
+                                        class: "text-sm font-medium",
                                         "Error"
                                     }
                                     div {
-                                        class: "mt-2 text-sm text-red-700",
+                                        class: "mt-2 text-sm",
                                         p { "{msg}" }
                                     }
                                 }
@@ -147,7 +147,7 @@ pub fn ForgotPassword() -> Element {
                         div {
                             class: "relative flex justify-center text-sm",
                             span {
-                                class: "px-2 bg-white text-gray-500",
+                                class: "px-2 bg-white text-muted",
                                 "Or"
                             }
                         }
