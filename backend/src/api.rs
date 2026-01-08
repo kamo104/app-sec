@@ -24,6 +24,10 @@ const SESSION_DURATION_DAYS: i64 = 7;
 const EMAIL_VERIFICATION_TOKEN_DURATION_HOURS: i64 = 2;
 const PASSWORD_RESET_TOKEN_DURATION_HOURS: i64 = 1;
 
+// Base URL constants for email links
+const BASE_URL_DEV: &str = "http://localhost:4000";
+const BASE_URL_PROD: &str = "https://example.com";
+
 fn auth_error() -> (StatusCode, Protobuf<ApiResponse>) {
     (
         StatusCode::UNAUTHORIZED,
@@ -266,9 +270,9 @@ pub async fn register_user(
 
                     // Get base URL for verification link
                     let base_url = if db.is_dev {
-                        "http://localhost:4000"
+                        BASE_URL_DEV
                     } else {
-                        "https://example.com"
+                        BASE_URL_PROD
                     };
 
                     let verification_link = format!("{}/verify-email?token={}", base_url, token);
@@ -799,9 +803,9 @@ pub async fn request_password_reset(
 
     // Send email
     let base_url = if db.is_dev {
-        "http://localhost:4000"
+        BASE_URL_DEV
     } else {
-        "https://example.com"
+        BASE_URL_PROD
     };
     let reset_link = format!("{}/reset-password?token={}", base_url, token);
     let email_sender = EmailSender::new_mailhog();
