@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use axum::{
     extract::{FromRef, FromRequestParts, State},
     http::{StatusCode, header, request::Parts},
@@ -21,15 +20,14 @@ use crate::db::{
 };
 use crate::email::EmailSender;
 use crate::generated::v1::{
-    ApiResponse, CounterData, EmptyData, FieldType, HealthData, LoginResponseData, ResponseCode,
-    ValidationErrorData, api_response,
+    ApiData, ApiResponse, CounterData, FieldType, LoginResponseData, ResponseCode,
+    ValidationErrorData, api_data,
 };
 
 fn auth_error() -> (StatusCode, Protobuf<ApiResponse>) {
     (
         StatusCode::UNAUTHORIZED,
         Protobuf(ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInvalidCredentials.into(),
             data: None,
         }),
@@ -40,7 +38,6 @@ fn internal_error() -> (StatusCode, Protobuf<ApiResponse>) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Protobuf(ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInternal.into(),
             data: None,
         }),
@@ -103,7 +100,6 @@ pub async fn register_user(
             payload.username
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInvalidInput.into(),
             data: None,
         };
@@ -111,67 +107,58 @@ pub async fn register_user(
     }
 
     // Validate username using shared Rust library
-    let username_result = field_validator::validate_username(&payload.username, 3, 20, true);
-    if !username_result.is_valid {
+    let username_result = field_validator::validate_username(&payload.username);
+    if !username_result.errors.is_empty() {
         debug!(
             "Username validation failed for '{}': {:?}",
             payload.username, username_result.errors
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorValidation.into(),
-            data: Some(api_response::Data::ValidationError(ValidationErrorData {
-                field: FieldType::Username.into(),
-                errors: username_result
-                    .errors
-                    .iter()
-                    .map(|e| serde_json::to_string(e).unwrap_or_default())
-                    .collect(),
-            })),
+            data: Some(ApiData {
+                data: Some(api_data::Data::ValidationError(ValidationErrorData {
+                    field: FieldType::Username.into(),
+                    errors: username_result.errors,
+                })),
+            }),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
 
     // Validate email using shared Rust library
     let email_result = field_validator::validate_email(&payload.email);
-    if !email_result.is_valid {
+    if !email_result.errors.is_empty() {
         debug!(
             "Email validation failed for '{}': {:?}",
             payload.email, email_result.errors
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorValidation.into(),
-            data: Some(api_response::Data::ValidationError(ValidationErrorData {
-                field: FieldType::Email.into(),
-                errors: email_result
-                    .errors
-                    .iter()
-                    .map(|e| serde_json::to_string(e).unwrap_or_default())
-                    .collect(),
-            })),
+            data: Some(ApiData {
+                data: Some(api_data::Data::ValidationError(ValidationErrorData {
+                    field: FieldType::Email.into(),
+                    errors: email_result.errors,
+                })),
+            }),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
 
     // Validate password strength using shared Rust library
     let password_result = field_validator::validate_password(&payload.password);
-    if !password_result.is_valid {
+    if !password_result.errors.is_empty() {
         debug!(
             "Password validation failed for '{}': {:?}",
             payload.username, password_result.errors
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorValidation.into(),
-            data: Some(api_response::Data::ValidationError(ValidationErrorData {
-                field: FieldType::Password.into(),
-                errors: password_result
-                    .errors
-                    .iter()
-                    .map(|e| serde_json::to_string(e).unwrap_or_default())
-                    .collect(),
-            })),
+            data: Some(ApiData {
+                data: Some(api_data::Data::ValidationError(ValidationErrorData {
+                    field: FieldType::Password.into(),
+                    errors: password_result.errors,
+                })),
+            }),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
@@ -191,7 +178,6 @@ pub async fn register_user(
                 payload.username
             );
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorUsernameTaken.into(),
                 data: None,
             };
@@ -302,9 +288,8 @@ pub async fn register_user(
                     }
 
                     let response = ApiResponse {
-                        success: true,
-                        code: ResponseCode::SuccessRegistered.into(),
-                        data: Some(api_response::Data::Empty(EmptyData {})),
+                        code: ResponseCode::Success.into(),
+                        data: None,
                     };
                     (StatusCode::CREATED, Protobuf(response))
                 }
@@ -332,7 +317,6 @@ pub async fn register_user(
             };
             debug!("Failed to create user '{}': {:?}", payload.username, e);
             let response = ApiResponse {
-                success: false,
                 code: code.into(),
                 data: None,
             };
@@ -344,11 +328,8 @@ pub async fn register_user(
 /// Health check endpoint
 pub async fn health_check() -> impl IntoResponse {
     let response = ApiResponse {
-        success: true,
-        code: ResponseCode::SuccessOk.into(),
-        data: Some(api_response::Data::HealthData(HealthData {
-            status: "healthy".to_string(),
-        })),
+        code: ResponseCode::Success.into(),
+        data: None,
     };
     (StatusCode::OK, Protobuf(response))
 }
@@ -367,31 +348,27 @@ pub async fn login_user(
             payload.username
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInvalidInput.into(),
             data: None,
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
     }
 
-    // Validate username format (without length validation for login)
-    let username_result = field_validator::validate_username(&payload.username, 3, 20, false);
-    if !username_result.is_valid {
+    // Validate username format
+    let username_result = field_validator::validate_username(&payload.username);
+    if !username_result.errors.is_empty() {
         debug!(
             "Username validation failed for '{}': {:?}",
             payload.username, username_result.errors
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorValidation.into(),
-            data: Some(api_response::Data::ValidationError(ValidationErrorData {
-                field: FieldType::Username.into(),
-                errors: username_result
-                    .errors
-                    .iter()
-                    .map(|e| serde_json::to_string(e).unwrap_or_default())
-                    .collect(),
-            })),
+            data: Some(ApiData {
+                data: Some(api_data::Data::ValidationError(ValidationErrorData {
+                    field: FieldType::Username.into(),
+                    errors: username_result.errors,
+                })),
+            }),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
     }
@@ -402,7 +379,6 @@ pub async fn login_user(
         Err(sqlx::Error::RowNotFound) => {
             debug!("Login failed: user '{}' not found", payload.username);
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInvalidCredentials.into(),
                 data: None,
             };
@@ -424,7 +400,6 @@ pub async fn login_user(
             payload.username
         );
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorEmailNotVerified.into(),
             data: None,
         };
@@ -477,9 +452,10 @@ pub async fn login_user(
                 email: user.email,
             };
             let response = ApiResponse {
-                success: true,
-                code: ResponseCode::SuccessLogin.into(),
-                data: Some(api_response::Data::LoginResponse(response_data)),
+                code: ResponseCode::Success.into(),
+                data: Some(ApiData {
+                    data: Some(api_data::Data::LoginResponse(response_data)),
+                }),
             };
 
             (
@@ -495,7 +471,6 @@ pub async fn login_user(
                 payload.username
             );
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInvalidCredentials.into(),
                 data: None,
             };
@@ -507,7 +482,6 @@ pub async fn login_user(
                 payload.username, e
             );
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInternal.into(),
                 data: None,
             };
@@ -529,7 +503,6 @@ pub async fn verify_email(
     if payload.token.is_empty() {
         debug!("Email verification failed: token is empty");
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInvalidToken.into(),
             data: None,
         };
@@ -542,7 +515,6 @@ pub async fn verify_email(
         Err(e) => {
             debug!("Failed to hash verification token: {:?}", e);
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInvalidToken.into(),
                 data: None,
             };
@@ -560,7 +532,6 @@ pub async fn verify_email(
         Err(sqlx::Error::RowNotFound) => {
             debug!("Verification token not found in database");
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInvalidToken.into(),
                 data: None,
             };
@@ -576,7 +547,6 @@ pub async fn verify_email(
     if OffsetDateTime::now_utc() > token_record.expires_at {
         debug!("Verification token has expired");
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInvalidToken.into(),
             data: None,
         };
@@ -593,7 +563,6 @@ pub async fn verify_email(
         Err(e) => {
             debug!("Failed to get user for verification: {:?}", e);
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInternal.into(),
                 data: None,
             };
@@ -604,9 +573,8 @@ pub async fn verify_email(
     if user.email_verified {
         debug!("User already verified");
         let response = ApiResponse {
-            success: true,
-            code: ResponseCode::SuccessEmailAlreadyVerified.into(),
-            data: Some(api_response::Data::Empty(EmptyData {})),
+            code: ResponseCode::Success.into(),
+            data: None,
         };
         return (StatusCode::OK, Protobuf(response));
     }
@@ -640,9 +608,8 @@ pub async fn verify_email(
             }
 
             let response = ApiResponse {
-                success: true,
-                code: ResponseCode::SuccessEmailVerified.into(),
-                data: Some(api_response::Data::Empty(EmptyData {})),
+                code: ResponseCode::Success.into(),
+                data: None,
             };
             (StatusCode::OK, Protobuf(response))
         }
@@ -656,11 +623,12 @@ pub async fn verify_email(
 /// Handler to get the current counter value
 pub async fn get_counter(auth: AuthenticatedUser) -> impl IntoResponse {
     let response = ApiResponse {
-        success: true,
-        code: ResponseCode::SuccessOk.into(),
-        data: Some(api_response::Data::CounterData(CounterData {
-            value: auth.user.counter,
-        })),
+        code: ResponseCode::Success.into(),
+        data: Some(ApiData {
+            data: Some(api_data::Data::CounterData(CounterData {
+                value: auth.user.counter,
+            })),
+        }),
     };
     (StatusCode::OK, Protobuf(response))
 }
@@ -678,9 +646,12 @@ pub async fn set_counter(
     {
         Ok(_) => {
             let response = ApiResponse {
-                success: true,
-                code: ResponseCode::SuccessOk.into(),
-                data: Some(api_response::Data::Empty(EmptyData {})),
+                code: ResponseCode::Success.into(),
+                data: Some(ApiData {
+                    data: Some(api_data::Data::CounterData(CounterData {
+                        value: payload.value,
+                    })),
+                }),
             };
             (StatusCode::OK, Protobuf(response))
         }
@@ -704,9 +675,8 @@ pub async fn request_password_reset(
         Err(sqlx::Error::RowNotFound) => {
             // Security: Don't reveal if user exists
             let response = ApiResponse {
-                success: true,
-                code: ResponseCode::SuccessPasswordResetRequested.into(),
-                data: Some(api_response::Data::Empty(EmptyData {})),
+                code: ResponseCode::Success.into(),
+                data: None,
             };
             return (StatusCode::OK, Protobuf(response));
         }
@@ -755,9 +725,8 @@ pub async fn request_password_reset(
     }
 
     let response = ApiResponse {
-        success: true,
-        code: ResponseCode::SuccessPasswordResetRequested.into(),
-        data: Some(api_response::Data::Empty(EmptyData {})),
+        code: ResponseCode::Success.into(),
+        data: None,
     };
     (StatusCode::OK, Protobuf(response))
 }
@@ -782,7 +751,6 @@ pub async fn complete_password_reset(
         Ok(record) => record,
         Err(sqlx::Error::RowNotFound) => {
             let response = ApiResponse {
-                success: false,
                 code: ResponseCode::ErrorInvalidToken.into(),
                 data: None,
             };
@@ -796,7 +764,6 @@ pub async fn complete_password_reset(
 
     if OffsetDateTime::now_utc() > reset_record.expires_at {
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorInvalidToken.into(),
             data: None,
         };
@@ -805,18 +772,15 @@ pub async fn complete_password_reset(
 
     // Validate new password
     let password_result = field_validator::validate_password(&payload.new_password);
-    if !password_result.is_valid {
+    if !password_result.errors.is_empty() {
         let response = ApiResponse {
-            success: false,
             code: ResponseCode::ErrorValidation.into(),
-            data: Some(api_response::Data::ValidationError(ValidationErrorData {
-                field: FieldType::Password.into(),
-                errors: password_result
-                    .errors
-                    .iter()
-                    .map(|e| serde_json::to_string(e).unwrap_or_default())
-                    .collect(),
-            })),
+            data: Some(ApiData {
+                data: Some(api_data::Data::ValidationError(ValidationErrorData {
+                    field: FieldType::Password.into(),
+                    errors: password_result.errors,
+                })),
+            }),
         };
         return (StatusCode::BAD_REQUEST, Protobuf(response));
     }
@@ -829,9 +793,8 @@ pub async fn complete_password_reset(
             let _ = db.password_reset_tokens_table.delete_by_user_id(reset_record.user_id).await;
 
             let response = ApiResponse {
-                success: true,
-                code: ResponseCode::SuccessPasswordReset.into(),
-                data: Some(api_response::Data::Empty(EmptyData {})),
+                code: ResponseCode::Success.into(),
+                data: None,
             };
             (StatusCode::OK, Protobuf(response))
         }
@@ -862,9 +825,8 @@ pub async fn logout_user(
         .build();
 
     let response = ApiResponse {
-        success: true,
-        code: ResponseCode::SuccessOk.into(),
-        data: Some(api_response::Data::Empty(EmptyData {})),
+        code: ResponseCode::Success.into(),
+        data: None,
     };
 
     (

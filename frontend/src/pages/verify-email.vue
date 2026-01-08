@@ -121,11 +121,7 @@ const verifyToken = async () => {
     const response = await verifyEmail(token)
 
     message.value = translate_response_code(response.code, undefined)
-    if (response.success) {
-      success.value = true
-    } else {
-      error.value = true
-    }
+    success.value = true
   } catch (err) {
     const apiError = err as ApiError
     error.value = true

@@ -1,4 +1,5 @@
 # Success codes
+SUCCESS: "Success"
 SUCCESS_OK: "Success"
 SUCCESS_REGISTERED: "User registered successfully. Please check your email to verify your account."
 SUCCESS_REGISTERED_VERIFICATION_PENDING: "User registered successfully (email verification pending)"
@@ -16,25 +17,37 @@ ERROR_EMAIL_NOT_VERIFIED: "Email not verified. Please verify your email before l
 ERROR_INVALID_TOKEN: "Invalid or expired link"
 ERROR_DATABASE: "A database error occurred. Please try again later."
 ERROR_INTERNAL: "An internal server error occurred"
-ERROR_VALIDATION_USERNAME: "Username does not meet requirements"
-ERROR_VALIDATION_EMAIL: "Email does not meet requirements"
-ERROR_VALIDATION_PASSWORD: "Password does not meet requirements"
+ERROR_VALIDATION: "Validation failed"
 RESPONSE_CODE_UNSPECIFIED: "An unexpected response was received"
 
-# Validation errors
+# Validation errors - Username
 USERNAME_REQUIRED: "Username is required"
 USERNAME_TOO_SHORT: "Username must be at least %{min} characters"
-USERNAME_TOO_LONG: "Username must be less than %{max} characters"
-USERNAME_INVALID_CHARACTERS: "Username can only contain letters, numbers, and underscores"
+USERNAME_TOO_LONG: "Username must be at most %{max} characters"
+USERNAME_INVALID_CHARACTERS: "Username contains invalid characters"
+USERNAME_INVALID_FORMAT: "Username format is invalid"
+
+# Validation errors - Email
 EMAIL_REQUIRED: "Email is required"
-EMAIL_INVALID_FORMAT: "Email must have a valid format (user@domain)"
-EMAIL_MISSING_AT: "Email must contain @ symbol"
-EMAIL_INVALID_DOMAIN_CHARACTERS: "Email domain contains invalid characters"
-EMAIL_MISSING_DOT: "Email domain must contain a dot"
+EMAIL_INVALID_FORMAT: "Email must have a valid format"
+EMAIL_TOO_SHORT: "Email is too short"
+EMAIL_TOO_LONG: "Email is too long"
+EMAIL_INVALID_CHARACTERS: "Email contains invalid characters"
+
+# Validation errors - Password
 PASSWORD_REQUIRED: "Password is required"
 PASSWORD_TOO_SHORT: "Password must be at least %{min} characters"
-PASSWORD_NO_UPPERCASE: "Password must contain at least one uppercase letter"
-PASSWORD_NO_LOWERCASE: "Password must contain at least one lowercase letter"
-PASSWORD_NO_NUMBER: "Password must contain at least one number"
-PASSWORD_NO_SPECIAL_CHAR: "Password must contain at least one special character"
-FIELD_REQUIRED: "Field is required"
+PASSWORD_TOO_LONG: "Password must be at most %{max} characters"
+PASSWORD_INVALID_CHARACTERS: "Password contains invalid characters"
+PASSWORD_INVALID_FORMAT: "Password format is invalid"
+PASSWORD_TOO_FEW_UPPERCASE_LETTERS: "Password must contain at least %{min} uppercase letter"
+PASSWORD_TOO_FEW_LOWERCASE_LETTERS: "Password must contain at least %{min} lowercase letter"
+PASSWORD_TOO_FEW_DIGITS: "Password must contain at least %{min} number"
+PASSWORD_TOO_FEW_SPECIAL_CHARACTERS: "Password must contain at least %{min} special character"
+
+# Fallback messages
+FIELD_TYPE_UNSPECIFIED_REQUIRED: "This field is required"
+FIELD_TYPE_UNSPECIFIED_TOO_SHORT: "This field is too short"
+FIELD_TYPE_UNSPECIFIED_TOO_LONG: "This field is too long"
+FIELD_TYPE_UNSPECIFIED_INVALID_CHARACTERS: "This field contains invalid characters"
+FIELD_TYPE_UNSPECIFIED_INVALID_FORMAT: "This field has an invalid format"

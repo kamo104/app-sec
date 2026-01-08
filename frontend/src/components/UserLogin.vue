@@ -141,29 +141,21 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const response = await loginUser({
+    const loginResponse = await loginUser({
       username: formData.username,
       password: formData.password,
     })
 
-    if (response.success && response.loginResponse) {
-      const message = translate_response_code(response.code, 'en')
-      showMessage(message, 'success')
+    showMessage('Login successful', 'success')
 
-      // Store user info if "Remember me" is checked
-      if (formData.rememberMe) {
-        localStorage.setItem('user', JSON.stringify(response.loginResponse))
-      }
-
-      // Redirect to dashboard
-      console.log('Login successful:', response.loginResponse)
-      router.push('/dashboard')
-    } else {
-      // Handle non-success response
-      const message = translate_response_code(response.code, 'en')
-      console.error('Login failed:', message)
-      showMessage(message, 'error')
+    // Store user info if "Remember me" is checked
+    if (formData.rememberMe) {
+      localStorage.setItem('user', JSON.stringify(loginResponse))
     }
+
+    // Redirect to dashboard
+    console.log('Login successful:', loginResponse)
+    router.push('/dashboard')
   } catch (error) {
     const apiError = error as ApiError
     console.error('Login error:', apiError)
@@ -173,16 +165,17 @@ const handleSubmit = async () => {
       const { field, errors } = apiError.validationError
       const translatedErrors = errors.map(err => {
         try {
-          return translate_validation_error(err, 'en')
+          const errorBytes = new Uint8Array([err])
+          return translate_validation_error(errorBytes, 'en')
         } catch {
-          return err
+          return String(err)
         }
       })
 
-      if (field === FieldType.FIELD_TYPE_USERNAME) {
+      if (field === FieldType.USERNAME) {
         usernameField.value.errors = translatedErrors
         usernameField.value.hasError = true
-      } else if (field === FieldType.FIELD_TYPE_PASSWORD) {
+      } else if (field === FieldType.PASSWORD) {
         passwordField.value.errors = translatedErrors
         passwordField.value.hasError = true
       }

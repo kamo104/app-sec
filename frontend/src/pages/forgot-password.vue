@@ -92,12 +92,8 @@ const handleSubmit = async () => {
 
   try {
     const response = await requestPasswordReset(username.value)
-    if (response.success) {
-      showMessage(translate_response_code(response.code, 'en'), 'success')
-      username.value = '' // Clear field on success
-    } else {
-      showMessage(translate_response_code(response.code, 'en'), 'error')
-    }
+    showMessage(translate_response_code(response.code, 'en'), 'success')
+    username.value = ''
   } catch (e: any) {
     console.error('Password reset request failed', e)
     showMessage(e.message || 'An error occurred during password reset request', 'error')

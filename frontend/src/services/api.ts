@@ -2,16 +2,16 @@
  * API Service
  *
  * Handles communication with the backend API server using protobuf binary format.
+ * Provides type-safe wrappers around all API endpoints.
  */
 
 import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
 import {
   ApiResponse,
+  ApiData,
   RegistrationRequest,
   LoginRequest,
   LoginResponseData,
-  HealthData,
-  EmptyData,
   EmailVerificationRequest,
   ValidationErrorData,
   ResponseCode,
@@ -20,50 +20,48 @@ import {
   PasswordResetRequest,
   PasswordResetCompleteRequest,
 } from '@/generated/api';
-import { initializeWasm } from '@/services/wasmLoader';
-import { translate_response_code } from '@/wasm/api-translator.js';
+import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js';
 
-// Base URL for API requests
-// In production, this would be configured via environment variables
 const API_BASE_URL = 'http://localhost:4000/api';
 
 /**
- * API Error for structured error handling
+ * Custom error class for API errors with structured information.
  */
 export class ApiError extends Error {
   constructor(
     message: string,
-    public status: number,
-    public code?: ResponseCode,
-    public validationError?: ValidationErrorData
+    public readonly status: number,
+    public readonly code: ResponseCode,
+    public readonly validationError?: ValidationErrorData
   ) {
     super(message);
     this.name = 'ApiError';
+    Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
 
 /**
- * Encode a protobuf message to Uint8Array
+ * Encodes a protobuf message to Uint8Array.
  */
-function encodeProtobuf<T>(message: T, encodeFn: (msg: T, writer?: BinaryWriter) => BinaryWriter): Uint8Array {
+function encodeMessage<T>(message: T, encodeFn: (msg: T, writer?: BinaryWriter) => BinaryWriter): Uint8Array {
   const writer = encodeFn(message);
   return writer.finish();
 }
 
 /**
- * Decode a protobuf response from Uint8Array
+ * Decodes a protobuf message from Uint8Array.
  */
-function decodeProtobuf<T>(data: Uint8Array, decodeFn: (reader: BinaryReader | Uint8Array, length?: number) => T): T {
+function decodeMessage<T>(data: Uint8Array, decodeFn: (reader: BinaryReader | Uint8Array, length?: number) => T): T {
   return decodeFn(data);
 }
 
 /**
- * Generic fetch wrapper for protobuf API calls
+ * Makes an HTTP request to the API with protobuf encoding.
  */
-async function apiFetchProtobuf<T>(
+async function makeApiRequest(
   endpoint: string,
-  requestBytes: Uint8Array | null,
-  method: 'GET' | 'POST' = 'POST'
+  method: 'GET' | 'POST',
+  requestBody?: Uint8Array
 ): Promise<ApiResponse> {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -75,77 +73,155 @@ async function apiFetchProtobuf<T>(
         'Accept': 'application/x-protobuf',
       },
       credentials: 'include',
-      body: requestBytes as unknown as BodyInit,
+      body: requestBody as BodyInit | undefined,
     });
 
-    // Handle non-2xx responses
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`;
-      let responseCode: ResponseCode | undefined;
+    const responseData = await response.arrayBuffer();
+    const decoded = decodeMessage(new Uint8Array(responseData), ApiResponse.decode);
 
-      // Try to parse error response as protobuf
-      try {
-        const errorData = await response.arrayBuffer();
-        const decoded = decodeProtobuf(new Uint8Array(errorData), ApiResponse.decode);
-        responseCode = decoded.code;
-        errorMessage = translate_response_code(decoded.code, undefined);
-
-        throw new ApiError(errorMessage, response.status, responseCode, decoded.validationError);
-      } catch (e) {
-        if (e instanceof ApiError) throw e;
-        // Fallback if response body isn't protobuf
-        errorMessage = await response.text();
-      }
-
-      throw new ApiError(errorMessage, response.status, responseCode);
+    if (!response.ok || decoded.code !== ResponseCode.SUCCESS) {
+      const errorMessage = translate_response_code(decoded.code, undefined);
+      const validationError = decoded.data?.validationError;
+      throw new ApiError(errorMessage, response.status, decoded.code, validationError);
     }
 
-    // Parse successful protobuf response
-    const responseData = await response.arrayBuffer();
-    const decoded = decodeProtobuf(new Uint8Array(responseData), ApiResponse.decode);
     return decoded;
   } catch (error) {
-    // Re-throw ApiError instances, wrap others
     if (error instanceof ApiError) {
       throw error;
     }
 
-    // Handle network errors
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       throw new ApiError(
         'Cannot connect to the server. Please ensure the backend is running.',
         0,
-        ResponseCode.RESPONSE_CODE_UNSPECIFIED
+        ResponseCode.ERROR_INTERNAL
       );
     }
 
     throw new ApiError(
       (error as Error).message || 'An unexpected error occurred',
       500,
-      ResponseCode.RESPONSE_CODE_UNSPECIFIED
+      ResponseCode.ERROR_INTERNAL
     );
   }
 }
 
 /**
- * Register a new user
+ * Extracts login response data from ApiResponse.
  */
-export async function registerUser(
-  data: { username: string; email: string; password: string }
-): Promise<ApiResponse> {
+function extractLoginResponse(response: ApiResponse): LoginResponseData {
+  if (!response.data?.loginResponse) {
+    throw new ApiError('Invalid response: missing login data', 500, ResponseCode.ERROR_INTERNAL);
+  }
+  return response.data.loginResponse;
+}
+
+/**
+ * Extracts counter data from ApiResponse.
+ */
+function extractCounterData(response: ApiResponse): CounterData {
+  if (!response.data?.counterData) {
+    throw new ApiError('Invalid response: missing counter data', 500, ResponseCode.ERROR_INTERNAL);
+  }
+  return response.data.counterData;
+}
+
+/**
+ * Register a new user account.
+ */
+export async function registerUser(data: {
+  username: string;
+  email: string;
+  password: string;
+}): Promise<ApiResponse> {
   const request: RegistrationRequest = {
     username: data.username,
     email: data.email,
     password: data.password,
   };
-  const requestBytes = encodeProtobuf(request, RegistrationRequest.encode);
-  return apiFetchProtobuf('/register', requestBytes);
+  const requestBytes = encodeMessage(request, RegistrationRequest.encode);
+  return makeApiRequest('/register', 'POST', requestBytes);
 }
 
 /**
- * Health check for the API
+ * Login with username and password.
  */
-export async function healthCheck(): Promise<ApiResponse> {
+export async function loginUser(data: {
+  username: string;
+  password: string;
+}): Promise<LoginResponseData> {
+  const request: LoginRequest = {
+    username: data.username,
+    password: data.password,
+  };
+  const requestBytes = encodeMessage(request, LoginRequest.encode);
+  const response = await makeApiRequest('/login', 'POST', requestBytes);
+  return extractLoginResponse(response);
+}
+
+/**
+ * Verify email address with verification token.
+ */
+export async function verifyEmail(token: string): Promise<ApiResponse> {
+  const request: EmailVerificationRequest = { token };
+  const requestBytes = encodeMessage(request, EmailVerificationRequest.encode);
+  return makeApiRequest('/verify-email', 'POST', requestBytes);
+}
+
+/**
+ * Get the current counter value.
+ */
+export async function getCounter(): Promise<CounterData> {
+  const response = await makeApiRequest('/counter/get', 'GET');
+  return extractCounterData(response);
+}
+
+/**
+ * Set the counter to a specific value.
+ */
+export async function setCounter(value: number): Promise<CounterData> {
+  const request: SetCounterRequest = { value };
+  const requestBytes = encodeMessage(request, SetCounterRequest.encode);
+  const response = await makeApiRequest('/counter/set', 'POST', requestBytes);
+  return extractCounterData(response);
+}
+
+/**
+ * Logout the current user session.
+ */
+export async function logoutUser(): Promise<ApiResponse> {
+  return makeApiRequest('/logout', 'POST', new Uint8Array());
+}
+
+/**
+ * Request a password reset email.
+ */
+export async function requestPasswordReset(email: string): Promise<ApiResponse> {
+  const request: PasswordResetRequest = { email };
+  const requestBytes = encodeMessage(request, PasswordResetRequest.encode);
+  return makeApiRequest('/request-password-reset', 'POST', requestBytes);
+}
+
+/**
+ * Complete password reset with token and new password.
+ */
+export async function completePasswordReset(data: {
+  token: string;
+  newPassword: string;
+}): Promise<ApiResponse> {
+  const request: PasswordResetCompleteRequest = {
+    token: data.token,
+    newPassword: data.newPassword,
+  };
+  const requestBytes = encodeMessage(request, PasswordResetCompleteRequest.encode);
+  return makeApiRequest('/complete-password-reset', 'POST', requestBytes);
+}
+
+/**
+ * Health check endpoint to verify API availability.
+ */
+export async function healthCheck(): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
@@ -155,101 +231,29 @@ export async function healthCheck(): Promise<ApiResponse> {
     });
 
     if (!response.ok) {
-      return {
-        success: false,
-        code: ResponseCode.ERROR_INTERNAL,
-        loginResponse: undefined,
-        healthData: undefined,
-        empty: undefined,
-      };
+      return false;
     }
 
     const responseData = await response.arrayBuffer();
-    const decoded = decodeProtobuf(new Uint8Array(responseData), ApiResponse.decode);
-    return decoded;
-  } catch (error) {
-    // Return a failed response for health check
-    return {
-      success: false,
-      code: ResponseCode.ERROR_INTERNAL,
-      loginResponse: undefined,
-      healthData: undefined,
-      empty: undefined,
-    };
+    const decoded = decodeMessage(new Uint8Array(responseData), ApiResponse.decode);
+    return decoded.code === ResponseCode.SUCCESS;
+  } catch {
+    return false;
   }
 }
 
-/**
- * Login a user
- */
-export async function loginUser(
-  data: { username: string; password: string }
-): Promise<ApiResponse> {
-  const request: LoginRequest = {
-    username: data.username,
-    password: data.password,
-  };
-  const requestBytes = encodeProtobuf(request, LoginRequest.encode);
-  return apiFetchProtobuf('/login', requestBytes);
-}
+export type {
+  ApiResponse,
+  ApiData,
+  RegistrationRequest,
+  LoginRequest,
+  LoginResponseData,
+  EmailVerificationRequest,
+  CounterData,
+  SetCounterRequest,
+  PasswordResetRequest,
+  PasswordResetCompleteRequest,
+  ValidationErrorData,
+};
 
-/**
- * Verify email with token
- */
-export async function verifyEmail(token: string): Promise<ApiResponse> {
-  const request: EmailVerificationRequest = {
-    token: token,
-  };
-  const requestBytes = encodeProtobuf(request, EmailVerificationRequest.encode);
-  return apiFetchProtobuf('/verify-email', requestBytes);
-}
-
-/**
- * Get current counter value
- */
-export async function getCounter(): Promise<ApiResponse> {
-  return apiFetchProtobuf('/counter/get', null, 'GET');
-}
-
-/**
- * Set counter value
- */
-export async function setCounter(value: number): Promise<ApiResponse> {
-  const request: SetCounterRequest = {
-    value,
-  };
-  const requestBytes = encodeProtobuf(request, SetCounterRequest.encode);
-  return apiFetchProtobuf('/counter/set', requestBytes);
-}
-
-/**
- * Logout user and invalidate session
- */
-export async function logoutUser(): Promise<ApiResponse> {
-  return apiFetchProtobuf('/logout', new Uint8Array());
-}
-
-/**
- * Request password reset
- */
-export async function requestPasswordReset(email: string): Promise<ApiResponse> {
-  const request: PasswordResetRequest = { email };
-  const requestBytes = encodeProtobuf(request, PasswordResetRequest.encode);
-  return apiFetchProtobuf('/request-password-reset', requestBytes);
-}
-
-/**
- * Complete password reset
- */
-export async function completePasswordReset(data: { token: string; newPassword: string }): Promise<ApiResponse> {
-  const request: PasswordResetCompleteRequest = {
-    token: data.token,
-    newPassword: data.newPassword,
-  };
-  const requestBytes = encodeProtobuf(request, PasswordResetCompleteRequest.encode);
-  return apiFetchProtobuf('/complete-password-reset', requestBytes);
-}
-
-// Re-export types for convenience
-export type { ApiResponse, RegistrationRequest, LoginRequest, LoginResponseData, HealthData, EmptyData, EmailVerificationRequest, CounterData, SetCounterRequest, PasswordResetRequest, PasswordResetCompleteRequest };
 export { ResponseCode };

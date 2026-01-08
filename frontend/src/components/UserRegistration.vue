@@ -171,15 +171,8 @@ const handleSubmit = async () => {
       password: formData.password,
     })
 
-    if (response.success) {
-      const message = translate_response_code(response.code, undefined)
-      showMessage(message, 'success')
-    } else {
-      // Handle non-success response
-      const message = translate_response_code(response.code, undefined)
-      console.error('Registration failed:', message)
-      showMessage(message, 'error')
-    }
+    const message = translate_response_code(response.code, undefined)
+    showMessage(message, 'success')
   } catch (error) {
     const apiError = error as ApiError
     console.error('Registration error:', apiError)
@@ -189,21 +182,20 @@ const handleSubmit = async () => {
       const { field, errors } = apiError.validationError
       const translatedErrors = errors.map(err => {
         try {
-          // If it's already a JSON string (as stored in proto), we might need to parse it if translate_validation_error expects an object
-          // But our Rust translate_validation_error expects a JSON string, so we pass it directly
-          return translate_validation_error(err, undefined)
+          const errorBytes = new Uint8Array([err])
+          return translate_validation_error(errorBytes, undefined)
         } catch {
-          return err
+          return String(err)
         }
       })
 
-      if (field === FieldType.FIELD_TYPE_USERNAME) {
+      if (field === FieldType.USERNAME) {
         usernameField.value.errors = translatedErrors
         usernameField.value.hasError = true
-      } else if (field === FieldType.FIELD_TYPE_EMAIL) {
+      } else if (field === FieldType.EMAIL) {
         emailField.value.errors = translatedErrors
         emailField.value.hasError = true
-      } else if (field === FieldType.FIELD_TYPE_PASSWORD) {
+      } else if (field === FieldType.PASSWORD) {
         passwordField.value.errors = translatedErrors
         passwordField.value.hasError = true
       }

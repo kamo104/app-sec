@@ -15,17 +15,22 @@
             <!-- Counter Section -->
             <v-card variant="tonal" class="pa-4 mb-6 text-center">
               <div class="text-h5 mb-2">Meme Counter</div>
-              <v-progress-circular
-                v-if="loadingCounter"
-                indeterminate
-                color="primary"
-              ></v-progress-circular>
-              <div v-else class="text-h2 font-weight-bold color-primary mb-4">{{ counter }}</div>
+              <div class="text-h2 font-weight-bold color-primary mb-4">
+                {{ counter }}
+                <v-progress-circular
+                  v-if="loadingCounter"
+                  indeterminate
+                  color="primary"
+                  size="32"
+                  width="3"
+                  class="ml-2"
+                ></v-progress-circular>
+              </div>
               <v-btn
                 color="primary"
                 size="large"
                 prepend-icon="mdi-plus"
-                :loading="loadingCounter"
+                :disabled="loadingCounter"
                 @click="incrementCounter"
               >
                 Increment Counter
@@ -98,18 +103,16 @@ onMounted(async () => {
   if (route.meta.initialCounter !== undefined) {
     counter.value = Number(route.meta.initialCounter)
   } else {
-    // Fallback if accessed directly or refreshed
-    fetchServerCounter()
+    // Fallback: fetch from server if not pre-fetched (e.g., direct access or refresh)
+    await fetchServerCounter()
   }
 })
 
 const fetchServerCounter = async () => {
   loadingCounter.value = true
   try {
-    const response = await getCounter()
-    if (response.success && response.counterData) {
-      counter.value = Number(response.counterData.value)
-    }
+    const counterData = await getCounter()
+    counter.value = Number(counterData.value)
   } catch (e) {
     console.error('Failed to fetch counter from server', e)
   } finally {
@@ -117,15 +120,16 @@ const fetchServerCounter = async () => {
   }
 }
 
-const incrementCounter = async () => {
+const incrementCounter = async (): Promise<void> => {
+  loadingCounter.value = true
   const newValue = counter.value + 1
   try {
-    const response = await setCounter(newValue)
-    if (response.success) {
-      counter.value++
-    }
+    const result = await setCounter(newValue)
+    counter.value = Number(result.value)
   } catch (e) {
     console.error('Failed to update counter on server', e)
+  } finally {
+    loadingCounter.value = false
   }
 }
 

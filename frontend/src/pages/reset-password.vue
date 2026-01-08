@@ -122,12 +122,8 @@ const handleSubmit = async () => {
     })
 
     statusMessage.value = translate_response_code(response.code, 'en')
-    if (response.success) {
-      messageType.value = 'success'
-      completed.value = true
-    } else {
-      messageType.value = 'error'
-    }
+    messageType.value = 'success'
+    completed.value = true
   } catch (e: any) {
     console.error('Password reset failed', e)
     statusMessage.value = e.message || 'An error occurred during password reset'

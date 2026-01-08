@@ -17,20 +17,19 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   if (to.path === '/dashboard') {
-    try {
-      const response = await getCounter()
-      if (response.success) {
-        // Store counter temporarily in meta or a store if needed,
-        // but for now we just allow navigation
-        to.meta.initialCounter = response.counterData?.value
-        next()
-      } else {
-        next('/')
+    // Only pre-fetch if coming from a different page (not refresh or direct access)
+    // This authenticates the user but doesn't block on counter fetch
+    if (from.path !== '/dashboard') {
+      try {
+        const counterData = await getCounter()
+        to.meta.initialCounter = counterData.value
+      } catch (e) {
+        console.error('Auth check failed', e)
+        next('/login')
+        return
       }
-    } catch (e) {
-      console.error('Auth check failed', e)
-      next('/')
     }
+    next()
   } else {
     next()
   }

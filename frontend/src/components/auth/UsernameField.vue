@@ -17,7 +17,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { validate_username_wasm } from '@/wasm/field-validator.js'
+import { validate_field } from '@/wasm/field-validator.js'
+import { ValidationErrorData } from '@/generated/api'
 import { translate_validation_error } from '@/wasm/api-translator.js'
 
 interface Props {
@@ -47,12 +48,15 @@ const errors = ref<string[]>([])
 const rules = [
   async (value: string): Promise<string | boolean> => {
     try {
-      const resultJson = validate_username_wasm(value, props.minLength, props.maxLength, props.validateLength)
-      const result = JSON.parse(resultJson)
+      const resultBytes = validate_field('USERNAME', value)
+      const result = ValidationErrorData.decode(resultBytes)
 
-      const translatedErrors = result.errors.map((err: any) => translate_validation_error(JSON.stringify(err), undefined))
+      const translatedErrors = result.errors.map((err: number) => {
+        const errorData = ValidationErrorData.encode({ field: result.field, errors: [err] }).finish()
+        return translate_validation_error(errorData, undefined)
+      })
       errors.value = translatedErrors
-      hasError.value = !result.is_valid
+      hasError.value = result.errors.length > 0
 
       if (touched.value && translatedErrors.length > 0) {
         return translatedErrors[0]!
@@ -60,7 +64,6 @@ const rules = [
       return true
     } catch (error) {
       console.error('Username validation error:', error)
-      // If WASM fails, we cannot validate - return true to allow input
       hasError.value = false
       errors.value = []
       return true
@@ -76,23 +79,24 @@ const handleInput = async (value: string) => {
   emit('update:modelValue', value)
 }
 
-// Expose methods for parent component
 const validate = async (): Promise<{ valid: boolean; errors: string[] }> => {
   if (!touched.value) {
     touched.value = true
   }
 
   try {
-    const resultJson = validate_username_wasm(props.modelValue, props.minLength, props.maxLength, props.validateLength)
-    const result = JSON.parse(resultJson)
-    const translatedErrors = result.errors.map((err: any) => translate_validation_error(JSON.stringify(err), undefined))
+    const resultBytes = validate_field('USERNAME', props.modelValue)
+    const result = ValidationErrorData.decode(resultBytes)
+    const translatedErrors = result.errors.map((err: number) => {
+      const errorData = ValidationErrorData.encode({ field: result.field, errors: [err] }).finish()
+      return translate_validation_error(errorData, undefined)
+    })
     errors.value = translatedErrors
-    hasError.value = !result.is_valid
+    hasError.value = result.errors.length > 0
 
-    return { valid: result.is_valid, errors: translatedErrors }
+    return { valid: result.errors.length === 0, errors: translatedErrors }
   } catch (error) {
     console.error('Username validation error:', error)
-    // If WASM fails, return empty errors (cannot validate)
     return { valid: true, errors: [] }
   }
 }
