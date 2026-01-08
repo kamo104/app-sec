@@ -2,33 +2,14 @@ syntax = "proto3";
 
 package api.v1;
 
-// Generic API response wrapper
-message ApiResponse {
-  bool success = 1;
-  ResponseCode code = 2;
-  // For responses with data, use oneof to handle different data types
-  oneof data {
-    LoginResponseData login_response = 3;
-    HealthData health_data = 4;
-    EmptyData empty = 5;
-    ValidationErrorData validation_error = 6;
-    CounterData counter_data = 7;
-  }
-}
+// ------ RESPONSES ------
 
 // API Response Codes
 enum ResponseCode {
   RESPONSE_CODE_UNSPECIFIED = 0;
 
   // Success codes
-  SUCCESS_OK = 1;
-  SUCCESS_REGISTERED = 2;
-  SUCCESS_REGISTERED_VERIFICATION_PENDING = 3;
-  SUCCESS_LOGIN = 4;
-  SUCCESS_EMAIL_VERIFIED = 5;
-  SUCCESS_EMAIL_ALREADY_VERIFIED = 6;
-  SUCCESS_PASSWORD_RESET_REQUESTED = 7;
-  SUCCESS_PASSWORD_RESET = 8;
+  SUCCESS = 1;
 
   // Error codes
   ERROR_INVALID_INPUT = 100;
@@ -41,26 +22,33 @@ enum ResponseCode {
   ERROR_VALIDATION = 107;
 }
 
-// Error details for validation
-message ValidationErrorData {
-  FieldType field = 1;
-  repeated string errors = 2; // JSON strings of field_validator::ValidationError
+// Login response data
+message LoginResponseData {
+  string username = 1;
+  string email = 2;
 }
 
-enum FieldType {
-  FIELD_TYPE_UNSPECIFIED = 0;
-  FIELD_TYPE_USERNAME = 1;
-  FIELD_TYPE_EMAIL = 2;
-  FIELD_TYPE_PASSWORD = 3;
+// Counter data
+message CounterData {
+  int64 value = 1;
 }
 
-// Empty data for responses without payload
-message EmptyData {}
-
-// Health check response data
-message HealthData {
-  string status = 1;
+message ApiData {
+  oneof data {
+    LoginResponseData login_response = 1;
+    ValidationErrorData validation_error = 2; 
+    CounterData counter_data = 3;
+  }
 }
+
+// Generic API response wrapper
+message ApiResponse {
+  ResponseCode code = 2;
+  optional ApiData data = 3;
+}
+// ------ RESPONSES ------
+
+// ------ REQUESTS ------
 
 // Registration request
 message RegistrationRequest {
@@ -75,20 +63,9 @@ message LoginRequest {
   string password = 2;
 }
 
-// Login response data
-message LoginResponseData {
-  string username = 1;
-  string email = 2;
-}
-
 // Email verification request
 message EmailVerificationRequest {
   string token = 1;
-}
-
-// Counter data
-message CounterData {
-  int64 value = 1;
 }
 
 // Set counter request
@@ -107,10 +84,48 @@ message PasswordResetCompleteRequest {
   string new_password = 2;
 }
 
+// ------ REQUESTS ------
+
+// ------ VALIDATION ------
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  USERNAME = 1;
+  EMAIL = 2;
+  PASSWORD = 3;
+}
+
+enum ValidationErrorCode {
+  VALIDATION_ERROR_CODE_UNSPECIFIED = 0;
+
+  REQUIRED = 1;
+  TOO_SHORT = 2;
+  TOO_LONG = 3;
+  INVALID_CHARACTERS = 4;
+  INVALID_FORMAT = 5;
+  TOO_FEW_UPPERCASE_LETTERS = 6;
+  TOO_FEW_LOWERCASE_LETTERS = 7;
+  TOO_FEW_DIGITS = 8;
+  TOO_FEW_SPECIAL_CHARACTERS = 9;
+}
+
+// Error details for validation
+message ValidationErrorData {
+  FieldType field = 1;
+  repeated ValidationErrorCode errors = 2;
+}
+
 // Password strength levels
 enum PasswordStrength {
   PASSWORD_STRENGTH_UNSPECIFIED = 0;
   PASSWORD_STRENGTH_WEAK = 1;
   PASSWORD_STRENGTH_MEDIUM = 2;
   PASSWORD_STRENGTH_STRONG = 3;
+  PASSWORD_STRENGTH_CIA = 4;
 }
+
+message ValidationDetailedPasswordData {
+  ValidationErrorData data = 1;
+  PasswordStrength strength = 2;
+  uint32 score = 3;
+}
+// ------ VALIDATION ------
