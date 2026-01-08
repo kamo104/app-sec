@@ -8,9 +8,11 @@ A web app demonstration focused on using good web security practices.
 
 ## Key Directories
 
-- `frontend/` - an npm, vue.js + vuetify web frontend
-- `backend/` - a rust axum backend server that has ../frontend/dist linked to it so that it can serve the web files
-- `proto/` - protobuf api buffers
+- `frontend/` - an npm, vue.js + vuetify web frontend,
+- `backend/` - a rust axum backend server that has ../frontend/dist linked to it so that it can serve the web files,
+- `proto/` - protobuf api buffers,
+- `api-translator/` - rust crate compiled natively to the backend as well as the frontend using wasm-pack that is mainly used for translating encoded responses or errors to text,
+- `field-validator/` - rust crate compiled to backend and frontend that is responsible for validating all data.
 
 ## Standards
 
