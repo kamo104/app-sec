@@ -79,24 +79,19 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getCounter, setCounter, logoutUser } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 const username = ref('User')
 const counter = ref(0)
 const loadingCounter = ref(false)
 
 onMounted(async () => {
-  const userStr = localStorage.getItem('user')
-  if (userStr) {
-    try {
-      const user = JSON.parse(userStr)
-      if (user && user.username) {
-        username.value = user.username
-      }
-    } catch (e) {
-      console.error('Failed to parse user from localStorage', e)
-    }
+  // Load username from auth store
+  if (authStore.user) {
+    username.value = authStore.user.username
   }
 
   // Check if counter was pre-fetched by router
@@ -133,13 +128,13 @@ const incrementCounter = async (): Promise<void> => {
   }
 }
 
-const handleLogout = async () => {
+const handleLogout = async (): Promise<void> => {
   try {
     await logoutUser()
   } catch (e) {
     console.error('Failed to logout on server', e)
   }
-  localStorage.removeItem('user')
+  authStore.clearUser()
   router.push('/login')
 }
 </script>

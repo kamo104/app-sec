@@ -8,31 +8,75 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
-import { getCounter } from '@/services/api'
+import { checkAuth, getCounter } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: setupLayouts(routes),
 })
 
+// Define which routes require authentication
+const authRequiredRoutes = ['/dashboard']
+
+// Define which routes should redirect to dashboard if already logged in
+const guestOnlyRoutes = ['/login', '/register', '/forgot-password']
+
 router.beforeEach(async (to, from, next) => {
-  if (to.path === '/dashboard') {
-    // Only pre-fetch if coming from a different page (not refresh or direct access)
-    // This authenticates the user but doesn't block on counter fetch
-    if (from.path !== '/dashboard') {
+  const authStore = useAuthStore()
+
+  // Load user from localStorage on first navigation
+  if (!authStore.user) {
+    authStore.loadUser()
+  }
+
+  const isAuthRequired = authRequiredRoutes.includes(to.path)
+  const isGuestOnly = guestOnlyRoutes.includes(to.path)
+
+  // Handle authentication-required routes
+  if (isAuthRequired) {
+    if (!authStore.isAuthenticated) {
+      // Not logged in, redirect to login
+      next('/login')
+      return
+    }
+
+    // Verify session is still valid with backend
+    if (from.path !== to.path) {
       try {
-        const counterData = await getCounter()
-        to.meta.initialCounter = counterData.value
+        const userData = await checkAuth()
+        // Update user data from backend response
+        authStore.setUser(userData)
+
+        // For dashboard, also pre-fetch counter
+        if (to.path === '/dashboard') {
+          try {
+            const counterData = await getCounter()
+            to.meta.initialCounter = counterData.value
+          } catch (e) {
+            console.error('Failed to fetch counter', e)
+          }
+        }
       } catch (e) {
-        console.error('Auth check failed', e)
+        console.error('Auth check failed, session expired or invalid', e)
+        authStore.clearUser()
         next('/login')
         return
       }
     }
     next()
-  } else {
-    next()
+    return
   }
+
+  // Handle guest-only routes (login, register, etc.)
+  if (isGuestOnly && authStore.isAuthenticated) {
+    // Already logged in, redirect to dashboard
+    next('/dashboard')
+    return
+  }
+
+  // All other routes are accessible to everyone
+  next()
 })
 
 // Workaround for https://github.com/vitejs/vite/issues/11804

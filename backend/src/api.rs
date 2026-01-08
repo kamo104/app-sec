@@ -1,15 +1,10 @@
 use axum::{
     extract::{FromRef, FromRequestParts, State},
-    http::{StatusCode, header, request::Parts},
+    http::{StatusCode, request::Parts},
     response::IntoResponse,
 };
-use axum_extra::{
-    extract::{
-        CookieJar,
-        cookie::{Cookie, SameSite},
-    },
-    protobuf::Protobuf,
-};
+use axum_extra::protobuf::Protobuf;
+use tower_cookies::{Cookie, Cookies};
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
@@ -58,9 +53,16 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let db = Arc::<DBHandle>::from_ref(state);
-        let jar = CookieJar::from_headers(&parts.headers);
 
-        let token = jar.get("session_token").ok_or(auth_error())?;
+        // Extract cookies using tower-cookies
+        let cookies = Cookies::from_request_parts(parts, state)
+            .await
+            .map_err(|_| auth_error())?;
+
+        let token = cookies
+            .get("session_token")
+            .ok_or(auth_error())?;
+
         let hash = hash_token(token.value()).map_err(|_| internal_error())?;
 
         let session = db
@@ -334,9 +336,24 @@ pub async fn health_check() -> impl IntoResponse {
     (StatusCode::OK, Protobuf(response))
 }
 
+/// Authentication check endpoint - verifies if the user has a valid session
+pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
+    let response = ApiResponse {
+        code: ResponseCode::Success.into(),
+        data: Some(ApiData {
+            data: Some(api_data::Data::LoginResponse(LoginResponseData {
+                username: auth.user.username,
+                email: auth.user.email,
+            })),
+        }),
+    };
+    (StatusCode::OK, Protobuf(response))
+}
+
 /// Handler for user login
 pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
+    cookies: Cookies,
     Protobuf(payload): Protobuf<crate::generated::v1::LoginRequest>,
 ) -> impl IntoResponse {
     debug!("Received login request - username: {}", payload.username);
@@ -439,13 +456,15 @@ pub async fn login_user(
             }
 
             // Create cookie
-            let cookie = Cookie::build(("session_token", session_token))
-                .path("/")
-                .http_only(true)
-                .secure(!db.is_dev)
-                .same_site(SameSite::Lax)
-                .expires(Some(expiry.into()))
-                .build();
+            let mut cookie = Cookie::new("session_token", session_token);
+            cookie.set_path("/");
+            cookie.set_http_only(true);
+            cookie.set_secure(!db.is_dev);
+            cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
+            cookie.set_expires(Some(expiry.into()));
+
+            // Add cookie to response via tower-cookies
+            cookies.add(cookie);
 
             let response_data = LoginResponseData {
                 username: user.username,
@@ -458,12 +477,7 @@ pub async fn login_user(
                 }),
             };
 
-            (
-                StatusCode::OK,
-                [(header::SET_COOKIE, cookie.to_string())],
-                Protobuf(response),
-            )
-                .into_response()
+            (StatusCode::OK, Protobuf(response)).into_response()
         }
         Ok(false) => {
             debug!(
@@ -808,30 +822,27 @@ pub async fn complete_password_reset(
 /// Handler for user logout
 pub async fn logout_user(
     State(db): State<Arc<DBHandle>>,
-    jar: CookieJar,
+    cookies: Cookies,
 ) -> impl IntoResponse {
-    if let Some(token) = jar.get("session_token") {
+    if let Some(token) = cookies.get("session_token") {
         if let Ok(hash) = hash_token(token.value()) {
             let _ = db.user_sessions_table.delete_by_hash(&hash).await;
         }
     }
 
-    let cookie = Cookie::build(("session_token", ""))
-        .path("/")
-        .http_only(true)
-        .secure(!db.is_dev)
-        .same_site(SameSite::Lax)
-        .expires(OffsetDateTime::UNIX_EPOCH)
-        .build();
+    let mut cookie = Cookie::new("session_token", "");
+    cookie.set_path("/");
+    cookie.set_http_only(true);
+    cookie.set_secure(!db.is_dev);
+    cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
+    cookie.set_expires(Some(OffsetDateTime::UNIX_EPOCH.into()));
+
+    cookies.add(cookie);
 
     let response = ApiResponse {
         code: ResponseCode::Success.into(),
         data: None,
     };
 
-    (
-        StatusCode::OK,
-        jar.add(cookie),
-        Protobuf(response),
-    )
+    (StatusCode::OK, Protobuf(response))
 }

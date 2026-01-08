@@ -242,6 +242,14 @@ export async function healthCheck(): Promise<boolean> {
   }
 }
 
+/**
+ * Check if the current session is authenticated.
+ */
+export async function checkAuth(): Promise<LoginResponseData> {
+  const response = await makeApiRequest('/auth/check', 'GET');
+  return extractLoginResponse(response);
+}
+
 export type {
   ApiResponse,
   ApiData,

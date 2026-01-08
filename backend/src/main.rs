@@ -7,6 +7,7 @@ use axum::{
     routing::{any, get, post},
 };
 use axum_extra::TypedHeader;
+use tower_cookies::CookieManagerLayer;
 use std::convert::Infallible;
 use std::future::Future;
 use std::path::PathBuf;
@@ -42,7 +43,7 @@ mod api;
 mod generated;
 mod email;
 use db::DBHandle;
-use api::{register_user, health_check, login_user, verify_email, get_counter, set_counter, logout_user, request_password_reset, complete_password_reset};
+use api::{register_user, health_check, auth_check, login_user, verify_email, get_counter, set_counter, logout_user, request_password_reset, complete_password_reset};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -152,6 +153,7 @@ async fn main() {
     let app = Router::new()
         // API routes
         .route("/api/health", get(health_check))
+        .route("/api/auth/check", get(auth_check))
         .route("/api/register", post(register_user))
         .route("/api/login", post(login_user))
         .route("/api/verify-email", post(verify_email))
@@ -166,6 +168,8 @@ async fn main() {
         .fallback_service(SpaFallbackService::new(assets_dir))
         // Add DB state
         .with_state(db_handle)
+        // Cookie management layer - must be before other layers
+        .layer(CookieManagerLayer::new())
         // CORS layer - allow all origins in dev mode
         .layer(
             CorsLayer::new()

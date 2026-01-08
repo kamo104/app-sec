@@ -65,6 +65,7 @@ import { useRouter } from 'vue-router'
 import { loginUser, requestPasswordReset, type ApiError, ResponseCode } from '@/services/api'
 import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js'
 import { FieldType } from '@/generated/api'
+import { useAuthStore } from '@/stores/auth'
 
 // Import reusable components
 import AuthFormLayout from './auth/AuthFormLayout.vue'
@@ -88,6 +89,7 @@ const formData = reactive<FormData>({
 })
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 const statusMessage = ref('')
 const messageType = ref<'success' | 'error' | 'warning' | 'info'>('success')
@@ -148,10 +150,8 @@ const handleSubmit = async () => {
 
     showMessage('Login successful', 'success')
 
-    // Store user info if "Remember me" is checked
-    if (formData.rememberMe) {
-      localStorage.setItem('user', JSON.stringify(loginResponse))
-    }
+    // Store user in auth store
+    authStore.setUser(loginResponse)
 
     // Redirect to dashboard
     console.log('Login successful:', loginResponse)
