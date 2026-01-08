@@ -7,29 +7,6 @@ pub struct LoginResponseData {
     #[prost(string, tag = "2")]
     pub email: ::prost::alloc::string::String,
 }
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct ValidationParam {
-    #[prost(oneof = "validation_param::Param", tags = "1, 2")]
-    pub param: ::core::option::Option<validation_param::Param>,
-}
-/// Nested message and enum types in `ValidationParam`.
-pub mod validation_param {
-    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
-    pub enum Param {
-        #[prost(uint32, tag = "1")]
-        Min(u32),
-        #[prost(uint32, tag = "2")]
-        Max(u32),
-    }
-}
-/// Error details for validation
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ValidationErrorData {
-    #[prost(enumeration = "FieldType", tag = "1")]
-    pub field: i32,
-    #[prost(enumeration = "ValidationErrorCode", repeated, tag = "2")]
-    pub errors: ::prost::alloc::vec::Vec<i32>,
-}
 /// Counter data
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct CounterData {
@@ -38,7 +15,7 @@ pub struct CounterData {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ApiData {
-    #[prost(oneof = "api_data::Data", tags = "1, 3")]
+    #[prost(oneof = "api_data::Data", tags = "1, 2, 3")]
     pub data: ::core::option::Option<api_data::Data>,
 }
 /// Nested message and enum types in `ApiData`.
@@ -47,7 +24,8 @@ pub mod api_data {
     pub enum Data {
         #[prost(message, tag = "1")]
         LoginResponse(super::LoginResponseData),
-        /// ValidationErrorData validation_error = 2;
+        #[prost(message, tag = "2")]
+        ValidationError(super::ValidationErrorData),
         #[prost(message, tag = "3")]
         CounterData(super::CounterData),
     }
@@ -104,6 +82,23 @@ pub struct PasswordResetCompleteRequest {
     #[prost(string, tag = "2")]
     pub new_password: ::prost::alloc::string::String,
 }
+/// Error details for validation
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidationErrorData {
+    #[prost(enumeration = "FieldType", tag = "1")]
+    pub field: i32,
+    #[prost(enumeration = "ValidationErrorCode", repeated, tag = "2")]
+    pub errors: ::prost::alloc::vec::Vec<i32>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidationDetailedPasswordData {
+    #[prost(message, optional, tag = "1")]
+    pub data: ::core::option::Option<ValidationErrorData>,
+    #[prost(enumeration = "PasswordStrength", tag = "2")]
+    pub strength: i32,
+    #[prost(uint32, tag = "3")]
+    pub score: u32,
+}
 /// API Response Codes
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -157,6 +152,7 @@ impl ResponseCode {
         }
     }
 }
+/// ------ VALIDATION ------
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum FieldType {
@@ -202,7 +198,6 @@ pub enum ValidationErrorCode {
     TooFewLowercaseLetters = 7,
     TooFewDigits = 8,
     TooFewSpecialCharacters = 9,
-    Mismatch = 10,
 }
 impl ValidationErrorCode {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -221,7 +216,6 @@ impl ValidationErrorCode {
             Self::TooFewLowercaseLetters => "TOO_FEW_LOWERCASE_LETTERS",
             Self::TooFewDigits => "TOO_FEW_DIGITS",
             Self::TooFewSpecialCharacters => "TOO_FEW_SPECIAL_CHARACTERS",
-            Self::Mismatch => "MISMATCH",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -237,7 +231,6 @@ impl ValidationErrorCode {
             "TOO_FEW_LOWERCASE_LETTERS" => Some(Self::TooFewLowercaseLetters),
             "TOO_FEW_DIGITS" => Some(Self::TooFewDigits),
             "TOO_FEW_SPECIAL_CHARACTERS" => Some(Self::TooFewSpecialCharacters),
-            "MISMATCH" => Some(Self::Mismatch),
             _ => None,
         }
     }

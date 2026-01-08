@@ -1,6 +1,6 @@
 # Project Context
 
-When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes. DON'T use any emojis in the printed text or comments.
+When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes. DON'T use any emojis in the printed text or comments. Remember to always test your changes with the build.sh script!
 
 ## About This Project
 

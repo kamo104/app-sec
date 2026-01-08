@@ -15,7 +15,7 @@ pub struct CounterData {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ApiData {
-    #[prost(oneof = "api_data::Data", tags = "1, 3")]
+    #[prost(oneof = "api_data::Data", tags = "1, 2, 3")]
     pub data: ::core::option::Option<api_data::Data>,
 }
 /// Nested message and enum types in `ApiData`.
@@ -24,7 +24,8 @@ pub mod api_data {
     pub enum Data {
         #[prost(message, tag = "1")]
         LoginResponse(super::LoginResponseData),
-        /// ValidationErrorData validation_error = 2;
+        #[prost(message, tag = "2")]
+        ValidationError(super::ValidationErrorData),
         #[prost(message, tag = "3")]
         CounterData(super::CounterData),
     }
@@ -151,6 +152,7 @@ impl ResponseCode {
         }
     }
 }
+/// ------ VALIDATION ------
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum FieldType {

@@ -6,6 +6,9 @@
 use lettre::Address;
 use prost::Message;
 
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
 pub mod generated;
 use generated::v1::{
     FieldType, PasswordStrength, ValidationDetailedPasswordData, ValidationErrorCode,
