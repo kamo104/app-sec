@@ -19,6 +19,11 @@ use crate::generated::v1::{
     ValidationErrorData, api_data,
 };
 
+// Session and token expiry constants
+const SESSION_DURATION_DAYS: i64 = 7;
+const EMAIL_VERIFICATION_TOKEN_DURATION_HOURS: i64 = 2;
+const PASSWORD_RESET_TOKEN_DURATION_HOURS: i64 = 1;
+
 fn auth_error() -> (StatusCode, Protobuf<ApiResponse>) {
     (
         StatusCode::UNAUTHORIZED,
@@ -42,6 +47,7 @@ fn internal_error() -> (StatusCode, Protobuf<ApiResponse>) {
 /// Extractor for the current user session
 pub struct AuthenticatedUser {
     pub user: UserLogin,
+    pub session: UserSession,
 }
 
 impl<S> FromRequestParts<S> for AuthenticatedUser
@@ -81,7 +87,7 @@ where
             .await
             .map_err(|_| auth_error())?;
 
-        Ok(Self { user })
+        Ok(Self { user, session })
     }
 }
 
@@ -246,8 +252,8 @@ pub async fn register_user(
                 }
             };
 
-            // Set token expiry (2 hours from now)
-            let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(2);
+            // Set token expiry
+            let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(EMAIL_VERIFICATION_TOKEN_DURATION_HOURS);
 
             // Store token in database
             match db
@@ -290,7 +296,7 @@ pub async fn register_user(
                     }
 
                     let response = ApiResponse {
-                        code: ResponseCode::Success.into(),
+                        code: ResponseCode::SuccessRegistered.into(),
                         data: None,
                     };
                     (StatusCode::CREATED, Protobuf(response))
@@ -344,10 +350,73 @@ pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
             data: Some(api_data::Data::LoginResponse(LoginResponseData {
                 username: auth.user.username,
                 email: auth.user.email,
+                session_expires_at: auth.session.session_expiry.unix_timestamp(),
+                session_created_at: auth.session.session_created_at.unix_timestamp(),
             })),
         }),
     };
     (StatusCode::OK, Protobuf(response))
+}
+
+/// Session refresh endpoint - extends the session and returns new expiry time
+pub async fn refresh_session(
+    State(db): State<Arc<DBHandle>>,
+    auth: AuthenticatedUser,
+    cookies: Cookies,
+) -> impl IntoResponse {
+    debug!("Refreshing session for user: {}", auth.user.username);
+
+    // Get the current session token
+    let token = match cookies.get("session_token") {
+        Some(t) => t,
+        None => {
+            error!("No session token found in refresh request");
+            return auth_error().into_response();
+        }
+    };
+
+    let session_hash = match hash_token(token.value()) {
+        Ok(hash) => hash,
+        Err(e) => {
+            error!("Failed to hash session token: {:?}", e);
+            return internal_error().into_response();
+        }
+    };
+
+    // Update session expiry in database
+    let new_expiry = OffsetDateTime::now_utc() + time::Duration::days(SESSION_DURATION_DAYS);
+
+    match db.user_sessions_table.update_expiry(&session_hash, new_expiry).await {
+        Ok(_) => {
+            debug!("Session refreshed successfully for user: {}", auth.user.username);
+
+            // Update cookie with new expiry
+            let mut cookie = Cookie::new("session_token", token.value().to_string());
+            cookie.set_path("/");
+            cookie.set_http_only(true);
+            cookie.set_secure(!db.is_dev);
+            cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
+            cookie.set_expires(Some(new_expiry.into()));
+            cookies.add(cookie);
+
+            let response = ApiResponse {
+                code: ResponseCode::Success.into(),
+                data: Some(ApiData {
+                    data: Some(api_data::Data::LoginResponse(LoginResponseData {
+                        username: auth.user.username,
+                        email: auth.user.email,
+                        session_expires_at: new_expiry.unix_timestamp(),
+                        session_created_at: auth.session.session_created_at.unix_timestamp(),
+                    })),
+                }),
+            };
+            (StatusCode::OK, Protobuf(response)).into_response()
+        }
+        Err(e) => {
+            error!("Failed to refresh session: {:?}", e);
+            internal_error().into_response()
+        }
+    }
 }
 
 /// Handler for user login
@@ -442,12 +511,14 @@ pub async fn login_user(
                 }
             };
 
-            let expiry = OffsetDateTime::now_utc() + time::Duration::days(7);
+            let now = OffsetDateTime::now_utc();
+            let expiry = now + time::Duration::days(SESSION_DURATION_DAYS);
             let session = UserSession {
                 user_id: user.user_id,
                 session_id: generate_session_id(),
                 session_hash,
                 session_expiry: expiry,
+                session_created_at: now,
             };
 
             if let Err(e) = db.user_sessions_table.insert(&session).await {
@@ -469,6 +540,8 @@ pub async fn login_user(
             let response_data = LoginResponseData {
                 username: user.username,
                 email: user.email,
+                session_expires_at: expiry.unix_timestamp(),
+                session_created_at: now.unix_timestamp(),
             };
             let response = ApiResponse {
                 code: ResponseCode::Success.into(),
@@ -710,7 +783,7 @@ pub async fn request_password_reset(
         }
     };
 
-    let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(1);
+    let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(PASSWORD_RESET_TOKEN_DURATION_HOURS);
 
     // Store reset token
     if let Err(e) = db.password_reset_tokens_table.insert(user.user_id, &token_hash, expires_at).await {

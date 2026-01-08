@@ -10,6 +10,7 @@ enum ResponseCode {
 
   // Success codes
   SUCCESS = 1;
+  SUCCESS_REGISTERED = 2;
 
   // Error codes
   ERROR_INVALID_INPUT = 100;
@@ -26,6 +27,8 @@ enum ResponseCode {
 message LoginResponseData {
   string username = 1;
   string email = 2;
+  int64 session_expires_at = 3; // Unix timestamp in seconds
+  int64 session_created_at = 4; // Unix timestamp in seconds
 }
 
 // Counter data

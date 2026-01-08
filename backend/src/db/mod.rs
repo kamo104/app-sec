@@ -63,7 +63,7 @@ pub fn generate_session_id() -> String {
 
 /// Hash a token using SHA256 for deterministic lookup
 pub fn hash_token(token: &str) -> Result<String> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(token.as_bytes());
     let result = hasher.finalize();
@@ -87,6 +87,7 @@ pub struct UserSession {
     pub session_id: String,
     pub session_hash: String,
     pub session_expiry: OffsetDateTime,
+    pub session_created_at: OffsetDateTime,
 }
 #[derive(Debug)]
 pub struct UserSessionsTable {
@@ -99,7 +100,8 @@ impl UserSessionsTable {
             user_id INTEGER NOT NULL CONSTRAINT uname REFERENCES {} (user_id) ON DELETE CASCADE ON UPDATE CASCADE, \
             session_id TEXT NOT NULL, \
             session_hash TEXT PRIMARY KEY NOT NULL, \
-            session_expiry INTEGER NOT NULL \
+            session_expiry INTEGER NOT NULL, \
+            session_created_at INTEGER NOT NULL \
         )",
         UserSessionsTable::TABLE_NAME,
         UserLoginTable::TABLE_NAME,
@@ -116,14 +118,16 @@ impl UserSessionsTable {
                 user_id, \
                 session_id, \
                 session_hash, \
-                session_expiry\
-            ) VALUES ($1, $2, $3, $4)",
+                session_expiry, \
+                session_created_at\
+            ) VALUES ($1, $2, $3, $4, $5)",
             UserSessionsTable::TABLE_NAME
         ))
         .bind(row.user_id)
         .bind(&row.session_id)
         .bind(&row.session_hash)
         .bind(row.session_expiry)
+        .bind(row.session_created_at)
         .execute(&self.conn_pool)
         .await?;
         Ok(())
@@ -139,7 +143,10 @@ impl UserSessionsTable {
         .await?;
         Ok(())
     }
-    pub async fn get_by_hash(&self, session_hash: &str) -> std::result::Result<UserSession, sqlx::Error> {
+    pub async fn get_by_hash(
+        &self,
+        session_hash: &str,
+    ) -> std::result::Result<UserSession, sqlx::Error> {
         sqlx::query_as::<_, UserSession>(formatcp!(
             "SELECT * FROM {} WHERE session_hash = $1",
             UserSessionsTable::TABLE_NAME
@@ -153,6 +160,21 @@ impl UserSessionsTable {
             "DELETE FROM {} WHERE session_hash = $1",
             UserSessionsTable::TABLE_NAME
         ))
+        .bind(session_hash)
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+    pub async fn update_expiry(
+        &self,
+        session_hash: &str,
+        new_expiry: OffsetDateTime,
+    ) -> Result<()> {
+        sqlx::query(formatcp!(
+            "UPDATE {} SET session_expiry = $1 WHERE session_hash = $2",
+            UserSessionsTable::TABLE_NAME
+        ))
+        .bind(new_expiry)
         .bind(session_hash)
         .execute(&self.conn_pool)
         .await?;
@@ -670,7 +692,6 @@ impl DBHandle {
         // Use development database path and static key
         let opts = SqliteConnectOptions::from_str(DEV_DATABASE_PATH)
             .unwrap()
-            .pragma("key", DEV_DATABASE_KEY)
             .pragma("foreign_keys", "ON")
             .create_if_missing(true);
 

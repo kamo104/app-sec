@@ -15,6 +15,7 @@ import {
   EmailVerificationRequest,
   ValidationErrorData,
   ResponseCode,
+  responseCodeToJSON,
   CounterData,
   SetCounterRequest,
   PasswordResetRequest,
@@ -79,7 +80,11 @@ async function makeApiRequest(
     const responseData = await response.arrayBuffer();
     const decoded = decodeMessage(new Uint8Array(responseData), ApiResponse.decode);
 
-    if (!response.ok || decoded.code !== ResponseCode.SUCCESS) {
+    // Check if response is an error by checking if the code name starts with "SUCCESS"
+    const codeName = responseCodeToJSON(decoded.code);
+    const isSuccess = codeName.startsWith('SUCCESS');
+
+    if (!response.ok || !isSuccess) {
       const errorMessage = translate_response_code(decoded.code, undefined);
       const validationError = decoded.data?.validationError;
       throw new ApiError(errorMessage, response.status, decoded.code, validationError);
@@ -247,6 +252,14 @@ export async function healthCheck(): Promise<boolean> {
  */
 export async function checkAuth(): Promise<LoginResponseData> {
   const response = await makeApiRequest('/auth/check', 'GET');
+  return extractLoginResponse(response);
+}
+
+/**
+ * Refresh the current session, extending its expiry time.
+ */
+export async function refreshSession(): Promise<LoginResponseData> {
+  const response = await makeApiRequest('/auth/refresh', 'POST', new Uint8Array());
   return extractLoginResponse(response);
 }
 

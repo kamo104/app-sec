@@ -6,6 +6,12 @@ pub struct LoginResponseData {
     pub username: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub email: ::prost::alloc::string::String,
+    /// Unix timestamp in seconds
+    #[prost(int64, tag = "3")]
+    pub session_expires_at: i64,
+    /// Unix timestamp in seconds
+    #[prost(int64, tag = "4")]
+    pub session_created_at: i64,
 }
 /// Counter data
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -106,6 +112,7 @@ pub enum ResponseCode {
     Unspecified = 0,
     /// Success codes
     Success = 1,
+    SuccessRegistered = 2,
     /// Error codes
     ErrorInvalidInput = 100,
     ErrorUsernameTaken = 101,
@@ -125,6 +132,7 @@ impl ResponseCode {
         match self {
             Self::Unspecified => "RESPONSE_CODE_UNSPECIFIED",
             Self::Success => "SUCCESS",
+            Self::SuccessRegistered => "SUCCESS_REGISTERED",
             Self::ErrorInvalidInput => "ERROR_INVALID_INPUT",
             Self::ErrorUsernameTaken => "ERROR_USERNAME_TAKEN",
             Self::ErrorInvalidCredentials => "ERROR_INVALID_CREDENTIALS",
@@ -140,6 +148,7 @@ impl ResponseCode {
         match value {
             "RESPONSE_CODE_UNSPECIFIED" => Some(Self::Unspecified),
             "SUCCESS" => Some(Self::Success),
+            "SUCCESS_REGISTERED" => Some(Self::SuccessRegistered),
             "ERROR_INVALID_INPUT" => Some(Self::ErrorInvalidInput),
             "ERROR_USERNAME_TAKEN" => Some(Self::ErrorUsernameTaken),
             "ERROR_INVALID_CREDENTIALS" => Some(Self::ErrorInvalidCredentials),

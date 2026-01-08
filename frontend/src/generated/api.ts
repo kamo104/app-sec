@@ -14,6 +14,7 @@ export enum ResponseCode {
   RESPONSE_CODE_UNSPECIFIED = 0,
   /** SUCCESS - Success codes */
   SUCCESS = 1,
+  SUCCESS_REGISTERED = 2,
   /** ERROR_INVALID_INPUT - Error codes */
   ERROR_INVALID_INPUT = 100,
   ERROR_USERNAME_TAKEN = 101,
@@ -34,6 +35,9 @@ export function responseCodeFromJSON(object: any): ResponseCode {
     case 1:
     case "SUCCESS":
       return ResponseCode.SUCCESS;
+    case 2:
+    case "SUCCESS_REGISTERED":
+      return ResponseCode.SUCCESS_REGISTERED;
     case 100:
     case "ERROR_INVALID_INPUT":
       return ResponseCode.ERROR_INVALID_INPUT;
@@ -71,6 +75,8 @@ export function responseCodeToJSON(object: ResponseCode): string {
       return "RESPONSE_CODE_UNSPECIFIED";
     case ResponseCode.SUCCESS:
       return "SUCCESS";
+    case ResponseCode.SUCCESS_REGISTERED:
+      return "SUCCESS_REGISTERED";
     case ResponseCode.ERROR_INVALID_INPUT:
       return "ERROR_INVALID_INPUT";
     case ResponseCode.ERROR_USERNAME_TAKEN:
@@ -276,6 +282,10 @@ export function passwordStrengthToJSON(object: PasswordStrength): string {
 export interface LoginResponseData {
   username: string;
   email: string;
+  /** Unix timestamp in seconds */
+  sessionExpiresAt: number;
+  /** Unix timestamp in seconds */
+  sessionCreatedAt: number;
 }
 
 /** Counter data */
@@ -342,7 +352,7 @@ export interface ValidationDetailedPasswordData {
 }
 
 function createBaseLoginResponseData(): LoginResponseData {
-  return { username: "", email: "" };
+  return { username: "", email: "", sessionExpiresAt: 0, sessionCreatedAt: 0 };
 }
 
 export const LoginResponseData: MessageFns<LoginResponseData> = {
@@ -352,6 +362,12 @@ export const LoginResponseData: MessageFns<LoginResponseData> = {
     }
     if (message.email !== "") {
       writer.uint32(18).string(message.email);
+    }
+    if (message.sessionExpiresAt !== 0) {
+      writer.uint32(24).int64(message.sessionExpiresAt);
+    }
+    if (message.sessionCreatedAt !== 0) {
+      writer.uint32(32).int64(message.sessionCreatedAt);
     }
     return writer;
   },
@@ -379,6 +395,22 @@ export const LoginResponseData: MessageFns<LoginResponseData> = {
           message.email = reader.string();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.sessionExpiresAt = longToNumber(reader.int64());
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.sessionCreatedAt = longToNumber(reader.int64());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -392,6 +424,8 @@ export const LoginResponseData: MessageFns<LoginResponseData> = {
     return {
       username: isSet(object.username) ? globalThis.String(object.username) : "",
       email: isSet(object.email) ? globalThis.String(object.email) : "",
+      sessionExpiresAt: isSet(object.sessionExpiresAt) ? globalThis.Number(object.sessionExpiresAt) : 0,
+      sessionCreatedAt: isSet(object.sessionCreatedAt) ? globalThis.Number(object.sessionCreatedAt) : 0,
     };
   },
 
@@ -403,6 +437,12 @@ export const LoginResponseData: MessageFns<LoginResponseData> = {
     if (message.email !== "") {
       obj.email = message.email;
     }
+    if (message.sessionExpiresAt !== 0) {
+      obj.sessionExpiresAt = Math.round(message.sessionExpiresAt);
+    }
+    if (message.sessionCreatedAt !== 0) {
+      obj.sessionCreatedAt = Math.round(message.sessionCreatedAt);
+    }
     return obj;
   },
 
@@ -413,6 +453,8 @@ export const LoginResponseData: MessageFns<LoginResponseData> = {
     const message = createBaseLoginResponseData();
     message.username = object.username ?? "";
     message.email = object.email ?? "";
+    message.sessionExpiresAt = object.sessionExpiresAt ?? 0;
+    message.sessionCreatedAt = object.sessionCreatedAt ?? 0;
     return message;
   },
 };

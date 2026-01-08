@@ -77,12 +77,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { getCounter, setCounter, logoutUser } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 const username = ref('User')
 const counter = ref(0)
@@ -94,13 +93,8 @@ onMounted(async () => {
     username.value = authStore.user.username
   }
 
-  // Check if counter was pre-fetched by router
-  if (route.meta.initialCounter !== undefined) {
-    counter.value = Number(route.meta.initialCounter)
-  } else {
-    // Fallback: fetch from server if not pre-fetched (e.g., direct access or refresh)
-    await fetchServerCounter()
-  }
+  // Fetch counter data from server
+  await fetchServerCounter()
 })
 
 const fetchServerCounter = async () => {

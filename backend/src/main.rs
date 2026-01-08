@@ -43,7 +43,7 @@ mod api;
 mod generated;
 mod email;
 use db::DBHandle;
-use api::{register_user, health_check, auth_check, login_user, verify_email, get_counter, set_counter, logout_user, request_password_reset, complete_password_reset};
+use api::{register_user, health_check, auth_check, refresh_session, login_user, verify_email, get_counter, set_counter, logout_user, request_password_reset, complete_password_reset};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -154,6 +154,7 @@ async fn main() {
         // API routes
         .route("/api/health", get(health_check))
         .route("/api/auth/check", get(auth_check))
+        .route("/api/auth/refresh", post(refresh_session))
         .route("/api/register", post(register_user))
         .route("/api/login", post(login_user))
         .route("/api/verify-email", post(verify_email))
