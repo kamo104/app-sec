@@ -149,6 +149,9 @@ async fn main() {
     // Duplicate DB handle for state
     let db_handle = DB_HANDLE.get().unwrap().clone();
 
+    // Start the cleanup task for expired sessions and tokens
+    let _cleanup_handle = db_handle.clone().start_cleanup_task();
+
     // build our application with some routes
     let app = Router::new()
         // API routes

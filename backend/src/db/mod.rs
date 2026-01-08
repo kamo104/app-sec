@@ -39,6 +39,12 @@ const EMAIL_VERIFICATION_TOKEN_BYTES: usize = 32; // 32 bytes = 64 hex character
 pub const SESSION_TOKEN_BYTES: usize = 32;
 /* --- SESSION constants --- */
 
+/* --- CLEANUP constants --- */
+/// Interval in seconds for running expired sessions and tokens cleanup
+/// Default: 3600 seconds (1 hour)
+pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600;
+/* --- CLEANUP constants --- */
+
 /* --- EMAIL VERIFICATION UTILITIES --- */
 /// Generate a cryptographically secure random token
 pub fn generate_verification_token() -> String {
@@ -750,5 +756,48 @@ impl DBHandle {
 
         db_handle.create_tables().await?;
         Ok(Arc::new(db_handle))
+    }
+
+    /// Run cleanup of all expired sessions and tokens
+    /// This should be called periodically by the cleanup task
+    pub async fn cleanup_expired_data(&self) -> Result<()> {
+        // Clean up expired sessions
+        if let Err(e) = self.user_sessions_table.cleanup_expired_sessions().await {
+            tracing::error!("Failed to cleanup expired sessions: {:?}", e);
+        }
+
+        // Clean up expired email verification tokens
+        if let Err(e) = self.email_verification_tokens_table.cleanup_expired_tokens().await {
+            tracing::error!("Failed to cleanup expired email verification tokens: {:?}", e);
+        }
+
+        // Clean up expired password reset tokens
+        if let Err(e) = self.password_reset_tokens_table.cleanup_expired_tokens().await {
+            tracing::error!("Failed to cleanup expired password reset tokens: {:?}", e);
+        }
+
+        tracing::info!("Completed cleanup of expired sessions and tokens");
+        Ok(())
+    }
+
+    /// Start a background task that periodically cleans up expired sessions and tokens
+    /// Returns a join handle that can be used to stop the task
+    pub fn start_cleanup_task(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let interval_duration = std::time::Duration::from_secs(CLEANUP_INTERVAL_SECONDS);
+            tracing::info!(
+                "Starting cleanup task with interval of {} seconds",
+                CLEANUP_INTERVAL_SECONDS
+            );
+
+            loop {
+                tokio::time::sleep(interval_duration).await;
+
+                tracing::debug!("Running scheduled cleanup of expired data");
+                if let Err(e) = self.cleanup_expired_data().await {
+                    tracing::error!("Cleanup task failed: {:?}", e);
+                }
+            }
+        })
     }
 }
