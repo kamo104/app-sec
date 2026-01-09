@@ -41,7 +41,7 @@ version = "0.1.0"
 dependencies = [
  "field-validator",
  "prost",
- "prost-build",
+ "proto-types",
  "rust-i18n",
  "serde",
  "serde_json",
@@ -208,7 +208,7 @@ version = "0.1.0"
 dependencies = [
  "lettre",
  "prost",
- "prost-build",
+ "proto-types",
  "serde",
  "serde_json",
 ]
@@ -606,6 +606,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
 dependencies = [
  "prost",
+]
+
+[[package]]
+name = "proto-types"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "prost-build",
 ]
 
 [[package]]

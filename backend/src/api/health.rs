@@ -4,7 +4,7 @@ use axum::{
 };
 use axum_extra::protobuf::Protobuf;
 
-use crate::generated::v1::{ApiResponse, ResponseCode};
+use proto_types::v1::{ApiResponse, ResponseCode};
 
 pub async fn health_check() -> impl IntoResponse {
     let response = ApiResponse {

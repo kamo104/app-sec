@@ -10,12 +10,12 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use crate::generated::v1::{ApiData, ApiResponse, ResponseCode, ValidationErrorData, FieldType, api_data};
-use super::utils::{internal_error, BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
+use proto_types::v1::{ApiResponse, ResponseCode};
+use super::utils::{internal_error, validation_error, BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 
 pub async fn register_user(
     State(db): State<Arc<DBHandle>>,
-    Protobuf(payload): Protobuf<crate::generated::v1::RegistrationRequest>,
+    Protobuf(payload): Protobuf<proto_types::v1::RegistrationRequest>,
 ) -> impl IntoResponse {
     debug!(
         "Received registration request - username: {}, email: {}",
@@ -26,46 +26,20 @@ pub async fn register_user(
     let email_result = field_validator::validate_email(&payload.email);
     let password_result = field_validator::validate_password(&payload.password);
 
+    let mut errors = Vec::new();
     if !username_result.errors.is_empty() {
-        debug!("Username validation failed for '{}': {:?}", payload.username, username_result.errors);
-        let response = ApiResponse {
-            code: ResponseCode::ErrorValidation.into(),
-            data: Some(ApiData {
-                data: Some(api_data::Data::ValidationError(ValidationErrorData {
-                    field: FieldType::Username.into(),
-                    errors: username_result.errors,
-                })),
-            }),
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+        errors.push(username_result);
     }
-
     if !email_result.errors.is_empty() {
-        debug!("Email validation failed for '{}': {:?}", payload.email, email_result.errors);
-        let response = ApiResponse {
-            code: ResponseCode::ErrorValidation.into(),
-            data: Some(ApiData {
-                data: Some(api_data::Data::ValidationError(ValidationErrorData {
-                    field: FieldType::Email.into(),
-                    errors: email_result.errors,
-                })),
-            }),
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+        errors.push(email_result);
+    }
+    if !password_result.errors.is_empty() {
+        errors.push(password_result);
     }
 
-    if !password_result.errors.is_empty() {
-        debug!("Password validation failed for '{}': {:?}", payload.username, password_result.errors);
-        let response = ApiResponse {
-            code: ResponseCode::ErrorValidation.into(),
-            data: Some(ApiData {
-                data: Some(api_data::Data::ValidationError(ValidationErrorData {
-                    field: FieldType::Password.into(),
-                    errors: password_result.errors,
-                })),
-            }),
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+    if !errors.is_empty() {
+        debug!("Validation failed: {:?}", errors);
+        return validation_error(errors);
     }
 
     match db

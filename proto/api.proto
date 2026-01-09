@@ -111,10 +111,15 @@ enum ValidationErrorCode {
   TOO_FEW_SPECIAL_CHARACTERS = 9;
 }
 
-// Error details for validation
-message ValidationErrorData {
+// Error details for validation - single field
+message ValidationFieldError {
   FieldType field = 1;
   repeated ValidationErrorCode errors = 2;
+}
+
+// Error details for validation - multiple fields
+message ValidationErrorData {
+  repeated ValidationFieldError field_errors = 1;
 }
 
 // Password strength levels
@@ -127,7 +132,7 @@ enum PasswordStrength {
 }
 
 message ValidationDetailedPasswordData {
-  ValidationErrorData data = 1;
+  ValidationFieldError data = 1;
   PasswordStrength strength = 2;
   uint32 score = 3;
 }

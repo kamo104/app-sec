@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tracing::error;
 
 use crate::db::DBHandle;
-use crate::generated::v1::{ApiData, ApiResponse, CounterData, ResponseCode, api_data};
+use proto_types::v1::{ApiData, ApiResponse, CounterData, ResponseCode, api_data};
 use super::auth_extractor::AuthenticatedUser;
 use super::utils::internal_error;
 
@@ -27,7 +27,7 @@ pub async fn get_counter(auth: AuthenticatedUser) -> impl IntoResponse {
 pub async fn set_counter(
     State(db): State<Arc<DBHandle>>,
     auth: AuthenticatedUser,
-    Protobuf(payload): Protobuf<crate::generated::v1::SetCounterRequest>,
+    Protobuf(payload): Protobuf<proto_types::v1::SetCounterRequest>,
 ) -> impl IntoResponse {
     match db
         .user_login_table

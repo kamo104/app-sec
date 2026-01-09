@@ -10,12 +10,12 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use crate::generated::v1::{ApiData, ApiResponse, ResponseCode, ValidationErrorData, FieldType, api_data};
-use super::utils::{internal_error, BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
+use proto_types::v1::{ApiResponse, ResponseCode};
+use super::utils::{internal_error, validation_error, BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
 
 pub async fn request_password_reset(
     State(db): State<Arc<DBHandle>>,
-    Protobuf(payload): Protobuf<crate::generated::v1::PasswordResetRequest>,
+    Protobuf(payload): Protobuf<proto_types::v1::PasswordResetRequest>,
 ) -> impl IntoResponse {
     debug!("Received password reset request for '{}'", payload.email);
 
@@ -77,7 +77,7 @@ pub async fn request_password_reset(
 
 pub async fn complete_password_reset(
     State(db): State<Arc<DBHandle>>,
-    Protobuf(payload): Protobuf<crate::generated::v1::PasswordResetCompleteRequest>,
+    Protobuf(payload): Protobuf<proto_types::v1::PasswordResetCompleteRequest>,
 ) -> impl IntoResponse {
     debug!("Received password reset completion request");
 
@@ -114,16 +114,7 @@ pub async fn complete_password_reset(
 
     let password_result = field_validator::validate_password(&payload.new_password);
     if !password_result.errors.is_empty() {
-        let response = ApiResponse {
-            code: ResponseCode::ErrorValidation.into(),
-            data: Some(ApiData {
-                data: Some(api_data::Data::ValidationError(ValidationErrorData {
-                    field: FieldType::Password.into(),
-                    errors: password_result.errors,
-                })),
-            }),
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+        return validation_error(vec![password_result]);
     }
 
     match db.user_login_table.set_password_by_user_id(reset_record.user_id, &payload.new_password).await {

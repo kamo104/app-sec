@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 ### SHARED:
 field-validator = { path = "../field-validator" }
+proto-types = { path = "../proto-types" }
 
 ### DB:
 argon2 = { version = "0.5.3", features = ["zeroize", "std"] }

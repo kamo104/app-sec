@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, hash_token};
-use crate::generated::v1::{ApiData, ApiResponse, LoginResponseData, ResponseCode, api_data};
+use proto_types::v1::{ApiData, ApiResponse, LoginResponseData, ResponseCode, api_data};
 use super::auth_extractor::AuthenticatedUser;
 use super::utils::{auth_error, internal_error, create_session_cookie, SESSION_DURATION_DAYS};
 

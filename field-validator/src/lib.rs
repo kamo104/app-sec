@@ -9,10 +9,9 @@ use prost::Message;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-pub mod generated;
-use generated::v1::{
+use proto_types::v1::{
     FieldType, PasswordStrength, ValidationDetailedPasswordData, ValidationErrorCode,
-    ValidationErrorData,
+    ValidationFieldError,
 };
 
 pub const USERNAME_CHAR_MIN: usize = 3;
@@ -37,8 +36,8 @@ pub const PASSWORD_SCORE_STRONG_MAX: u32 = 6;
 ///
 /// # Parameters
 /// - `username`: The username to validate
-pub fn validate_username(username: &str) -> ValidationErrorData {
-    let mut ret = ValidationErrorData {
+pub fn validate_username(username: &str) -> ValidationFieldError {
+    let mut ret = ValidationFieldError {
         field: FieldType::Username as i32,
         errors: Vec::new(),
     };
@@ -63,8 +62,8 @@ pub fn validate_username(username: &str) -> ValidationErrorData {
 /// # Rules
 /// - Must not be empty
 /// - Must be of a valid format
-pub fn validate_email(email: &str) -> ValidationErrorData {
-    let mut ret = ValidationErrorData {
+pub fn validate_email(email: &str) -> ValidationFieldError {
+    let mut ret = ValidationFieldError {
         field: FieldType::Email as i32,
         errors: Vec::new(),
     };
@@ -89,8 +88,8 @@ pub fn validate_email(email: &str) -> ValidationErrorData {
 /// - At least PASSWORD_LOWERCASE_MIN lowercase letter
 /// - At least PASSWORD_NUMBER_MIN number
 /// - At least PASSWORD_SPECIAL_MIN special character
-pub fn validate_password(password: &str) -> ValidationErrorData {
-    let mut ret = ValidationErrorData {
+pub fn validate_password(password: &str) -> ValidationFieldError {
+    let mut ret = ValidationFieldError {
         field: FieldType::Password as i32,
         errors: Vec::new(),
     };

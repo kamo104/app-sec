@@ -339,14 +339,19 @@ export interface PasswordResetCompleteRequest {
   newPassword: string;
 }
 
-/** Error details for validation */
-export interface ValidationErrorData {
+/** Error details for validation - single field */
+export interface ValidationFieldError {
   field: FieldType;
   errors: ValidationErrorCode[];
 }
 
+/** Error details for validation - multiple fields */
+export interface ValidationErrorData {
+  fieldErrors: ValidationFieldError[];
+}
+
 export interface ValidationDetailedPasswordData {
-  data: ValidationErrorData | undefined;
+  data: ValidationFieldError | undefined;
   strength: PasswordStrength;
   score: number;
 }
@@ -1109,12 +1114,12 @@ export const PasswordResetCompleteRequest: MessageFns<PasswordResetCompleteReque
   },
 };
 
-function createBaseValidationErrorData(): ValidationErrorData {
+function createBaseValidationFieldError(): ValidationFieldError {
   return { field: 0, errors: [] };
 }
 
-export const ValidationErrorData: MessageFns<ValidationErrorData> = {
-  encode(message: ValidationErrorData, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const ValidationFieldError: MessageFns<ValidationFieldError> = {
+  encode(message: ValidationFieldError, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.field !== 0) {
       writer.uint32(8).int32(message.field);
     }
@@ -1126,10 +1131,10 @@ export const ValidationErrorData: MessageFns<ValidationErrorData> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ValidationErrorData {
+  decode(input: BinaryReader | Uint8Array, length?: number): ValidationFieldError {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseValidationErrorData();
+    const message = createBaseValidationFieldError();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1168,7 +1173,7 @@ export const ValidationErrorData: MessageFns<ValidationErrorData> = {
     return message;
   },
 
-  fromJSON(object: any): ValidationErrorData {
+  fromJSON(object: any): ValidationFieldError {
     return {
       field: isSet(object.field) ? fieldTypeFromJSON(object.field) : 0,
       errors: globalThis.Array.isArray(object?.errors)
@@ -1177,7 +1182,7 @@ export const ValidationErrorData: MessageFns<ValidationErrorData> = {
     };
   },
 
-  toJSON(message: ValidationErrorData): unknown {
+  toJSON(message: ValidationFieldError): unknown {
     const obj: any = {};
     if (message.field !== 0) {
       obj.field = fieldTypeToJSON(message.field);
@@ -1188,13 +1193,75 @@ export const ValidationErrorData: MessageFns<ValidationErrorData> = {
     return obj;
   },
 
+  create<I extends Exact<DeepPartial<ValidationFieldError>, I>>(base?: I): ValidationFieldError {
+    return ValidationFieldError.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ValidationFieldError>, I>>(object: I): ValidationFieldError {
+    const message = createBaseValidationFieldError();
+    message.field = object.field ?? 0;
+    message.errors = object.errors?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseValidationErrorData(): ValidationErrorData {
+  return { fieldErrors: [] };
+}
+
+export const ValidationErrorData: MessageFns<ValidationErrorData> = {
+  encode(message: ValidationErrorData, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.fieldErrors) {
+      ValidationFieldError.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ValidationErrorData {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseValidationErrorData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.fieldErrors.push(ValidationFieldError.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ValidationErrorData {
+    return {
+      fieldErrors: globalThis.Array.isArray(object?.fieldErrors)
+        ? object.fieldErrors.map((e: any) => ValidationFieldError.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: ValidationErrorData): unknown {
+    const obj: any = {};
+    if (message.fieldErrors?.length) {
+      obj.fieldErrors = message.fieldErrors.map((e) => ValidationFieldError.toJSON(e));
+    }
+    return obj;
+  },
+
   create<I extends Exact<DeepPartial<ValidationErrorData>, I>>(base?: I): ValidationErrorData {
     return ValidationErrorData.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ValidationErrorData>, I>>(object: I): ValidationErrorData {
     const message = createBaseValidationErrorData();
-    message.field = object.field ?? 0;
-    message.errors = object.errors?.map((e) => e) || [];
+    message.fieldErrors = object.fieldErrors?.map((e) => ValidationFieldError.fromPartial(e)) || [];
     return message;
   },
 };
@@ -1206,7 +1273,7 @@ function createBaseValidationDetailedPasswordData(): ValidationDetailedPasswordD
 export const ValidationDetailedPasswordData: MessageFns<ValidationDetailedPasswordData> = {
   encode(message: ValidationDetailedPasswordData, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.data !== undefined) {
-      ValidationErrorData.encode(message.data, writer.uint32(10).fork()).join();
+      ValidationFieldError.encode(message.data, writer.uint32(10).fork()).join();
     }
     if (message.strength !== 0) {
       writer.uint32(16).int32(message.strength);
@@ -1229,7 +1296,7 @@ export const ValidationDetailedPasswordData: MessageFns<ValidationDetailedPasswo
             break;
           }
 
-          message.data = ValidationErrorData.decode(reader, reader.uint32());
+          message.data = ValidationFieldError.decode(reader, reader.uint32());
           continue;
         }
         case 2: {
@@ -1259,7 +1326,7 @@ export const ValidationDetailedPasswordData: MessageFns<ValidationDetailedPasswo
 
   fromJSON(object: any): ValidationDetailedPasswordData {
     return {
-      data: isSet(object.data) ? ValidationErrorData.fromJSON(object.data) : undefined,
+      data: isSet(object.data) ? ValidationFieldError.fromJSON(object.data) : undefined,
       strength: isSet(object.strength) ? passwordStrengthFromJSON(object.strength) : 0,
       score: isSet(object.score) ? globalThis.Number(object.score) : 0,
     };
@@ -1268,7 +1335,7 @@ export const ValidationDetailedPasswordData: MessageFns<ValidationDetailedPasswo
   toJSON(message: ValidationDetailedPasswordData): unknown {
     const obj: any = {};
     if (message.data !== undefined) {
-      obj.data = ValidationErrorData.toJSON(message.data);
+      obj.data = ValidationFieldError.toJSON(message.data);
     }
     if (message.strength !== 0) {
       obj.strength = passwordStrengthToJSON(message.strength);
@@ -1287,7 +1354,7 @@ export const ValidationDetailedPasswordData: MessageFns<ValidationDetailedPasswo
   ): ValidationDetailedPasswordData {
     const message = createBaseValidationDetailedPasswordData();
     message.data = (object.data !== undefined && object.data !== null)
-      ? ValidationErrorData.fromPartial(object.data)
+      ? ValidationFieldError.fromPartial(object.data)
       : undefined;
     message.strength = object.strength ?? 0;
     message.score = object.score ?? 0;

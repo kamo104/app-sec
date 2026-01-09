@@ -10,29 +10,20 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
-use crate::generated::v1::{ApiData, ApiResponse, LoginResponseData, ResponseCode, ValidationErrorData, FieldType, api_data};
-use super::utils::{internal_error, create_session_cookie, SESSION_DURATION_DAYS};
+use proto_types::v1::{ApiData, ApiResponse, LoginResponseData, ResponseCode, api_data};
+use super::utils::{internal_error, validation_error, create_session_cookie, SESSION_DURATION_DAYS};
 
 pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
     cookies: Cookies,
-    Protobuf(payload): Protobuf<crate::generated::v1::LoginRequest>,
+    Protobuf(payload): Protobuf<proto_types::v1::LoginRequest>,
 ) -> impl IntoResponse {
     debug!("Received login request - username: {}", payload.username);
 
     let username_result = field_validator::validate_username(&payload.username);
     if !username_result.errors.is_empty() {
         debug!("Username validation failed for '{}': {:?}", payload.username, username_result.errors);
-        let response = ApiResponse {
-            code: ResponseCode::ErrorValidation.into(),
-            data: Some(ApiData {
-                data: Some(api_data::Data::ValidationError(ValidationErrorData {
-                    field: FieldType::Username.into(),
-                    errors: username_result.errors,
-                })),
-            }),
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response)).into_response();
+        return validation_error(vec![username_result]).into_response();
     }
 
     let user = match db.user_login_table.get_by_username(&payload.username).await {

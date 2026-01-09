@@ -3,8 +3,7 @@ use wasm_bindgen::prelude::*;
 use rust_i18n::t;
 use prost::Message;
 
-pub mod generated;
-use generated::v1::{ResponseCode, FieldType, ValidationErrorCode, ValidationErrorData};
+use proto_types::v1::{ResponseCode, FieldType, ValidationErrorCode, ValidationErrorData};
 use field_validator::{
     USERNAME_CHAR_MIN, USERNAME_CHAR_MAX,
     PASSWORD_CHAR_MIN, PASSWORD_CHAR_MAX,
@@ -69,27 +68,30 @@ pub fn translate_validation_error(validation_error_bytes: &[u8], locale: Option<
         Err(_) => return t!("RESPONSE_CODE_UNSPECIFIED", locale = &locale).to_string(),
     };
 
-    let field_type = match FieldType::try_from(validation_error.field) {
-        Ok(ft) => ft,
-        Err(_) => return t!("RESPONSE_CODE_UNSPECIFIED", locale = &locale).to_string(),
-    };
+    let mut all_error_messages = Vec::new();
 
-    let field_name = field_type.as_str_name();
-
-    let mut error_messages = Vec::new();
-    for error_code in validation_error.errors {
-        let validation_code = match ValidationErrorCode::try_from(error_code) {
-            Ok(vc) => vc,
+    for field_error in validation_error.field_errors {
+        let field_type = match FieldType::try_from(field_error.field) {
+            Ok(ft) => ft,
             Err(_) => continue,
         };
 
-        let code_name = validation_code.as_str_name();
-        let translation_key = format!("{}_{}", field_name, code_name);
-        let message = translate_with_params(&translation_key, field_type, validation_code, &locale);
-        error_messages.push(message);
+        let field_name = field_type.as_str_name();
+
+        for error_code in field_error.errors {
+            let validation_code = match ValidationErrorCode::try_from(error_code) {
+                Ok(vc) => vc,
+                Err(_) => continue,
+            };
+
+            let code_name = validation_code.as_str_name();
+            let translation_key = format!("{}_{}", field_name, code_name);
+            let message = translate_with_params(&translation_key, field_type, validation_code, &locale);
+            all_error_messages.push(message);
+        }
     }
 
-    error_messages.join(", ")
+    all_error_messages.join(", ")
 }
 
 /// Translates a single validation error code for a specific field.

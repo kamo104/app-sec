@@ -3,7 +3,7 @@ use axum_extra::protobuf::Protobuf;
 use tower_cookies::Cookie;
 use sqlx::types::time::OffsetDateTime;
 
-use crate::generated::v1::{ApiResponse, ResponseCode};
+use proto_types::v1::{ApiResponse, ResponseCode, ApiData, ValidationErrorData, api_data};
 
 pub const SESSION_DURATION_DAYS: i64 = 7;
 pub const EMAIL_VERIFICATION_TOKEN_DURATION_HOURS: i64 = 2;
@@ -28,6 +28,20 @@ pub fn internal_error() -> (StatusCode, Protobuf<ApiResponse>) {
         Protobuf(ApiResponse {
             code: ResponseCode::ErrorInternal.into(),
             data: None,
+        }),
+    )
+}
+
+pub fn validation_error(field_errors: Vec<proto_types::v1::ValidationFieldError>) -> (StatusCode, Protobuf<ApiResponse>) {
+    (
+        StatusCode::BAD_REQUEST,
+        Protobuf(ApiResponse {
+            code: ResponseCode::ErrorValidation.into(),
+            data: Some(ApiData {
+                data: Some(api_data::Data::ValidationError(ValidationErrorData {
+                    field_errors,
+                })),
+            }),
         }),
     )
 }

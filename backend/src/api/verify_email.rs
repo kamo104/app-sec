@@ -9,12 +9,12 @@ use std::sync::Arc;
 use tracing::debug;
 
 use crate::db::{DBHandle, hash_token};
-use crate::generated::v1::{ApiResponse, ResponseCode};
+use proto_types::v1::{ApiResponse, ResponseCode};
 use super::utils::internal_error;
 
 pub async fn verify_email(
     State(db): State<Arc<DBHandle>>,
-    Protobuf(payload): Protobuf<crate::generated::v1::EmailVerificationRequest>,
+    Protobuf(payload): Protobuf<proto_types::v1::EmailVerificationRequest>,
 ) -> impl IntoResponse {
     debug!(
         "Received email verification request - token: {}",

@@ -88,18 +88,24 @@ pub struct PasswordResetCompleteRequest {
     #[prost(string, tag = "2")]
     pub new_password: ::prost::alloc::string::String,
 }
-/// Error details for validation
+/// Error details for validation - single field
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ValidationErrorData {
+pub struct ValidationFieldError {
     #[prost(enumeration = "FieldType", tag = "1")]
     pub field: i32,
     #[prost(enumeration = "ValidationErrorCode", repeated, tag = "2")]
     pub errors: ::prost::alloc::vec::Vec<i32>,
 }
+/// Error details for validation - multiple fields
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValidationErrorData {
+    #[prost(message, repeated, tag = "1")]
+    pub field_errors: ::prost::alloc::vec::Vec<ValidationFieldError>,
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ValidationDetailedPasswordData {
     #[prost(message, optional, tag = "1")]
-    pub data: ::core::option::Option<ValidationErrorData>,
+    pub data: ::core::option::Option<ValidationFieldError>,
     #[prost(enumeration = "PasswordStrength", tag = "2")]
     pub strength: i32,
     #[prost(uint32, tag = "3")]

@@ -9,7 +9,7 @@ use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, hash_token};
-use crate::generated::v1::{ApiResponse, ResponseCode};
+use proto_types::v1::{ApiResponse, ResponseCode};
 use super::utils::create_session_cookie;
 
 pub async fn logout_user(

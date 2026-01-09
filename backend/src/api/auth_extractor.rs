@@ -8,7 +8,7 @@ use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, UserLogin, UserSession, hash_token};
-use crate::generated::v1::ApiResponse;
+use proto_types::v1::ApiResponse;
 use super::utils::{auth_error, internal_error};
 
 pub struct AuthenticatedUser {
