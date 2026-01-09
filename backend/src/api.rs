@@ -48,6 +48,18 @@ fn internal_error() -> (StatusCode, Protobuf<ApiResponse>) {
     )
 }
 
+fn create_session_cookie(value: String, expires_at: Option<OffsetDateTime>, is_dev: bool) -> Cookie<'static> {
+    let mut cookie = Cookie::new("session_token", value);
+    cookie.set_path("/");
+    cookie.set_http_only(true);
+    cookie.set_secure(!is_dev);
+    cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
+    if let Some(expiry) = expires_at {
+        cookie.set_expires(Some(expiry.into()));
+    }
+    cookie
+}
+
 /// Extractor for the current user session
 pub struct AuthenticatedUser {
     pub user: UserLogin,
@@ -395,12 +407,7 @@ pub async fn refresh_session(
             debug!("Session refreshed successfully for user: {}", auth.user.username);
 
             // Update cookie with new expiry
-            let mut cookie = Cookie::new("session_token", token.value().to_string());
-            cookie.set_path("/");
-            cookie.set_http_only(true);
-            cookie.set_secure(!db.is_dev);
-            cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
-            cookie.set_expires(Some(new_expiry.into()));
+            let cookie = create_session_cookie(token.value().to_string(), Some(new_expiry), db.is_dev);
             cookies.add(cookie);
 
             let response = ApiResponse {
@@ -531,12 +538,7 @@ pub async fn login_user(
             }
 
             // Create cookie
-            let mut cookie = Cookie::new("session_token", session_token);
-            cookie.set_path("/");
-            cookie.set_http_only(true);
-            cookie.set_secure(!db.is_dev);
-            cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
-            cookie.set_expires(Some(expiry.into()));
+            let cookie = create_session_cookie(session_token, Some(expiry), db.is_dev);
 
             // Add cookie to response via tower-cookies
             cookies.add(cookie);
@@ -907,12 +909,7 @@ pub async fn logout_user(
         }
     }
 
-    let mut cookie = Cookie::new("session_token", "");
-    cookie.set_path("/");
-    cookie.set_http_only(true);
-    cookie.set_secure(!db.is_dev);
-    cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
-    cookie.set_expires(Some(OffsetDateTime::UNIX_EPOCH.into()));
+    let cookie = create_session_cookie(String::new(), Some(OffsetDateTime::UNIX_EPOCH), db.is_dev);
 
     cookies.add(cookie);
 
