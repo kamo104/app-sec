@@ -1,6 +1,15 @@
 # Project Context
 
-When working with this codebase, prioritize readability over cleverness. Ask clarifying questions before making architectural changes. DON'T use any emojis in the printed text or comments. Remember to always test your changes with the build.sh script!
+When working with this codebase:
+  - Ask clarifying questions before making architectural changes or changing anything with the dependency tree.
+  - DON'T use any emojis in the printed text or comments.
+  - Remember to always test your changes with the build.sh script.
+  - DON'T repeat yourself.
+  - DON'T repeat code across different modules - try to look if a funciton is already implemented somewhere else.
+  - Write as little code as possible to achieve the stated goal.
+  - Write as few adapters as possible and use the provided API or functions directly.
+  - NEVER use hard coded text in the user facing text - use the api-translator.
+  - NEVER use magic numbers - use a const variable.
 
 ## About This Project
 
