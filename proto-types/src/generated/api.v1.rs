@@ -39,10 +39,22 @@ pub mod api_data {
 /// Generic API response wrapper
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ApiResponse {
-    #[prost(enumeration = "ResponseCode", tag = "2")]
+    #[prost(enumeration = "ResponseCode", tag = "1")]
     pub code: i32,
-    #[prost(message, optional, tag = "3")]
+    #[prost(message, optional, tag = "4")]
     pub data: ::core::option::Option<ApiData>,
+    #[prost(oneof = "api_response::Detail", tags = "2, 3")]
+    pub detail: ::core::option::Option<api_response::Detail>,
+}
+/// Nested message and enum types in `ApiResponse`.
+pub mod api_response {
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    pub enum Detail {
+        #[prost(enumeration = "super::SuccessCode", tag = "2")]
+        Success(i32),
+        #[prost(enumeration = "super::ErrorCode", tag = "3")]
+        Error(i32),
+    }
 }
 /// Registration request
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -111,23 +123,13 @@ pub struct ValidationDetailedPasswordData {
     #[prost(uint32, tag = "3")]
     pub score: u32,
 }
-/// API Response Codes
+/// Top-level response status
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ResponseCode {
     Unspecified = 0,
-    /// Success codes
     Success = 1,
-    SuccessRegistered = 2,
-    /// Error codes
-    ErrorInvalidInput = 100,
-    ErrorUsernameTaken = 101,
-    ErrorInvalidCredentials = 102,
-    ErrorEmailNotVerified = 103,
-    ErrorInvalidToken = 104,
-    ErrorDatabase = 105,
-    ErrorInternal = 106,
-    ErrorValidation = 107,
+    Error = 2,
 }
 impl ResponseCode {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -138,15 +140,7 @@ impl ResponseCode {
         match self {
             Self::Unspecified => "RESPONSE_CODE_UNSPECIFIED",
             Self::Success => "SUCCESS",
-            Self::SuccessRegistered => "SUCCESS_REGISTERED",
-            Self::ErrorInvalidInput => "ERROR_INVALID_INPUT",
-            Self::ErrorUsernameTaken => "ERROR_USERNAME_TAKEN",
-            Self::ErrorInvalidCredentials => "ERROR_INVALID_CREDENTIALS",
-            Self::ErrorEmailNotVerified => "ERROR_EMAIL_NOT_VERIFIED",
-            Self::ErrorInvalidToken => "ERROR_INVALID_TOKEN",
-            Self::ErrorDatabase => "ERROR_DATABASE",
-            Self::ErrorInternal => "ERROR_INTERNAL",
-            Self::ErrorValidation => "ERROR_VALIDATION",
+            Self::Error => "ERROR",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -154,15 +148,110 @@ impl ResponseCode {
         match value {
             "RESPONSE_CODE_UNSPECIFIED" => Some(Self::Unspecified),
             "SUCCESS" => Some(Self::Success),
+            "ERROR" => Some(Self::Error),
+            _ => None,
+        }
+    }
+}
+/// Success codes - specific success outcomes
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SuccessCode {
+    Unspecified = 0,
+    SuccessOk = 1,
+    SuccessRegistered = 2,
+    SuccessLoggedIn = 3,
+    SuccessLoggedOut = 4,
+    SuccessEmailVerified = 5,
+    SuccessSessionRefreshed = 6,
+    SuccessPasswordResetRequested = 7,
+    SuccessPasswordResetCompleted = 8,
+    SuccessCounterUpdated = 9,
+}
+impl SuccessCode {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SUCCESS_CODE_UNSPECIFIED",
+            Self::SuccessOk => "SUCCESS_OK",
+            Self::SuccessRegistered => "SUCCESS_REGISTERED",
+            Self::SuccessLoggedIn => "SUCCESS_LOGGED_IN",
+            Self::SuccessLoggedOut => "SUCCESS_LOGGED_OUT",
+            Self::SuccessEmailVerified => "SUCCESS_EMAIL_VERIFIED",
+            Self::SuccessSessionRefreshed => "SUCCESS_SESSION_REFRESHED",
+            Self::SuccessPasswordResetRequested => "SUCCESS_PASSWORD_RESET_REQUESTED",
+            Self::SuccessPasswordResetCompleted => "SUCCESS_PASSWORD_RESET_COMPLETED",
+            Self::SuccessCounterUpdated => "SUCCESS_COUNTER_UPDATED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SUCCESS_CODE_UNSPECIFIED" => Some(Self::Unspecified),
+            "SUCCESS_OK" => Some(Self::SuccessOk),
             "SUCCESS_REGISTERED" => Some(Self::SuccessRegistered),
-            "ERROR_INVALID_INPUT" => Some(Self::ErrorInvalidInput),
-            "ERROR_USERNAME_TAKEN" => Some(Self::ErrorUsernameTaken),
-            "ERROR_INVALID_CREDENTIALS" => Some(Self::ErrorInvalidCredentials),
-            "ERROR_EMAIL_NOT_VERIFIED" => Some(Self::ErrorEmailNotVerified),
-            "ERROR_INVALID_TOKEN" => Some(Self::ErrorInvalidToken),
-            "ERROR_DATABASE" => Some(Self::ErrorDatabase),
-            "ERROR_INTERNAL" => Some(Self::ErrorInternal),
-            "ERROR_VALIDATION" => Some(Self::ErrorValidation),
+            "SUCCESS_LOGGED_IN" => Some(Self::SuccessLoggedIn),
+            "SUCCESS_LOGGED_OUT" => Some(Self::SuccessLoggedOut),
+            "SUCCESS_EMAIL_VERIFIED" => Some(Self::SuccessEmailVerified),
+            "SUCCESS_SESSION_REFRESHED" => Some(Self::SuccessSessionRefreshed),
+            "SUCCESS_PASSWORD_RESET_REQUESTED" => {
+                Some(Self::SuccessPasswordResetRequested)
+            }
+            "SUCCESS_PASSWORD_RESET_COMPLETED" => {
+                Some(Self::SuccessPasswordResetCompleted)
+            }
+            "SUCCESS_COUNTER_UPDATED" => Some(Self::SuccessCounterUpdated),
+            _ => None,
+        }
+    }
+}
+/// Error codes - specific error types
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ErrorCode {
+    Unspecified = 0,
+    InvalidInput = 1,
+    UsernameTaken = 2,
+    InvalidCredentials = 3,
+    EmailNotVerified = 4,
+    InvalidToken = 5,
+    Database = 6,
+    Internal = 7,
+    Validation = 8,
+}
+impl ErrorCode {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "ERROR_CODE_UNSPECIFIED",
+            Self::InvalidInput => "INVALID_INPUT",
+            Self::UsernameTaken => "USERNAME_TAKEN",
+            Self::InvalidCredentials => "INVALID_CREDENTIALS",
+            Self::EmailNotVerified => "EMAIL_NOT_VERIFIED",
+            Self::InvalidToken => "INVALID_TOKEN",
+            Self::Database => "DATABASE",
+            Self::Internal => "INTERNAL",
+            Self::Validation => "VALIDATION",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "ERROR_CODE_UNSPECIFIED" => Some(Self::Unspecified),
+            "INVALID_INPUT" => Some(Self::InvalidInput),
+            "USERNAME_TAKEN" => Some(Self::UsernameTaken),
+            "INVALID_CREDENTIALS" => Some(Self::InvalidCredentials),
+            "EMAIL_NOT_VERIFIED" => Some(Self::EmailNotVerified),
+            "INVALID_TOKEN" => Some(Self::InvalidToken),
+            "DATABASE" => Some(Self::Database),
+            "INTERNAL" => Some(Self::Internal),
+            "VALIDATION" => Some(Self::Validation),
             _ => None,
         }
     }

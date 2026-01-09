@@ -10,8 +10,8 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use proto_types::v1::{ApiResponse, ResponseCode};
-use super::utils::{internal_error, validation_error, BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
+use proto_types::v1::{SuccessCode, ErrorCode};
+use super::utils::{internal_error, validation_error, error_response, success_response, BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 
 pub async fn register_user(
     State(db): State<Arc<DBHandle>>,
@@ -55,11 +55,7 @@ pub async fn register_user(
                 "Registration failed: username '{}' already taken",
                 payload.username
             );
-            let response = ApiResponse {
-                code: ResponseCode::ErrorUsernameTaken.into(),
-                data: None,
-            };
-            return (StatusCode::CONFLICT, Protobuf(response));
+            return error_response(StatusCode::CONFLICT, ErrorCode::UsernameTaken, None);
         }
         Err(e) => {
             debug!(
@@ -157,11 +153,7 @@ pub async fn register_user(
                         return internal_error();
                     }
 
-                    let response = ApiResponse {
-                        code: ResponseCode::SuccessRegistered.into(),
-                        data: None,
-                    };
-                    (StatusCode::CREATED, Protobuf(response))
+                    success_response(SuccessCode::SuccessRegistered, None)
                 }
                 Err(e) => {
                     debug!(
@@ -180,17 +172,13 @@ pub async fn register_user(
             }
         }
         Err(e) => {
-            let (code, status) = if e.to_string().contains("username already taken") {
-                (ResponseCode::ErrorUsernameTaken, StatusCode::CONFLICT)
+            let (error_code, status) = if e.to_string().contains("username already taken") {
+                (ErrorCode::UsernameTaken, StatusCode::CONFLICT)
             } else {
-                (ResponseCode::ErrorInternal, StatusCode::BAD_REQUEST)
+                (ErrorCode::Internal, StatusCode::BAD_REQUEST)
             };
             debug!("Failed to create user '{}': {:?}", payload.username, e);
-            let response = ApiResponse {
-                code: code.into(),
-                data: None,
-            };
-            (status, Protobuf(response))
+            error_response(status, error_code, None)
         }
     }
 }

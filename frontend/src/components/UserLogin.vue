@@ -62,8 +62,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginUser, requestPasswordReset, type ApiError, ResponseCode } from '@/services/api'
-import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js'
+import { loginUser, requestPasswordReset, type ApiError, ErrorCode } from '@/services/api'
+import { translate_error_code, translate_validation_error } from '@/wasm/api-translator.js'
 import { FieldType } from '@/generated/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -162,22 +162,24 @@ const handleSubmit = async () => {
 
     // Handle specific error cases
     if (apiError.validationError) {
-      const { field, errors } = apiError.validationError
-      const translatedErrors = errors.map(err => {
-        try {
-          const errorBytes = new Uint8Array([err])
-          return translate_validation_error(errorBytes, 'en')
-        } catch {
-          return String(err)
-        }
-      })
+      // ValidationErrorData now has fieldErrors array
+      for (const fieldError of apiError.validationError.fieldErrors) {
+        const translatedErrors = fieldError.errors.map(err => {
+          try {
+            const errorBytes = new Uint8Array([err])
+            return translate_validation_error(errorBytes, 'en')
+          } catch {
+            return String(err)
+          }
+        })
 
-      if (field === FieldType.USERNAME) {
-        usernameField.value.errors = translatedErrors
-        usernameField.value.hasError = true
-      } else if (field === FieldType.PASSWORD) {
-        passwordField.value.errors = translatedErrors
-        passwordField.value.hasError = true
+        if (fieldError.field === FieldType.USERNAME) {
+          usernameField.value.errors = translatedErrors
+          usernameField.value.hasError = true
+        } else if (fieldError.field === FieldType.PASSWORD) {
+          passwordField.value.errors = translatedErrors
+          passwordField.value.hasError = true
+        }
       }
       showMessage('Please fix the validation errors.', 'error')
     } else if (apiError.status === 401) {

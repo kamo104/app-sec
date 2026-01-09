@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use rust_i18n::t;
 use prost::Message;
 
-use proto_types::v1::{ResponseCode, FieldType, ValidationErrorCode, ValidationErrorData};
+use proto_types::v1::{SuccessCode, ErrorCode, FieldType, ValidationErrorCode, ValidationErrorData};
 use field_validator::{
     USERNAME_CHAR_MIN, USERNAME_CHAR_MAX,
     PASSWORD_CHAR_MIN, PASSWORD_CHAR_MAX,
@@ -14,13 +14,25 @@ use field_validator::{
 // Initialize i18n
 rust_i18n::i18n!("locales");
 
-/// Translates a response code into a localized string.
+/// Translates a success code into a localized string.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn translate_response_code(code: i32, locale: Option<String>) -> String {
+pub fn translate_success_code(code: i32, locale: Option<String>) -> String {
     let locale = locale.unwrap_or_else(|| "en".to_string());
-    let key = match ResponseCode::try_from(code) {
-        Ok(rc) => rc.as_str_name(),
-        Err(_) => ResponseCode::Unspecified.as_str_name(),
+    let key = match SuccessCode::try_from(code) {
+        Ok(sc) => sc.as_str_name(),
+        Err(_) => SuccessCode::Unspecified.as_str_name(),
+    };
+
+    t!(key, locale = &locale).to_string()
+}
+
+/// Translates an error code into a localized string.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn translate_error_code(code: i32, locale: Option<String>) -> String {
+    let locale = locale.unwrap_or_else(|| "en".to_string());
+    let key = match ErrorCode::try_from(code) {
+        Ok(ec) => ec.as_str_name(),
+        Err(_) => ErrorCode::Unspecified.as_str_name(),
     };
 
     t!(key, locale = &locale).to_string()

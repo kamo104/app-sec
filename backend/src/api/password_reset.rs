@@ -10,8 +10,8 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use proto_types::v1::{ApiResponse, ResponseCode};
-use super::utils::{internal_error, validation_error, BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
+use proto_types::v1::{SuccessCode, ErrorCode};
+use super::utils::{internal_error, validation_error, error_response, success_response, BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
 
 pub async fn request_password_reset(
     State(db): State<Arc<DBHandle>>,
@@ -22,11 +22,7 @@ pub async fn request_password_reset(
     let user = match db.user_login_table.get_by_username(&payload.email).await {
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
-            let response = ApiResponse {
-                code: ResponseCode::Success.into(),
-                data: None,
-            };
-            return (StatusCode::OK, Protobuf(response));
+            return success_response(SuccessCode::SuccessPasswordResetRequested, None);
         }
         Err(e) => {
             error!("Database error checking user: {:?}", e);
@@ -68,11 +64,7 @@ pub async fn request_password_reset(
         return internal_error();
     }
 
-    let response = ApiResponse {
-        code: ResponseCode::Success.into(),
-        data: None,
-    };
-    (StatusCode::OK, Protobuf(response))
+    success_response(SuccessCode::SuccessPasswordResetRequested, None)
 }
 
 pub async fn complete_password_reset(
@@ -92,11 +84,7 @@ pub async fn complete_password_reset(
     let reset_record = match db.password_reset_tokens_table.get_by_token_hash(&token_hash).await {
         Ok(record) => record,
         Err(sqlx::Error::RowNotFound) => {
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInvalidToken.into(),
-                data: None,
-            };
-            return (StatusCode::BAD_REQUEST, Protobuf(response));
+            return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken, None);
         }
         Err(e) => {
             error!("Database error looking up reset token: {:?}", e);
@@ -105,11 +93,7 @@ pub async fn complete_password_reset(
     };
 
     if OffsetDateTime::now_utc() > reset_record.expires_at {
-        let response = ApiResponse {
-            code: ResponseCode::ErrorInvalidToken.into(),
-            data: None,
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+        return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken, None);
     }
 
     let password_result = field_validator::validate_password(&payload.new_password);
@@ -122,11 +106,7 @@ pub async fn complete_password_reset(
             let _ = db.user_login_table.set_password_reset_flag(reset_record.user_id, false).await;
             let _ = db.password_reset_tokens_table.delete_by_user_id(reset_record.user_id).await;
 
-            let response = ApiResponse {
-                code: ResponseCode::Success.into(),
-                data: None,
-            };
-            (StatusCode::OK, Protobuf(response))
+            success_response(SuccessCode::SuccessPasswordResetCompleted, None)
         }
         Err(e) => {
             error!("Failed to update password: {:?}", e);

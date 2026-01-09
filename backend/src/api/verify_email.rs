@@ -9,8 +9,8 @@ use std::sync::Arc;
 use tracing::debug;
 
 use crate::db::{DBHandle, hash_token};
-use proto_types::v1::{ApiResponse, ResponseCode};
-use super::utils::internal_error;
+use proto_types::v1::{SuccessCode, ErrorCode};
+use super::utils::{internal_error, error_response, success_response};
 
 pub async fn verify_email(
     State(db): State<Arc<DBHandle>>,
@@ -23,22 +23,14 @@ pub async fn verify_email(
 
     if payload.token.is_empty() {
         debug!("Email verification failed: token is empty");
-        let response = ApiResponse {
-            code: ResponseCode::ErrorInvalidToken.into(),
-            data: None,
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+        return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken, None);
     }
 
     let token_hash = match hash_token(&payload.token) {
         Ok(hash) => hash,
         Err(e) => {
             debug!("Failed to hash verification token: {:?}", e);
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInvalidToken.into(),
-                data: None,
-            };
-            return (StatusCode::BAD_REQUEST, Protobuf(response));
+            return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken, None);
         }
     };
 
@@ -50,11 +42,7 @@ pub async fn verify_email(
         Ok(record) => record,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Verification token not found in database");
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInvalidToken.into(),
-                data: None,
-            };
-            return (StatusCode::BAD_REQUEST, Protobuf(response));
+            return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken, None);
         }
         Err(e) => {
             debug!("Database error looking up token: {:?}", e);
@@ -64,11 +52,7 @@ pub async fn verify_email(
 
     if OffsetDateTime::now_utc() > token_record.expires_at {
         debug!("Verification token has expired");
-        let response = ApiResponse {
-            code: ResponseCode::ErrorInvalidToken.into(),
-            data: None,
-        };
-        return (StatusCode::BAD_REQUEST, Protobuf(response));
+        return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken, None);
     }
 
     let user = match db
@@ -79,21 +63,13 @@ pub async fn verify_email(
         Ok(user) => user,
         Err(e) => {
             debug!("Failed to get user for verification: {:?}", e);
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInternal.into(),
-                data: None,
-            };
-            return (StatusCode::BAD_REQUEST, Protobuf(response));
+            return error_response(StatusCode::BAD_REQUEST, ErrorCode::Internal, None);
         }
     };
 
     if user.email_verified {
         debug!("User already verified");
-        let response = ApiResponse {
-            code: ResponseCode::Success.into(),
-            data: None,
-        };
-        return (StatusCode::OK, Protobuf(response));
+        return success_response(SuccessCode::SuccessEmailVerified, None);
     }
 
     match db
@@ -122,11 +98,7 @@ pub async fn verify_email(
                 ),
             }
 
-            let response = ApiResponse {
-                code: ResponseCode::Success.into(),
-                data: None,
-            };
-            (StatusCode::OK, Protobuf(response))
+            success_response(SuccessCode::SuccessEmailVerified, None)
         }
         Err(e) => {
             debug!("Failed to mark email as verified: {:?}", e);

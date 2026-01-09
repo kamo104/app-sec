@@ -19,8 +19,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { validate_field } from '@/wasm/field-validator.js'
-import { ValidationErrorData } from '@/generated/api'
-import { translate_validation_error } from '@/wasm/api-translator.js'
+import { ValidationFieldError } from '@/generated/api'
+import { translate_field_validation_error } from '@/wasm/api-translator.js'
 
 interface Props {
   modelValue: string
@@ -44,11 +44,10 @@ const rules = [
   async (value: string): Promise<string | boolean> => {
     try {
       const resultBytes = validate_field('EMAIL', value)
-      const result = ValidationErrorData.decode(resultBytes)
+      const result = ValidationFieldError.decode(resultBytes)
 
       const translatedErrors = result.errors.map((err: number) => {
-        const errorData = ValidationErrorData.encode({ field: result.field, errors: [err] }).finish()
-        return translate_validation_error(errorData, undefined)
+        return translate_field_validation_error(result.field, err, undefined)
       })
       errors.value = translatedErrors
       hasError.value = result.errors.length > 0
@@ -81,10 +80,9 @@ const validate = async (): Promise<{ valid: boolean; errors: string[] }> => {
 
   try {
     const resultBytes = validate_field('EMAIL', props.modelValue)
-    const result = ValidationErrorData.decode(resultBytes)
+    const result = ValidationFieldError.decode(resultBytes)
     const translatedErrors = result.errors.map((err: number) => {
-      const errorData = ValidationErrorData.encode({ field: result.field, errors: [err] }).finish()
-      return translate_validation_error(errorData, undefined)
+      return translate_field_validation_error(result.field, err, undefined)
     })
     errors.value = translatedErrors
     hasError.value = result.errors.length > 0

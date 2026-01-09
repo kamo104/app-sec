@@ -67,8 +67,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { registerUser, type ApiError, ResponseCode } from '@/services/api'
-import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js'
+import { registerUser, type ApiError, SuccessCode } from '@/services/api'
+import { translate_success_code, translate_validation_error } from '@/wasm/api-translator.js'
 import { FieldType } from '@/generated/api'
 
 // Import reusable components
@@ -171,7 +171,8 @@ const handleSubmit = async () => {
       password: formData.password,
     })
 
-    const message = translate_response_code(response.code, undefined)
+    const successCode = response.success ?? SuccessCode.SUCCESS_CODE_UNSPECIFIED
+    const message = translate_success_code(successCode, undefined)
     showMessage(message, 'success')
   } catch (error) {
     const apiError = error as ApiError
@@ -179,25 +180,27 @@ const handleSubmit = async () => {
 
     // Handle specific error cases
     if (apiError.validationError) {
-      const { field, errors } = apiError.validationError
-      const translatedErrors = errors.map(err => {
-        try {
-          const errorBytes = new Uint8Array([err])
-          return translate_validation_error(errorBytes, undefined)
-        } catch {
-          return String(err)
-        }
-      })
+      // ValidationErrorData now has fieldErrors array
+      for (const fieldError of apiError.validationError.fieldErrors) {
+        const translatedErrors = fieldError.errors.map(err => {
+          try {
+            const errorBytes = new Uint8Array([err])
+            return translate_validation_error(errorBytes, undefined)
+          } catch {
+            return String(err)
+          }
+        })
 
-      if (field === FieldType.USERNAME) {
-        usernameField.value.errors = translatedErrors
-        usernameField.value.hasError = true
-      } else if (field === FieldType.EMAIL) {
-        emailField.value.errors = translatedErrors
-        emailField.value.hasError = true
-      } else if (field === FieldType.PASSWORD) {
-        passwordField.value.errors = translatedErrors
-        passwordField.value.hasError = true
+        if (fieldError.field === FieldType.USERNAME) {
+          usernameField.value.errors = translatedErrors
+          usernameField.value.hasError = true
+        } else if (fieldError.field === FieldType.EMAIL) {
+          emailField.value.errors = translatedErrors
+          emailField.value.hasError = true
+        } else if (fieldError.field === FieldType.PASSWORD) {
+          passwordField.value.errors = translatedErrors
+          passwordField.value.hasError = true
+        }
       }
       showMessage('Please fix the validation errors.', 'error')
     } else if (apiError.status === 409) {

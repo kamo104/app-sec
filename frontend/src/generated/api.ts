@@ -9,21 +9,11 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "api.v1";
 
-/** API Response Codes */
+/** Top-level response status */
 export enum ResponseCode {
   RESPONSE_CODE_UNSPECIFIED = 0,
-  /** SUCCESS - Success codes */
   SUCCESS = 1,
-  SUCCESS_REGISTERED = 2,
-  /** ERROR_INVALID_INPUT - Error codes */
-  ERROR_INVALID_INPUT = 100,
-  ERROR_USERNAME_TAKEN = 101,
-  ERROR_INVALID_CREDENTIALS = 102,
-  ERROR_EMAIL_NOT_VERIFIED = 103,
-  ERROR_INVALID_TOKEN = 104,
-  ERROR_DATABASE = 105,
-  ERROR_INTERNAL = 106,
-  ERROR_VALIDATION = 107,
+  ERROR = 2,
   UNRECOGNIZED = -1,
 }
 
@@ -36,32 +26,8 @@ export function responseCodeFromJSON(object: any): ResponseCode {
     case "SUCCESS":
       return ResponseCode.SUCCESS;
     case 2:
-    case "SUCCESS_REGISTERED":
-      return ResponseCode.SUCCESS_REGISTERED;
-    case 100:
-    case "ERROR_INVALID_INPUT":
-      return ResponseCode.ERROR_INVALID_INPUT;
-    case 101:
-    case "ERROR_USERNAME_TAKEN":
-      return ResponseCode.ERROR_USERNAME_TAKEN;
-    case 102:
-    case "ERROR_INVALID_CREDENTIALS":
-      return ResponseCode.ERROR_INVALID_CREDENTIALS;
-    case 103:
-    case "ERROR_EMAIL_NOT_VERIFIED":
-      return ResponseCode.ERROR_EMAIL_NOT_VERIFIED;
-    case 104:
-    case "ERROR_INVALID_TOKEN":
-      return ResponseCode.ERROR_INVALID_TOKEN;
-    case 105:
-    case "ERROR_DATABASE":
-      return ResponseCode.ERROR_DATABASE;
-    case 106:
-    case "ERROR_INTERNAL":
-      return ResponseCode.ERROR_INTERNAL;
-    case 107:
-    case "ERROR_VALIDATION":
-      return ResponseCode.ERROR_VALIDATION;
+    case "ERROR":
+      return ResponseCode.ERROR;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -75,25 +41,167 @@ export function responseCodeToJSON(object: ResponseCode): string {
       return "RESPONSE_CODE_UNSPECIFIED";
     case ResponseCode.SUCCESS:
       return "SUCCESS";
-    case ResponseCode.SUCCESS_REGISTERED:
-      return "SUCCESS_REGISTERED";
-    case ResponseCode.ERROR_INVALID_INPUT:
-      return "ERROR_INVALID_INPUT";
-    case ResponseCode.ERROR_USERNAME_TAKEN:
-      return "ERROR_USERNAME_TAKEN";
-    case ResponseCode.ERROR_INVALID_CREDENTIALS:
-      return "ERROR_INVALID_CREDENTIALS";
-    case ResponseCode.ERROR_EMAIL_NOT_VERIFIED:
-      return "ERROR_EMAIL_NOT_VERIFIED";
-    case ResponseCode.ERROR_INVALID_TOKEN:
-      return "ERROR_INVALID_TOKEN";
-    case ResponseCode.ERROR_DATABASE:
-      return "ERROR_DATABASE";
-    case ResponseCode.ERROR_INTERNAL:
-      return "ERROR_INTERNAL";
-    case ResponseCode.ERROR_VALIDATION:
-      return "ERROR_VALIDATION";
+    case ResponseCode.ERROR:
+      return "ERROR";
     case ResponseCode.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+/** Success codes - specific success outcomes */
+export enum SuccessCode {
+  SUCCESS_CODE_UNSPECIFIED = 0,
+  SUCCESS_OK = 1,
+  SUCCESS_REGISTERED = 2,
+  SUCCESS_LOGGED_IN = 3,
+  SUCCESS_LOGGED_OUT = 4,
+  SUCCESS_EMAIL_VERIFIED = 5,
+  SUCCESS_SESSION_REFRESHED = 6,
+  SUCCESS_PASSWORD_RESET_REQUESTED = 7,
+  SUCCESS_PASSWORD_RESET_COMPLETED = 8,
+  SUCCESS_COUNTER_UPDATED = 9,
+  UNRECOGNIZED = -1,
+}
+
+export function successCodeFromJSON(object: any): SuccessCode {
+  switch (object) {
+    case 0:
+    case "SUCCESS_CODE_UNSPECIFIED":
+      return SuccessCode.SUCCESS_CODE_UNSPECIFIED;
+    case 1:
+    case "SUCCESS_OK":
+      return SuccessCode.SUCCESS_OK;
+    case 2:
+    case "SUCCESS_REGISTERED":
+      return SuccessCode.SUCCESS_REGISTERED;
+    case 3:
+    case "SUCCESS_LOGGED_IN":
+      return SuccessCode.SUCCESS_LOGGED_IN;
+    case 4:
+    case "SUCCESS_LOGGED_OUT":
+      return SuccessCode.SUCCESS_LOGGED_OUT;
+    case 5:
+    case "SUCCESS_EMAIL_VERIFIED":
+      return SuccessCode.SUCCESS_EMAIL_VERIFIED;
+    case 6:
+    case "SUCCESS_SESSION_REFRESHED":
+      return SuccessCode.SUCCESS_SESSION_REFRESHED;
+    case 7:
+    case "SUCCESS_PASSWORD_RESET_REQUESTED":
+      return SuccessCode.SUCCESS_PASSWORD_RESET_REQUESTED;
+    case 8:
+    case "SUCCESS_PASSWORD_RESET_COMPLETED":
+      return SuccessCode.SUCCESS_PASSWORD_RESET_COMPLETED;
+    case 9:
+    case "SUCCESS_COUNTER_UPDATED":
+      return SuccessCode.SUCCESS_COUNTER_UPDATED;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return SuccessCode.UNRECOGNIZED;
+  }
+}
+
+export function successCodeToJSON(object: SuccessCode): string {
+  switch (object) {
+    case SuccessCode.SUCCESS_CODE_UNSPECIFIED:
+      return "SUCCESS_CODE_UNSPECIFIED";
+    case SuccessCode.SUCCESS_OK:
+      return "SUCCESS_OK";
+    case SuccessCode.SUCCESS_REGISTERED:
+      return "SUCCESS_REGISTERED";
+    case SuccessCode.SUCCESS_LOGGED_IN:
+      return "SUCCESS_LOGGED_IN";
+    case SuccessCode.SUCCESS_LOGGED_OUT:
+      return "SUCCESS_LOGGED_OUT";
+    case SuccessCode.SUCCESS_EMAIL_VERIFIED:
+      return "SUCCESS_EMAIL_VERIFIED";
+    case SuccessCode.SUCCESS_SESSION_REFRESHED:
+      return "SUCCESS_SESSION_REFRESHED";
+    case SuccessCode.SUCCESS_PASSWORD_RESET_REQUESTED:
+      return "SUCCESS_PASSWORD_RESET_REQUESTED";
+    case SuccessCode.SUCCESS_PASSWORD_RESET_COMPLETED:
+      return "SUCCESS_PASSWORD_RESET_COMPLETED";
+    case SuccessCode.SUCCESS_COUNTER_UPDATED:
+      return "SUCCESS_COUNTER_UPDATED";
+    case SuccessCode.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+/** Error codes - specific error types */
+export enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0,
+  INVALID_INPUT = 1,
+  USERNAME_TAKEN = 2,
+  INVALID_CREDENTIALS = 3,
+  EMAIL_NOT_VERIFIED = 4,
+  INVALID_TOKEN = 5,
+  DATABASE = 6,
+  INTERNAL = 7,
+  VALIDATION = 8,
+  UNRECOGNIZED = -1,
+}
+
+export function errorCodeFromJSON(object: any): ErrorCode {
+  switch (object) {
+    case 0:
+    case "ERROR_CODE_UNSPECIFIED":
+      return ErrorCode.ERROR_CODE_UNSPECIFIED;
+    case 1:
+    case "INVALID_INPUT":
+      return ErrorCode.INVALID_INPUT;
+    case 2:
+    case "USERNAME_TAKEN":
+      return ErrorCode.USERNAME_TAKEN;
+    case 3:
+    case "INVALID_CREDENTIALS":
+      return ErrorCode.INVALID_CREDENTIALS;
+    case 4:
+    case "EMAIL_NOT_VERIFIED":
+      return ErrorCode.EMAIL_NOT_VERIFIED;
+    case 5:
+    case "INVALID_TOKEN":
+      return ErrorCode.INVALID_TOKEN;
+    case 6:
+    case "DATABASE":
+      return ErrorCode.DATABASE;
+    case 7:
+    case "INTERNAL":
+      return ErrorCode.INTERNAL;
+    case 8:
+    case "VALIDATION":
+      return ErrorCode.VALIDATION;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return ErrorCode.UNRECOGNIZED;
+  }
+}
+
+export function errorCodeToJSON(object: ErrorCode): string {
+  switch (object) {
+    case ErrorCode.ERROR_CODE_UNSPECIFIED:
+      return "ERROR_CODE_UNSPECIFIED";
+    case ErrorCode.INVALID_INPUT:
+      return "INVALID_INPUT";
+    case ErrorCode.USERNAME_TAKEN:
+      return "USERNAME_TAKEN";
+    case ErrorCode.INVALID_CREDENTIALS:
+      return "INVALID_CREDENTIALS";
+    case ErrorCode.EMAIL_NOT_VERIFIED:
+      return "EMAIL_NOT_VERIFIED";
+    case ErrorCode.INVALID_TOKEN:
+      return "INVALID_TOKEN";
+    case ErrorCode.DATABASE:
+      return "DATABASE";
+    case ErrorCode.INTERNAL:
+      return "INTERNAL";
+    case ErrorCode.VALIDATION:
+      return "VALIDATION";
+    case ErrorCode.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
   }
@@ -302,6 +410,8 @@ export interface ApiData {
 /** Generic API response wrapper */
 export interface ApiResponse {
   code: ResponseCode;
+  success?: SuccessCode | undefined;
+  error?: ErrorCode | undefined;
   data?: ApiData | undefined;
 }
 
@@ -621,16 +731,22 @@ export const ApiData: MessageFns<ApiData> = {
 };
 
 function createBaseApiResponse(): ApiResponse {
-  return { code: 0, data: undefined };
+  return { code: 0, success: undefined, error: undefined, data: undefined };
 }
 
 export const ApiResponse: MessageFns<ApiResponse> = {
   encode(message: ApiResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.code !== 0) {
-      writer.uint32(16).int32(message.code);
+      writer.uint32(8).int32(message.code);
+    }
+    if (message.success !== undefined) {
+      writer.uint32(16).int32(message.success);
+    }
+    if (message.error !== undefined) {
+      writer.uint32(24).int32(message.error);
     }
     if (message.data !== undefined) {
-      ApiData.encode(message.data, writer.uint32(26).fork()).join();
+      ApiData.encode(message.data, writer.uint32(34).fork()).join();
     }
     return writer;
   },
@@ -642,16 +758,32 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
-        case 2: {
-          if (tag !== 16) {
+        case 1: {
+          if (tag !== 8) {
             break;
           }
 
           message.code = reader.int32() as any;
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.success = reader.int32() as any;
+          continue;
+        }
         case 3: {
-          if (tag !== 26) {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.error = reader.int32() as any;
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
             break;
           }
 
@@ -670,6 +802,8 @@ export const ApiResponse: MessageFns<ApiResponse> = {
   fromJSON(object: any): ApiResponse {
     return {
       code: isSet(object.code) ? responseCodeFromJSON(object.code) : 0,
+      success: isSet(object.success) ? successCodeFromJSON(object.success) : undefined,
+      error: isSet(object.error) ? errorCodeFromJSON(object.error) : undefined,
       data: isSet(object.data) ? ApiData.fromJSON(object.data) : undefined,
     };
   },
@@ -678,6 +812,12 @@ export const ApiResponse: MessageFns<ApiResponse> = {
     const obj: any = {};
     if (message.code !== 0) {
       obj.code = responseCodeToJSON(message.code);
+    }
+    if (message.success !== undefined) {
+      obj.success = successCodeToJSON(message.success);
+    }
+    if (message.error !== undefined) {
+      obj.error = errorCodeToJSON(message.error);
     }
     if (message.data !== undefined) {
       obj.data = ApiData.toJSON(message.data);
@@ -691,6 +831,8 @@ export const ApiResponse: MessageFns<ApiResponse> = {
   fromPartial<I extends Exact<DeepPartial<ApiResponse>, I>>(object: I): ApiResponse {
     const message = createBaseApiResponse();
     message.code = object.code ?? 0;
+    message.success = object.success ?? undefined;
+    message.error = object.error ?? undefined;
     message.data = (object.data !== undefined && object.data !== null) ? ApiData.fromPartial(object.data) : undefined;
     return message;
   },

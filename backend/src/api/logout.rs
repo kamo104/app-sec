@@ -1,16 +1,14 @@
 use axum::{
     extract::State,
-    http::StatusCode,
     response::IntoResponse,
 };
-use axum_extra::protobuf::Protobuf;
 use tower_cookies::Cookies;
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, hash_token};
-use proto_types::v1::{ApiResponse, ResponseCode};
-use super::utils::create_session_cookie;
+use proto_types::v1::SuccessCode;
+use super::utils::{create_session_cookie, success_response};
 
 pub async fn logout_user(
     State(db): State<Arc<DBHandle>>,
@@ -26,10 +24,5 @@ pub async fn logout_user(
 
     cookies.add(cookie);
 
-    let response = ApiResponse {
-        code: ResponseCode::Success.into(),
-        data: None,
-    };
-
-    (StatusCode::OK, Protobuf(response))
+    success_response(SuccessCode::SuccessLoggedOut, None)
 }

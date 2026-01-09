@@ -93,7 +93,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { verifyEmail, type ApiError } from '@/services/api'
-import { translate_response_code } from '@/wasm/api-translator.js'
+import { translate_success_code } from '@/wasm/api-translator.js'
+import { SuccessCode } from '@/generated/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -120,7 +121,8 @@ const verifyToken = async () => {
   try {
     const response = await verifyEmail(token)
 
-    message.value = translate_response_code(response.code, undefined)
+    const successCode = response.success ?? SuccessCode.SUCCESS_CODE_UNSPECIFIED
+    message.value = translate_success_code(successCode, undefined)
     success.value = true
   } catch (err) {
     const apiError = err as ApiError

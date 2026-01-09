@@ -72,7 +72,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { completePasswordReset } from '@/services/api'
-import { translate_response_code } from '@/wasm/api-translator.js'
+import { translate_success_code } from '@/wasm/api-translator.js'
+import { SuccessCode } from '@/generated/api'
 
 import PasswordField from '@/components/auth/PasswordField.vue'
 
@@ -121,7 +122,8 @@ const handleSubmit = async () => {
       newPassword: password.value,
     })
 
-    statusMessage.value = translate_response_code(response.code, 'en')
+    const successCode = response.success ?? SuccessCode.SUCCESS_CODE_UNSPECIFIED
+    statusMessage.value = translate_success_code(successCode, 'en')
     messageType.value = 'success'
     completed.value = true
   } catch (e: any) {

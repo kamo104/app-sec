@@ -10,8 +10,8 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
-use proto_types::v1::{ApiData, ApiResponse, LoginResponseData, ResponseCode, api_data};
-use super::utils::{internal_error, validation_error, create_session_cookie, SESSION_DURATION_DAYS};
+use proto_types::v1::{ApiData, SuccessCode, ErrorCode, LoginResponseData, api_data};
+use super::utils::{internal_error, validation_error, error_response, success_response, create_session_cookie, SESSION_DURATION_DAYS};
 
 pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
@@ -30,11 +30,7 @@ pub async fn login_user(
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Login failed: user '{}' not found", payload.username);
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInvalidCredentials.into(),
-                data: None,
-            };
-            return (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response();
+            return error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials, None).into_response();
         }
         Err(e) => {
             debug!(
@@ -50,11 +46,7 @@ pub async fn login_user(
             "Login failed: user '{}' has not verified their email",
             payload.username
         );
-        let response = ApiResponse {
-            code: ResponseCode::ErrorEmailNotVerified.into(),
-            data: None,
-        };
-        return (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response();
+        return error_response(StatusCode::UNAUTHORIZED, ErrorCode::EmailNotVerified, None).into_response();
     }
 
     match db
@@ -99,36 +91,27 @@ pub async fn login_user(
                 session_expires_at: expiry.unix_timestamp(),
                 session_created_at: now.unix_timestamp(),
             };
-            let response = ApiResponse {
-                code: ResponseCode::Success.into(),
-                data: Some(ApiData {
+
+            success_response(
+                SuccessCode::SuccessLoggedIn,
+                Some(ApiData {
                     data: Some(api_data::Data::LoginResponse(response_data)),
                 }),
-            };
-
-            (StatusCode::OK, Protobuf(response)).into_response()
+            ).into_response()
         }
         Ok(false) => {
             debug!(
                 "Login failed: incorrect password for '{}'",
                 payload.username
             );
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInvalidCredentials.into(),
-                data: None,
-            };
-            (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
+            error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials, None).into_response()
         }
         Err(e) => {
             debug!(
                 "Password verification error for '{}': {:?}",
                 payload.username, e
             );
-            let response = ApiResponse {
-                code: ResponseCode::ErrorInternal.into(),
-                data: None,
-            };
-            (StatusCode::UNAUTHORIZED, Protobuf(response)).into_response()
+            error_response(StatusCode::UNAUTHORIZED, ErrorCode::Internal, None).into_response()
         }
     }
 }

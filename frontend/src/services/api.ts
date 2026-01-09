@@ -15,13 +15,16 @@ import {
   EmailVerificationRequest,
   ValidationErrorData,
   ResponseCode,
-  responseCodeToJSON,
+  SuccessCode,
+  ErrorCode,
+  successCodeToJSON,
+  errorCodeToJSON,
   CounterData,
   SetCounterRequest,
   PasswordResetRequest,
   PasswordResetCompleteRequest,
 } from '@/generated/api';
-import { translate_response_code, translate_validation_error } from '@/wasm/api-translator.js';
+import { translate_success_code, translate_error_code, translate_validation_error } from '@/wasm/api-translator.js';
 
 const API_BASE_URL = 'http://localhost:4000/api';
 
@@ -32,7 +35,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly code: ResponseCode,
+    public readonly errorCode?: ErrorCode,
     public readonly validationError?: ValidationErrorData
   ) {
     super(message);
@@ -80,14 +83,16 @@ async function makeApiRequest(
     const responseData = await response.arrayBuffer();
     const decoded = decodeMessage(new Uint8Array(responseData), ApiResponse.decode);
 
-    // Check if response is an error by checking if the code name starts with "SUCCESS"
-    const codeName = responseCodeToJSON(decoded.code);
-    const isSuccess = codeName.startsWith('SUCCESS');
-
-    if (!response.ok || !isSuccess) {
-      const errorMessage = translate_response_code(decoded.code, undefined);
+    // Check response code and handle errors
+    if (decoded.code === ResponseCode.ERROR) {
+      const errorCode = decoded.error ?? ErrorCode.ERROR_CODE_UNSPECIFIED;
+      const errorMessage = translate_error_code(errorCode, undefined);
       const validationError = decoded.data?.validationError;
-      throw new ApiError(errorMessage, response.status, decoded.code, validationError);
+      throw new ApiError(errorMessage, response.status, errorCode, validationError);
+    }
+
+    if (decoded.code !== ResponseCode.SUCCESS) {
+      throw new ApiError('An unexpected response was received', response.status);
     }
 
     return decoded;
@@ -100,14 +105,14 @@ async function makeApiRequest(
       throw new ApiError(
         'Cannot connect to the server. Please ensure the backend is running.',
         0,
-        ResponseCode.ERROR_INTERNAL
+        ErrorCode.INTERNAL
       );
     }
 
     throw new ApiError(
       (error as Error).message || 'An unexpected error occurred',
       500,
-      ResponseCode.ERROR_INTERNAL
+      ErrorCode.INTERNAL
     );
   }
 }
@@ -117,7 +122,7 @@ async function makeApiRequest(
  */
 function extractLoginResponse(response: ApiResponse): LoginResponseData {
   if (!response.data?.loginResponse) {
-    throw new ApiError('Invalid response: missing login data', 500, ResponseCode.ERROR_INTERNAL);
+    throw new ApiError('Invalid response: missing login data', 500, ErrorCode.INTERNAL);
   }
   return response.data.loginResponse;
 }
@@ -127,7 +132,7 @@ function extractLoginResponse(response: ApiResponse): LoginResponseData {
  */
 function extractCounterData(response: ApiResponse): CounterData {
   if (!response.data?.counterData) {
-    throw new ApiError('Invalid response: missing counter data', 500, ResponseCode.ERROR_INTERNAL);
+    throw new ApiError('Invalid response: missing counter data', 500, ErrorCode.INTERNAL);
   }
   return response.data.counterData;
 }
@@ -277,4 +282,4 @@ export type {
   ValidationErrorData,
 };
 
-export { ResponseCode };
+export { ResponseCode, SuccessCode, ErrorCode };

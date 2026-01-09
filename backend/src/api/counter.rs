@@ -1,6 +1,5 @@
 use axum::{
     extract::State,
-    http::StatusCode,
     response::IntoResponse,
 };
 use axum_extra::protobuf::Protobuf;
@@ -8,20 +7,19 @@ use std::sync::Arc;
 use tracing::error;
 
 use crate::db::DBHandle;
-use proto_types::v1::{ApiData, ApiResponse, CounterData, ResponseCode, api_data};
+use proto_types::v1::{ApiData, SuccessCode, CounterData, api_data};
 use super::auth_extractor::AuthenticatedUser;
-use super::utils::internal_error;
+use super::utils::{internal_error, success_response};
 
 pub async fn get_counter(auth: AuthenticatedUser) -> impl IntoResponse {
-    let response = ApiResponse {
-        code: ResponseCode::Success.into(),
-        data: Some(ApiData {
+    success_response(
+        SuccessCode::SuccessOk,
+        Some(ApiData {
             data: Some(api_data::Data::CounterData(CounterData {
                 value: auth.user.counter,
             })),
         }),
-    };
-    (StatusCode::OK, Protobuf(response))
+    )
 }
 
 pub async fn set_counter(
@@ -35,15 +33,14 @@ pub async fn set_counter(
         .await
     {
         Ok(_) => {
-            let response = ApiResponse {
-                code: ResponseCode::Success.into(),
-                data: Some(ApiData {
+            success_response(
+                SuccessCode::SuccessCounterUpdated,
+                Some(ApiData {
                     data: Some(api_data::Data::CounterData(CounterData {
                         value: payload.value,
                     })),
                 }),
-            };
-            (StatusCode::OK, Protobuf(response))
+            )
         }
         Err(e) => {
             error!("Failed to update counter: {:?}", e);

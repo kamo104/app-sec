@@ -1,15 +1,8 @@
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-};
-use axum_extra::protobuf::Protobuf;
+use axum::response::IntoResponse;
 
-use proto_types::v1::{ApiResponse, ResponseCode};
+use proto_types::v1::SuccessCode;
+use super::utils::success_response;
 
 pub async fn health_check() -> impl IntoResponse {
-    let response = ApiResponse {
-        code: ResponseCode::Success.into(),
-        data: None,
-    };
-    (StatusCode::OK, Protobuf(response))
+    success_response(SuccessCode::SuccessOk, None)
 }
