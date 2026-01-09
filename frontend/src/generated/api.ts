@@ -142,6 +142,7 @@ export enum ErrorCode {
   DATABASE = 6,
   INTERNAL = 7,
   VALIDATION = 8,
+  EMAIL_TAKEN = 9,
   UNRECOGNIZED = -1,
 }
 
@@ -174,6 +175,9 @@ export function errorCodeFromJSON(object: any): ErrorCode {
     case 8:
     case "VALIDATION":
       return ErrorCode.VALIDATION;
+    case 9:
+    case "EMAIL_TAKEN":
+      return ErrorCode.EMAIL_TAKEN;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -201,6 +205,8 @@ export function errorCodeToJSON(object: ErrorCode): string {
       return "INTERNAL";
     case ErrorCode.VALIDATION:
       return "VALIDATION";
+    case ErrorCode.EMAIL_TAKEN:
+      return "EMAIL_TAKEN";
     case ErrorCode.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";

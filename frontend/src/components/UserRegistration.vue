@@ -204,8 +204,8 @@ const handleSubmit = async () => {
       }
       showMessage('Please fix the validation errors.', 'error')
     } else if (apiError.status === 409) {
-      // Username already taken - show error message
-      showMessage('Username already exists. Please choose a different one.', 'error')
+      // Username or email already taken - show error message from API
+      showMessage(apiError.message || 'Registration failed', 'error')
     } else if (apiError.status === 0) {
       // Network error - backend not running
       showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')

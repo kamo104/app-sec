@@ -66,6 +66,30 @@ pub async fn register_user(
         }
     }
 
+    match db
+        .user_login_table
+        .is_email_free(&payload.email)
+        .await
+    {
+        Ok(true) => {
+            debug!("Email '{}' is available", payload.email);
+        }
+        Ok(false) => {
+            debug!(
+                "Registration failed: email '{}' already taken",
+                payload.email
+            );
+            return error_response(StatusCode::CONFLICT, ErrorCode::EmailTaken, None);
+        }
+        Err(e) => {
+            debug!(
+                "Database error checking email '{}': {:?}",
+                payload.email, e
+            );
+            return internal_error();
+        }
+    }
+
     let hashed_password = match crate::db::hash_password(&payload.password) {
         Ok(h) => h,
         Err(e) => {

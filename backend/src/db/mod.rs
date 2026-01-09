@@ -19,21 +19,17 @@ use argon2::{
 /* --- KEYRING constants --- */
 const KEYRING_SERVICE_NAME: &str = "APPSEC_DB_KEY";
 const KEYRING_USERNAME: &str = "APPSEC";
-const KEYRING_DB_KEY_LEN: usize = 32;
+const KEYRING_DB_KEY_LEN: usize = 32; // SQLCipher uses an AES key under the hood, so it's bound to 32B anyway
 /* --- KEYRING constants --- */
 
 /* --- DEVELOPMENT MODE constants --- */
 /// Development database path - separate from production to avoid conflicts
 const DEV_DATABASE_PATH: &str = "data_dev.db";
-/// Static encryption key for development mode - eliminates keyring dependency during development
-/// Uses SQLCipher key format: "x'hexkey'"
-const DEV_DATABASE_KEY: &str =
-    "\"x'DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF'\"";
 /* --- DEVELOPMENT MODE constants --- */
 
-/* --- EMAIL VERIFICATION constants --- */
-const EMAIL_VERIFICATION_TOKEN_BYTES: usize = 32; // 32 bytes = 64 hex characters
-/* --- EMAIL VERIFICATION constants --- */
+/* --- EMAIL VERIFICATION and PASSWORD FORGET constants --- */
+const CONFIRMATION_TOKEN_BYTES: usize = 32; // 32 bytes = 64 hex characters
+/* --- EMAIL VERIFICATION and PASSWORD FORGET constants --- */
 
 /* --- SESSION constants --- */
 pub const SESSION_TOKEN_BYTES: usize = 32;
@@ -45,10 +41,9 @@ pub const SESSION_TOKEN_BYTES: usize = 32;
 pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600;
 /* --- CLEANUP constants --- */
 
-/* --- EMAIL VERIFICATION UTILITIES --- */
 /// Generate a cryptographically secure random token
 pub fn generate_verification_token() -> String {
-    let mut token_bytes = [0u8; EMAIL_VERIFICATION_TOKEN_BYTES];
+    let mut token_bytes = [0u8; CONFIRMATION_TOKEN_BYTES];
     OsRng.try_fill_bytes(&mut token_bytes).unwrap();
     hex::encode(token_bytes)
 }
@@ -75,7 +70,6 @@ pub fn hash_token(token: &str) -> Result<String> {
     let result = hasher.finalize();
     Ok(hex::encode(result))
 }
-/* --- EMAIL VERIFICATION UTILITIES --- */
 
 /// Hash a password using Argon2
 pub fn hash_password(password: &str) -> Result<String> {
@@ -187,7 +181,10 @@ impl UserSessionsTable {
         Ok(())
     }
     pub async fn cleanup_expired_sessions(&self) -> Result<()> {
-        sqlx::query("DELETE FROM user_sessions WHERE session_expiry < $1")
+        sqlx::query(formatcp!(
+            "DELETE FROM {} WHERE session_expiry < $1",
+            UserSessionsTable::TABLE_NAME
+        ))
             .bind(OffsetDateTime::now_utc())
             .execute(&self.conn_pool)
             .await?;
@@ -287,7 +284,25 @@ impl EmailVerificationTokensTable {
 
     #[allow(dead_code)] // Cleanup method for scheduled maintenance
     pub async fn cleanup_expired_tokens(&self) -> Result<()> {
-        sqlx::query("DELETE FROM email_verification_tokens WHERE expires_at < $1")
+        // Delete unverified user accounts whose email verification tokens have expired
+        sqlx::query(formatcp!(
+            "DELETE FROM {}
+             WHERE user_id IN (
+                 SELECT user_id FROM {}
+                 WHERE expires_at < $1
+             ) AND email_verified = false",
+            UserLoginTable::TABLE_NAME,
+            EmailVerificationTokensTable::TABLE_NAME
+        ))
+        .bind(OffsetDateTime::now_utc())
+        .execute(&self.conn_pool)
+        .await?;
+
+        // Delete expired email verification tokens
+        sqlx::query(formatcp!(
+            "DELETE FROM {} WHERE expires_at < $1",
+            EmailVerificationTokensTable::TABLE_NAME
+        ))
             .bind(OffsetDateTime::now_utc())
             .execute(&self.conn_pool)
             .await?;
@@ -383,7 +398,10 @@ impl PasswordResetTokensTable {
     }
 
     pub async fn cleanup_expired_tokens(&self) -> Result<()> {
-        sqlx::query("DELETE FROM password_reset_tokens WHERE expires_at < $1")
+        sqlx::query(formatcp!(
+            "DELETE FROM {} WHERE expires_at < $1",
+            PasswordResetTokensTable::TABLE_NAME
+        ))
             .bind(OffsetDateTime::now_utc())
             .execute(&self.conn_pool)
             .await?;
@@ -416,7 +434,7 @@ impl UserLoginTable {
         "CREATE TABLE IF NOT EXISTS {} (\
             user_id INTEGER PRIMARY KEY AUTOINCREMENT, \
             username TEXT UNIQUE NOT NULL, \
-            email TEXT NOT NULL, \
+            email TEXT UNIQUE NOT NULL, \
             password TEXT, \
             email_verified INTEGER NOT NULL DEFAULT 0, \
             email_verified_at INTEGER, \
@@ -509,17 +527,15 @@ impl UserLoginTable {
         Ok(out)
     }
 
-    pub async fn get_by_username_or_email(
-        &self,
-        identifier: &str,
-    ) -> std::result::Result<UserLogin, sqlx::Error> {
-        sqlx::query_as::<_, UserLogin>(formatcp!(
-            "SELECT * FROM {} WHERE username = $1 OR email = $1",
+    pub async fn get_by_email(&self, email: &str) -> std::result::Result<UserLogin, sqlx::Error> {
+        let out = sqlx::query_as::<_, UserLogin>(formatcp!(
+            "SELECT * FROM {} WHERE email = $1",
             UserLoginTable::TABLE_NAME
         ))
-        .bind(identifier)
+        .bind(email)
         .fetch_one(&self.conn_pool)
-        .await
+        .await?;
+        Ok(out)
     }
 
     #[allow(dead_code)]
@@ -604,6 +620,17 @@ impl UserLoginTable {
             },
         };
     }
+
+    pub async fn is_email_free(&self, email: &str) -> Result<bool> {
+        return match self.get_by_email(email).await {
+            Ok(_r) => Ok(false),
+            Err(e) => match e {
+                sqlx::Error::RowNotFound => Ok(true),
+                _ => Err(anyhow!(Box::new(e))),
+            },
+        };
+    }
+
     pub async fn new_user(&self, user_login: &UserLogin) -> Result<i64> {
         return match self.is_username_free(user_login.username.as_str()).await? {
             true => {
@@ -767,12 +794,23 @@ impl DBHandle {
         }
 
         // Clean up expired email verification tokens
-        if let Err(e) = self.email_verification_tokens_table.cleanup_expired_tokens().await {
-            tracing::error!("Failed to cleanup expired email verification tokens: {:?}", e);
+        if let Err(e) = self
+            .email_verification_tokens_table
+            .cleanup_expired_tokens()
+            .await
+        {
+            tracing::error!(
+                "Failed to cleanup expired email verification tokens: {:?}",
+                e
+            );
         }
 
         // Clean up expired password reset tokens
-        if let Err(e) = self.password_reset_tokens_table.cleanup_expired_tokens().await {
+        if let Err(e) = self
+            .password_reset_tokens_table
+            .cleanup_expired_tokens()
+            .await
+        {
             tracing::error!("Failed to cleanup expired password reset tokens: {:?}", e);
         }
 

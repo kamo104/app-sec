@@ -221,6 +221,7 @@ pub enum ErrorCode {
     Database = 6,
     Internal = 7,
     Validation = 8,
+    EmailTaken = 9,
 }
 impl ErrorCode {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -238,6 +239,7 @@ impl ErrorCode {
             Self::Database => "DATABASE",
             Self::Internal => "INTERNAL",
             Self::Validation => "VALIDATION",
+            Self::EmailTaken => "EMAIL_TAKEN",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -252,6 +254,7 @@ impl ErrorCode {
             "DATABASE" => Some(Self::Database),
             "INTERNAL" => Some(Self::Internal),
             "VALIDATION" => Some(Self::Validation),
+            "EMAIL_TAKEN" => Some(Self::EmailTaken),
             _ => None,
         }
     }

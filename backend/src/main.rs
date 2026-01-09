@@ -7,7 +7,6 @@ use axum::{
     routing::{any, get, post},
 };
 use axum_extra::TypedHeader;
-use tower_cookies::CookieManagerLayer;
 use std::convert::Infallible;
 use std::future::Future;
 use std::path::PathBuf;
@@ -16,6 +15,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::OnceCell;
 use tower::Service;
+use tower_cookies::CookieManagerLayer;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
@@ -38,11 +38,14 @@ use tracing::{debug, info, warn};
 
 use clap::Parser;
 
-mod db;
 mod api;
+mod db;
 mod email;
+use api::{
+    auth_check, complete_password_reset, get_counter, health_check, login_user, logout_user,
+    refresh_session, register_user, request_password_reset, set_counter, verify_email,
+};
 use db::DBHandle;
-use api::{register_user, health_check, auth_check, refresh_session, login_user, verify_email, get_counter, set_counter, logout_user, request_password_reset, complete_password_reset};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -51,7 +54,11 @@ struct Args {
     web_bind_addr: Ipv4Addr,
     #[arg(long, default_value_t = 4000)]
     web_port: u16,
-    #[arg(long, default_value_t = false, help = "Run in development mode (uses data_dev.db with static key, no keyring required)")]
+    #[arg(
+        long,
+        default_value_t = false,
+        help = "Run in development mode (uses data_dev.db without encryption, no keyring required)"
+    )]
     dev: bool,
 }
 
@@ -162,7 +169,10 @@ async fn main() {
         .route("/api/verify-email", post(verify_email))
         .route("/api/logout", post(logout_user))
         .route("/api/request-password-reset", post(request_password_reset))
-        .route("/api/complete-password-reset", post(complete_password_reset))
+        .route(
+            "/api/complete-password-reset",
+            post(complete_password_reset),
+        )
         .route("/api/counter/get", get(get_counter))
         .route("/api/counter/set", post(set_counter))
         // WebSocket route
