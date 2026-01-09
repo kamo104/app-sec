@@ -11,15 +11,26 @@ use proto_types::v1::{ApiData, SuccessCode, CounterData, api_data};
 use super::auth_extractor::AuthenticatedUser;
 use super::utils::{internal_error, success_response};
 
-pub async fn get_counter(auth: AuthenticatedUser) -> impl IntoResponse {
-    success_response(
-        SuccessCode::SuccessOk,
-        Some(ApiData {
-            data: Some(api_data::Data::CounterData(CounterData {
-                value: auth.user.counter,
-            })),
-        }),
-    )
+pub async fn get_counter(
+    State(db): State<Arc<DBHandle>>,
+    auth: AuthenticatedUser,
+) -> impl IntoResponse {
+    match db.user_data_table.get_counter(auth.user.user_id).await {
+        Ok(counter_value) => {
+            success_response(
+                SuccessCode::SuccessOk,
+                Some(ApiData {
+                    data: Some(api_data::Data::CounterData(CounterData {
+                        value: counter_value,
+                    })),
+                }),
+            )
+        }
+        Err(e) => {
+            error!("Failed to get counter: {:?}", e);
+            internal_error()
+        }
+    }
 }
 
 pub async fn set_counter(
@@ -28,7 +39,7 @@ pub async fn set_counter(
     Protobuf(payload): Protobuf<proto_types::v1::SetCounterRequest>,
 ) -> impl IntoResponse {
     match db
-        .user_login_table
+        .user_data_table
         .update_counter(auth.user.user_id, payload.value)
         .await
     {

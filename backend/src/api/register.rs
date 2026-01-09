@@ -108,7 +108,6 @@ pub async fn register_user(
         password: Some(hashed_password),
         email_verified: false,
         email_verified_at: None,
-        counter: 0,
         password_reset: false,
     };
 
@@ -118,6 +117,22 @@ pub async fn register_user(
                 "User record created for '{}' with id {}",
                 payload.username, user_id
             );
+
+            // Create user_data record
+            if let Err(e) = db.user_data_table.insert(user_id).await {
+                debug!(
+                    "Failed to create user_data for '{}': {:?}. Attempting cleanup...",
+                    payload.username, e
+                );
+                match db.user_login_table.delete(&payload.username).await {
+                    Ok(_) => debug!("Cleanup successful: deleted user '{}'", payload.username),
+                    Err(cleanup_e) => error!(
+                        "Cleanup failed for user '{}': {:?}",
+                        payload.username, cleanup_e
+                    ),
+                }
+                return internal_error();
+            }
 
             let token = generate_verification_token();
             let token_hash = match hash_token(&token) {

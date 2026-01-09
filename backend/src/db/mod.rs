@@ -15,11 +15,13 @@ mod user_login;
 mod user_sessions;
 mod email_verification_tokens;
 mod password_reset_tokens;
+mod user_data;
 
 pub use user_login::{UserLogin, UserLoginTable};
 pub use user_sessions::{UserSession, UserSessionsTable};
 pub use email_verification_tokens::EmailVerificationTokensTable;
 pub use password_reset_tokens::PasswordResetTokensTable;
+pub use user_data::UserDataTable;
 
 const KEYRING_SERVICE_NAME: &str = "APPSEC_DB_KEY";
 const KEYRING_USERNAME: &str = "APPSEC";
@@ -72,12 +74,14 @@ pub struct DBHandle {
     pub user_sessions_table: UserSessionsTable,
     pub email_verification_tokens_table: EmailVerificationTokensTable,
     pub password_reset_tokens_table: PasswordResetTokensTable,
+    pub user_data_table: UserDataTable,
     pub is_dev: bool,
 }
 
 impl DBHandle {
     async fn create_tables(&self) -> Result<()> {
         self.user_login_table.create_table().await?;
+        self.user_data_table.create_table().await?;
         self.user_sessions_table.create_table().await?;
         self.email_verification_tokens_table.create_table().await?;
         self.password_reset_tokens_table.create_table().await?;
@@ -134,6 +138,7 @@ impl DBHandle {
             user_sessions_table: UserSessionsTable::new(conn_pool.clone()),
             email_verification_tokens_table: EmailVerificationTokensTable::new(conn_pool.clone()),
             password_reset_tokens_table: PasswordResetTokensTable::new(conn_pool.clone()),
+            user_data_table: UserDataTable::new(conn_pool.clone()),
             is_dev,
         };
 

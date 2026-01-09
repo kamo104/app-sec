@@ -19,7 +19,6 @@ pub struct UserLogin {
     pub password: Option<String>,
     pub email_verified: bool,
     pub email_verified_at: Option<OffsetDateTime>,
-    pub counter: i64,
     pub password_reset: bool,
 }
 
@@ -38,7 +37,6 @@ impl UserLoginTable {
             password TEXT, \
             email_verified INTEGER NOT NULL DEFAULT 0, \
             email_verified_at INTEGER, \
-            counter INTEGER NOT NULL DEFAULT 0, \
             password_reset INTEGER NOT NULL DEFAULT 0\
         )",
         UserLoginTable::TABLE_NAME,
@@ -63,13 +61,12 @@ impl UserLoginTable {
                 password, \
                 email_verified, \
                 email_verified_at, \
-                counter, \
                 password_reset\
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7) \
+            ) VALUES ($1, $2, $3, $4, $5, $6) \
                 ON CONFLICT(username) DO \
                 UPDATE SET email = excluded.email, password = excluded.password, \
                 email_verified = excluded.email_verified, email_verified_at = excluded.email_verified_at, \
-                counter = excluded.counter, password_reset = excluded.password_reset \
+                password_reset = excluded.password_reset \
                 RETURNING user_id",
             UserLoginTable::TABLE_NAME
         ))
@@ -78,7 +75,6 @@ impl UserLoginTable {
         .bind(&row.password)
         .bind(row.email_verified)
         .bind(row.email_verified_at)
-        .bind(row.counter)
         .bind(row.password_reset)
         .fetch_one(&self.conn_pool)
         .await?;
@@ -271,18 +267,6 @@ impl UserLoginTable {
             UserLoginTable::TABLE_NAME
         ))
         .bind(OffsetDateTime::now_utc())
-        .bind(user_id)
-        .execute(&self.conn_pool)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn update_counter(&self, user_id: i64, new_counter: i64) -> Result<()> {
-        sqlx::query(formatcp!(
-            "UPDATE {} SET counter = $1 WHERE user_id = $2",
-            UserLoginTable::TABLE_NAME
-        ))
-        .bind(new_counter)
         .bind(user_id)
         .execute(&self.conn_pool)
         .await?;
