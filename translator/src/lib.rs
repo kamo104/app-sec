@@ -5,9 +5,7 @@
 use wasm_bindgen::prelude::*;
 use rust_i18n::t;
 
-use api_types::{
-    FieldType, ValidationErrorCode, ValidationErrorData, SuccessCode, ErrorCode,
-};
+use api_types::{FieldType, ValidationErrorCode, ValidationErrorData};
 use field_validator::{
     USERNAME_CHAR_MIN, USERNAME_CHAR_MAX,
     PASSWORD_CHAR_MIN, PASSWORD_CHAR_MAX,
@@ -39,20 +37,6 @@ pub fn translate_success_code(code: &str, locale: Option<String>) -> String {
 pub fn translate_error_code(code: &str, locale: Option<String>) -> String {
     let locale = locale.unwrap_or_else(|| "en".to_string());
     t!(code, locale = &locale).to_string()
-}
-
-/// Translates a SuccessCode enum to a localized message.
-pub fn translate_success(code: SuccessCode, locale: Option<String>) -> String {
-    let locale = locale.unwrap_or_else(|| "en".to_string());
-    let key = code.as_str_name();
-    t!(key, locale = &locale).to_string()
-}
-
-/// Translates an ErrorCode enum to a localized message.
-pub fn translate_error(code: ErrorCode, locale: Option<String>) -> String {
-    let locale = locale.unwrap_or_else(|| "en".to_string());
-    let key = code.as_str_name();
-    t!(key, locale = &locale).to_string()
 }
 
 /// Helper function to interpolate values in translation strings.

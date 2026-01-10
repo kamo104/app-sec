@@ -53,40 +53,6 @@ macro_rules! define_enum {
 }
 
 define_enum! {
-    /// Success codes for specific success outcomes.
-    pub enum SuccessCode {
-        #[default]
-        Unspecified = "SUCCESS_CODE_UNSPECIFIED",
-        Ok = "SUCCESS_OK",
-        Registered = "SUCCESS_REGISTERED",
-        LoggedIn = "SUCCESS_LOGGED_IN",
-        LoggedOut = "SUCCESS_LOGGED_OUT",
-        EmailVerified = "SUCCESS_EMAIL_VERIFIED",
-        SessionRefreshed = "SUCCESS_SESSION_REFRESHED",
-        PasswordResetRequested = "SUCCESS_PASSWORD_RESET_REQUESTED",
-        PasswordResetCompleted = "SUCCESS_PASSWORD_RESET_COMPLETED",
-        CounterUpdated = "SUCCESS_COUNTER_UPDATED",
-    }
-}
-
-define_enum! {
-    /// Error codes for specific error types.
-    pub enum ErrorCode {
-        #[default]
-        Unspecified = "ERROR_CODE_UNSPECIFIED",
-        InvalidInput,
-        UsernameTaken,
-        InvalidCredentials,
-        EmailNotVerified,
-        InvalidToken,
-        Database,
-        Internal,
-        Validation,
-        EmailTaken,
-    }
-}
-
-define_enum! {
     /// Field types for validation errors.
     pub enum FieldType {
         #[default]

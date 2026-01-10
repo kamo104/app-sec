@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, hash_token};
-use api_types::{AuthErrorResponse, AuthError, LoginResponseData};
+use api_types::{AuthErrorResponse, AuthError, AuthCheckResponse, AuthCheckSuccess, AuthRefreshResponse, AuthRefreshSuccess};
 use super::auth_extractor::AuthenticatedUser;
 use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
 
@@ -18,13 +18,14 @@ use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
     get,
     path = "/api/auth/check",
     responses(
-        (status = 200, description = "Session is valid", body = LoginResponseData),
+        (status = 200, description = "Session is valid", body = AuthCheckResponse),
         (status = 401, description = "Not authenticated", body = AuthErrorResponse)
     ),
     tag = "auth"
 )]
 pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
-    (StatusCode::OK, Json(LoginResponseData {
+    (StatusCode::OK, Json(AuthCheckResponse {
+        success: AuthCheckSuccess::Ok,
         username: auth.user.username,
         email: auth.user.email,
         session_expires_at: auth.session.session_expiry.unix_timestamp(),
@@ -36,7 +37,7 @@ pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
     post,
     path = "/api/auth/refresh",
     responses(
-        (status = 200, description = "Session refreshed successfully", body = LoginResponseData),
+        (status = 200, description = "Session refreshed successfully", body = AuthRefreshResponse),
         (status = 401, description = "Not authenticated", body = AuthErrorResponse),
         (status = 500, description = "Internal server error", body = AuthErrorResponse)
     ),
@@ -74,7 +75,8 @@ pub async fn refresh_session(
             let cookie = create_session_cookie(token.value().to_string(), Some(new_expiry), db.is_dev);
             cookies.add(cookie);
 
-            (StatusCode::OK, Json(LoginResponseData {
+            (StatusCode::OK, Json(AuthRefreshResponse {
+                success: AuthRefreshSuccess::SessionRefreshed,
                 username: auth.user.username,
                 email: auth.user.email,
                 session_expires_at: new_expiry.unix_timestamp(),

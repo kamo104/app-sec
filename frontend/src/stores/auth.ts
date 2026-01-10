@@ -1,24 +1,39 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { refreshSession, type LoginResponseData } from '@/api/client'
+import { refreshSession, type LoginResponse, type AuthRefreshResponse } from '@/api/client'
+
+// Common user data fields shared across login and auth responses
+interface UserData {
+  username: string
+  email: string
+  sessionExpiresAt: number
+  sessionCreatedAt: number
+}
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<LoginResponseData | null>(null)
+  const user = ref<UserData | null>(null)
   const isAuthenticated = computed(() => user.value !== null)
   const sessionExpiresAt = ref<number | null>(null)
   const sessionCreatedAt = ref<number | null>(null)
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-  function setUser(userData: LoginResponseData | null): void {
-    user.value = userData
+  function setUser(userData: UserData | LoginResponse | AuthRefreshResponse | null): void {
     if (userData) {
-      sessionExpiresAt.value = userData.sessionExpiresAt
-      sessionCreatedAt.value = userData.sessionCreatedAt
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('sessionExpiresAt', String(userData.sessionExpiresAt))
-      localStorage.setItem('sessionCreatedAt', String(userData.sessionCreatedAt))
+      const data: UserData = {
+        username: userData.username,
+        email: userData.email,
+        sessionExpiresAt: userData.sessionExpiresAt,
+        sessionCreatedAt: userData.sessionCreatedAt,
+      }
+      user.value = data
+      sessionExpiresAt.value = data.sessionExpiresAt
+      sessionCreatedAt.value = data.sessionCreatedAt
+      localStorage.setItem('user', JSON.stringify(data))
+      localStorage.setItem('sessionExpiresAt', String(data.sessionExpiresAt))
+      localStorage.setItem('sessionCreatedAt', String(data.sessionCreatedAt))
       scheduleRefresh()
     } else {
+      user.value = null
       sessionExpiresAt.value = null
       sessionCreatedAt.value = null
       localStorage.removeItem('user')

@@ -23,8 +23,6 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StatusMessage: typeof import('./components/auth/StatusMessage.vue')['default']
-    UserLogin: typeof import('./components/UserLogin.vue')['default']
     UsernameField: typeof import('./components/auth/UsernameField.vue')['default']
-    UserRegistration: typeof import('./components/UserRegistration.vue')['default']
   }
 }

@@ -11,31 +11,6 @@ use utoipa::ToSchema;
 use crate::ValidationErrorData;
 
 // =============================================================================
-// Data response types (used for successful responses with data)
-// =============================================================================
-
-/// Login response data containing user info and session details.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct LoginResponseData {
-    pub username: String,
-    pub email: String,
-    /// Unix timestamp in seconds when the session expires.
-    pub session_expires_at: i64,
-    /// Unix timestamp in seconds when the session was created.
-    pub session_created_at: i64,
-}
-
-/// Counter data containing the current counter value.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct CounterData {
-    pub value: i64,
-}
-
-// =============================================================================
 // Health endpoint responses
 // =============================================================================
 
@@ -111,6 +86,28 @@ pub struct RegisterErrorResponse {
 // =============================================================================
 // Login endpoint responses
 // =============================================================================
+
+/// Success code for login endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub enum LoginSuccess {
+    #[serde(rename = "SUCCESS_LOGGED_IN")]
+    LoggedIn,
+}
+
+/// Login success response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct LoginResponse {
+    pub success: LoginSuccess,
+    pub username: String,
+    pub email: String,
+    /// Unix timestamp in seconds when the session expires.
+    pub session_expires_at: i64,
+    /// Unix timestamp in seconds when the session was created.
+    pub session_created_at: i64,
+}
 
 /// Error codes specific to login endpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -298,6 +295,46 @@ pub struct CompletePasswordResetErrorResponse {
 // Auth check/refresh endpoint responses
 // =============================================================================
 
+/// Success code for auth check endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub enum AuthCheckSuccess {
+    #[serde(rename = "SUCCESS_OK")]
+    Ok,
+}
+
+/// Success code for auth refresh endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub enum AuthRefreshSuccess {
+    #[serde(rename = "SUCCESS_SESSION_REFRESHED")]
+    SessionRefreshed,
+}
+
+/// Auth check success response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct AuthCheckResponse {
+    pub success: AuthCheckSuccess,
+    pub username: String,
+    pub email: String,
+    pub session_expires_at: i64,
+    pub session_created_at: i64,
+}
+
+/// Auth refresh success response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct AuthRefreshResponse {
+    pub success: AuthRefreshSuccess,
+    pub username: String,
+    pub email: String,
+    pub session_expires_at: i64,
+    pub session_created_at: i64,
+}
+
 /// Error codes for auth check and refresh endpoints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
@@ -324,6 +361,14 @@ impl Default for AuthErrorResponse {
 // =============================================================================
 // Counter endpoint responses
 // =============================================================================
+
+/// Counter data containing the current counter value.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct CounterData {
+    pub value: i64,
+}
 
 /// Error codes for counter endpoints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
-use api_types::{LoginErrorResponse, LoginError, LoginResponseData, LoginRequest, ValidationErrorData};
+use api_types::{LoginErrorResponse, LoginError, LoginResponse, LoginSuccess, LoginRequest, ValidationErrorData};
 use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
 
 #[utoipa::path(
@@ -18,7 +18,7 @@ use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
     path = "/api/login",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "Login successful", body = LoginResponseData),
+        (status = 200, description = "Login successful", body = LoginResponse),
         (status = 400, description = "Validation error", body = LoginErrorResponse),
         (status = 401, description = "Invalid credentials or email not verified", body = LoginErrorResponse),
         (status = 500, description = "Internal server error", body = LoginErrorResponse)
@@ -133,7 +133,8 @@ pub async fn login_user(
 
             cookies.add(cookie);
 
-            let response_data = LoginResponseData {
+            let response_data = LoginResponse {
+                success: LoginSuccess::LoggedIn,
                 username: user.username,
                 email: user.email,
                 session_expires_at: expiry.unix_timestamp(),

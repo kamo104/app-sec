@@ -101,6 +101,7 @@ cd ..
 print_status "Fetching OpenAPI spec from backend..."
 ./backend/target/release/appsec-server --dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
+disown $BACKEND_PID
 
 sleep 3
 
@@ -112,10 +113,8 @@ fi
 
 # Kill the backend process
 kill $BACKEND_PID 2>/dev/null
-# Wait briefly for clean shutdown, but don't hang indefinitely
 sleep 1
-kill -9 $BACKEND_PID 2>/dev/null
-wait $BACKEND_PID 2>/dev/null || true
+kill -9 $BACKEND_PID 2>/dev/null || true
 
 # Generate OpenAPI TypeScript client
 print_status "Generating OpenAPI TypeScript client..."

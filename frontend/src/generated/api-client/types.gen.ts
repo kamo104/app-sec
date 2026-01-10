@@ -5,6 +5,22 @@ export type ClientOptions = {
 };
 
 /**
+ * Auth check success response.
+ */
+export type AuthCheckResponse = {
+    email: string;
+    sessionCreatedAt: number;
+    sessionExpiresAt: number;
+    success: AuthCheckSuccess;
+    username: string;
+};
+
+/**
+ * Success code for auth check endpoint.
+ */
+export type AuthCheckSuccess = 'SUCCESS_OK';
+
+/**
  * Error codes for auth check and refresh endpoints.
  */
 export type AuthError = 'INVALID_CREDENTIALS' | 'INTERNAL';
@@ -15,6 +31,22 @@ export type AuthError = 'INVALID_CREDENTIALS' | 'INTERNAL';
 export type AuthErrorResponse = {
     error: AuthError;
 };
+
+/**
+ * Auth refresh success response.
+ */
+export type AuthRefreshResponse = {
+    email: string;
+    sessionCreatedAt: number;
+    sessionExpiresAt: number;
+    success: AuthRefreshSuccess;
+    username: string;
+};
+
+/**
+ * Success code for auth refresh endpoint.
+ */
+export type AuthRefreshSuccess = 'SUCCESS_SESSION_REFRESHED';
 
 /**
  * Error codes specific to password reset completion endpoint.
@@ -106,9 +138,9 @@ export type LoginRequest = {
 };
 
 /**
- * Login response data containing user info and session details.
+ * Login success response.
  */
-export type LoginResponseData = {
+export type LoginResponse = {
     email: string;
     /**
      * Unix timestamp in seconds when the session was created.
@@ -118,8 +150,14 @@ export type LoginResponseData = {
      * Unix timestamp in seconds when the session expires.
      */
     sessionExpiresAt: number;
+    success: LoginSuccess;
     username: string;
 };
+
+/**
+ * Success code for login endpoint.
+ */
+export type LoginSuccess = 'SUCCESS_LOGGED_IN';
 
 /**
  * Logout success response.
@@ -277,10 +315,10 @@ export type AuthCheckResponses = {
     /**
      * Session is valid
      */
-    200: LoginResponseData;
+    200: AuthCheckResponse;
 };
 
-export type AuthCheckResponse = AuthCheckResponses[keyof AuthCheckResponses];
+export type AuthCheckResponse2 = AuthCheckResponses[keyof AuthCheckResponses];
 
 export type RefreshSessionData = {
     body?: never;
@@ -306,7 +344,7 @@ export type RefreshSessionResponses = {
     /**
      * Session refreshed successfully
      */
-    200: LoginResponseData;
+    200: AuthRefreshResponse;
 };
 
 export type RefreshSessionResponse = RefreshSessionResponses[keyof RefreshSessionResponses];
@@ -442,7 +480,7 @@ export type LoginUserResponses = {
     /**
      * Login successful
      */
-    200: LoginResponseData;
+    200: LoginResponse;
 };
 
 export type LoginUserResponse = LoginUserResponses[keyof LoginUserResponses];
