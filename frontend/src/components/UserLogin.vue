@@ -153,9 +153,9 @@ const handleSubmit = async () => {
     // Store user in auth store
     authStore.setUser(loginResponse)
 
-    // Redirect to dashboard
+    // Redirect to home
     console.log('Login successful:', loginResponse)
-    router.push('/dashboard')
+    router.push('/')
   } catch (error) {
     const apiError = error as ApiError
     console.error('Login error:', apiError)

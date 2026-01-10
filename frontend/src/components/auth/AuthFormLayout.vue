@@ -3,18 +3,7 @@
     <v-row justify="center">
       <v-col cols="12" md="8">
         <v-card class="pa-6" elevation="2">
-          <template v-slot:title>
-            <div class="d-flex justify-space-between align-center">
-              <span>{{ title }}</span>
-              <v-btn
-                icon="mdi-home"
-                variant="text"
-                density="comfortable"
-                to="/"
-                title="Go Home"
-              ></v-btn>
-            </div>
-          </template>
+          <v-card-title>{{ title }}</v-card-title>
           <slot name="default" :handle-submit="handleSubmit" :form-ref="formRef"></slot>
 
           <!-- Navigation Links -->

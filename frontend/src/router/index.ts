@@ -21,12 +21,7 @@ declare module 'vue-router' {
 // Configure route metadata
 const configureRoutes = (routes: RouteRecordRaw[]): RouteRecordRaw[] => {
   return routes.map(route => {
-    // Protected routes that require authentication
-    if (route.path === '/dashboard') {
-      route.meta = { ...route.meta, requiresAuth: true }
-    }
-
-    // Guest-only routes (redirect to dashboard if already logged in)
+    // Guest-only routes (redirect to home if already logged in)
     if (['/login', '/register', '/forgot-password'].includes(route.path)) {
       route.meta = { ...route.meta, guestOnly: true }
     }
@@ -67,8 +62,8 @@ router.beforeEach(async (to, _from, next) => {
   // Check if route is guest-only (login, register, etc.)
   if (to.meta.guestOnly) {
     if (authStore.isAuthenticated && authStore.isSessionValid()) {
-      // Already logged in with valid session, redirect to dashboard
-      next('/dashboard')
+      // Already logged in with valid session, redirect to home
+      next('/')
       return
     }
   }
