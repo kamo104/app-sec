@@ -64,9 +64,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginUser, requestPasswordReset, type ApiError, ErrorCode, errorCodeToJSON } from '@/services/api'
-import { translate, translate_response, translate_validation_error } from '@/wasm/translator.js'
-import { FieldType } from '@/generated/api'
+import { loginUser, type ErrorResponse, type FieldType } from '@/api/client'
+import { translate_error_code, translate_success_code, translate_field_validation_error } from '@/wasm/translator.js'
 import { useAuthStore } from '@/stores/auth'
 
 // Import reusable components
@@ -130,7 +129,7 @@ const handleSubmit = async () => {
 
   // Check if fields are empty before validation
   if (!formData.username.trim() || !formData.password.trim()) {
-    showMessage(translate('LOGIN_FIELDS_REQUIRED', 'en'), 'error')
+    showMessage(translate_error_code('LOGIN_FIELDS_REQUIRED', undefined), 'error')
     return
   }
 
@@ -151,54 +150,59 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const { loginData, bytes } = await loginUser({
-      username: formData.username,
-      password: formData.password,
+    const { data, error, response } = await loginUser({
+      body: {
+        username: formData.username,
+        password: formData.password,
+      }
     })
 
-    showMessage(translate_response(bytes, undefined), 'success')
+    if (data) {
+      showMessage(translate_success_code('SUCCESS_LOGGED_IN', undefined), 'success')
 
-    // Store user in auth store
-    authStore.setUser(loginData)
+      // Store user in auth store
+      authStore.setUser(data)
 
-    // Redirect to home
-    console.log('Login successful:', loginData)
-    router.push('/')
-  } catch (error) {
-    const apiError = error as ApiError
-    console.error('Login error:', apiError)
-
-    // Handle specific error cases
-    if (apiError.validationError) {
-      // ValidationErrorData now has fieldErrors array
-      for (const fieldError of apiError.validationError.fieldErrors) {
-        const translatedErrors = fieldError.errors.map(err => {
-          try {
-            const errorBytes = new Uint8Array([err])
-            return translate_validation_error(errorBytes, 'en')
-          } catch {
-            return String(err)
-          }
-        })
-
-        if (fieldError.field === FieldType.USERNAME) {
-          usernameField.value.errors = translatedErrors
-          usernameField.value.hasError = true
-        } else if (fieldError.field === FieldType.PASSWORD) {
-          passwordField.value.errors = translatedErrors
-          passwordField.value.hasError = true
-        }
-      }
-      showMessage(translate(errorCodeToJSON(ErrorCode.VALIDATION), 'en'), 'error')
-    } else if (apiError.status === 401) {
-      showMessage(apiError.message || translate(errorCodeToJSON(ErrorCode.INVALID_CREDENTIALS), 'en'), 'error')
-    } else if (apiError.status === 0) {
-      showMessage(translate(errorCodeToJSON(ErrorCode.INTERNAL), 'en'), 'error')
-    } else {
-      showMessage(apiError.message || translate(errorCodeToJSON(ErrorCode.INTERNAL), 'en'), 'error')
+      // Redirect to home
+      console.log('Login successful:', data)
+      router.push('/')
+    } else if (error) {
+      handleLoginError(error, response.status)
     }
+  } catch (e) {
+    console.error('Login error:', e)
+    showMessage(translate_error_code('INTERNAL', undefined), 'error')
   } finally {
     loading.value = false
+  }
+}
+
+const handleLoginError = (error: ErrorResponse, status: number) => {
+  console.error('Login error:', error)
+
+  // Handle specific error cases
+  if (error.validation) {
+    // ValidationErrorData has fieldErrors array
+    for (const fieldError of error.validation.fieldErrors) {
+      const translatedErrors = fieldError.errors.map(err => {
+        return translate_field_validation_error(fieldError.field, err, 'en')
+      })
+
+      if (fieldError.field === 'USERNAME') {
+        usernameField.value.errors = translatedErrors
+        usernameField.value.hasError = true
+      } else if (fieldError.field === 'PASSWORD') {
+        passwordField.value.errors = translatedErrors
+        passwordField.value.hasError = true
+      }
+    }
+    showMessage(translate_error_code('VALIDATION', undefined), 'error')
+  } else if (status === 401) {
+    showMessage(translate_error_code(error.error, undefined), 'error')
+  } else if (status === 0) {
+    showMessage(translate_error_code('INTERNAL', undefined), 'error')
+  } else {
+    showMessage(translate_error_code(error.error, undefined), 'error')
   }
 }
 </script>

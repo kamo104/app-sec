@@ -1,6 +1,8 @@
 use axum::{
     extract::State,
+    http::StatusCode,
     response::IntoResponse,
+    Json,
 };
 use tower_cookies::Cookies;
 use sqlx::types::time::OffsetDateTime;
@@ -8,24 +10,37 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, hash_token};
-use proto_types::v1::{ApiData, SuccessCode, LoginResponseData, api_data};
+use api_types::{ErrorResponse, LoginResponseData};
 use super::auth_extractor::AuthenticatedUser;
-use super::utils::{auth_error, internal_error, success_response, create_session_cookie, SESSION_DURATION_DAYS};
+use super::utils::{auth_error, internal_error, create_session_cookie, SESSION_DURATION_DAYS};
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/check",
+    responses(
+        (status = 200, description = "Session is valid", body = LoginResponseData),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    ),
+    tag = "auth"
+)]
 pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
-    success_response(
-        SuccessCode::SuccessLoggedIn,
-        Some(ApiData {
-            data: Some(api_data::Data::LoginResponse(LoginResponseData {
-                username: auth.user.username,
-                email: auth.user.email,
-                session_expires_at: auth.session.session_expiry.unix_timestamp(),
-                session_created_at: auth.session.session_created_at.unix_timestamp(),
-            })),
-        }),
-    )
+    (StatusCode::OK, Json(LoginResponseData {
+        username: auth.user.username,
+        email: auth.user.email,
+        session_expires_at: auth.session.session_expiry.unix_timestamp(),
+        session_created_at: auth.session.session_created_at.unix_timestamp(),
+    }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/refresh",
+    responses(
+        (status = 200, description = "Session refreshed successfully", body = LoginResponseData),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    ),
+    tag = "auth"
+)]
 pub async fn refresh_session(
     State(db): State<Arc<DBHandle>>,
     auth: AuthenticatedUser,
@@ -58,17 +73,12 @@ pub async fn refresh_session(
             let cookie = create_session_cookie(token.value().to_string(), Some(new_expiry), db.is_dev);
             cookies.add(cookie);
 
-            success_response(
-                SuccessCode::SuccessSessionRefreshed,
-                Some(ApiData {
-                    data: Some(api_data::Data::LoginResponse(LoginResponseData {
-                        username: auth.user.username,
-                        email: auth.user.email,
-                        session_expires_at: new_expiry.unix_timestamp(),
-                        session_created_at: auth.session.session_created_at.unix_timestamp(),
-                    })),
-                }),
-            ).into_response()
+            (StatusCode::OK, Json(LoginResponseData {
+                username: auth.user.username,
+                email: auth.user.email,
+                session_expires_at: new_expiry.unix_timestamp(),
+                session_created_at: auth.session.session_created_at.unix_timestamp(),
+            })).into_response()
         }
         Err(e) => {
             error!("Failed to refresh session: {:?}", e);

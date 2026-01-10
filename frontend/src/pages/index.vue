@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getCounter, setCounter } from '@/services/api'
+import { getCounter, setCounter } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -80,8 +80,12 @@ onMounted(async () => {
 const fetchServerCounter = async () => {
   loadingCounter.value = true
   try {
-    const { counterData } = await getCounter()
-    counter.value = Number(counterData.value)
+    const { data, error } = await getCounter()
+    if (data) {
+      counter.value = Number(data.value)
+    } else {
+      console.error('Failed to fetch counter from server', error)
+    }
   } catch (e) {
     console.error('Failed to fetch counter from server', e)
   } finally {
@@ -93,8 +97,12 @@ const incrementCounter = async (): Promise<void> => {
   loadingCounter.value = true
   const newValue = counter.value + 1
   try {
-    const { counterData } = await setCounter(newValue)
-    counter.value = Number(counterData.value)
+    const { data, error } = await setCounter({ body: { value: newValue } })
+    if (data) {
+      counter.value = Number(data.value)
+    } else {
+      console.error('Failed to update counter on server', error)
+    }
   } catch (e) {
     console.error('Failed to update counter on server', e)
   } finally {

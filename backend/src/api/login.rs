@@ -2,26 +2,37 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
+    Json,
 };
-use axum_extra::protobuf::Protobuf;
 use tower_cookies::Cookies;
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
-use proto_types::v1::{ApiData, SuccessCode, ErrorCode, LoginResponseData, api_data};
-use super::utils::{internal_error, validation_error, error_response, success_response, create_session_cookie, SESSION_DURATION_DAYS};
+use api_types::{ErrorCode, ErrorResponse, LoginResponseData, LoginRequest};
+use super::utils::{internal_error, validation_error, error_response, create_session_cookie, SESSION_DURATION_DAYS};
 
+#[utoipa::path(
+    post,
+    path = "/api/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponseData),
+        (status = 400, description = "Validation error", body = ErrorResponse),
+        (status = 401, description = "Invalid credentials or email not verified", body = ErrorResponse)
+    ),
+    tag = "auth"
+)]
 pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
     cookies: Cookies,
-    Protobuf(payload): Protobuf<proto_types::v1::LoginRequest>,
+    Json(payload): Json<LoginRequest>,
 ) -> impl IntoResponse {
     debug!("Received login request - username: {}", payload.username);
 
     let username_result = field_validator::validate_username(&payload.username);
-    if !username_result.errors.is_empty() {
+    if !username_result.is_valid() {
         debug!("Username validation failed for '{}': {:?}", payload.username, username_result.errors);
         return validation_error(vec![username_result]).into_response();
     }
@@ -30,7 +41,7 @@ pub async fn login_user(
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Login failed: user '{}' not found", payload.username);
-            return error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials, None).into_response();
+            return error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials).into_response();
         }
         Err(e) => {
             debug!(
@@ -46,7 +57,7 @@ pub async fn login_user(
             "Login failed: user '{}' has not verified their email",
             payload.username
         );
-        return error_response(StatusCode::UNAUTHORIZED, ErrorCode::EmailNotVerified, None).into_response();
+        return error_response(StatusCode::UNAUTHORIZED, ErrorCode::EmailNotVerified).into_response();
     }
 
     match db
@@ -92,26 +103,21 @@ pub async fn login_user(
                 session_created_at: now.unix_timestamp(),
             };
 
-            success_response(
-                SuccessCode::SuccessLoggedIn,
-                Some(ApiData {
-                    data: Some(api_data::Data::LoginResponse(response_data)),
-                }),
-            ).into_response()
+            (StatusCode::OK, Json(response_data)).into_response()
         }
         Ok(false) => {
             debug!(
                 "Login failed: incorrect password for '{}'",
                 payload.username
             );
-            error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials, None).into_response()
+            error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials).into_response()
         }
         Err(e) => {
             debug!(
                 "Password verification error for '{}': {:?}",
                 payload.username, e
             );
-            error_response(StatusCode::UNAUTHORIZED, ErrorCode::Internal, None).into_response()
+            error_response(StatusCode::UNAUTHORIZED, ErrorCode::Internal).into_response()
         }
     }
 }

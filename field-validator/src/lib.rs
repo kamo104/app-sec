@@ -4,12 +4,11 @@
 //! It supports validation for usernames, emails, passwords, and other fields.
 
 use lettre::Address;
-use prost::Message;
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-use proto_types::v1::{
+use api_types::{
     FieldType, PasswordStrength, ValidationDetailedPasswordData, ValidationErrorCode,
     ValidationFieldError,
 };
@@ -37,24 +36,20 @@ pub const PASSWORD_SCORE_STRONG_MAX: u32 = 6;
 /// # Parameters
 /// - `username`: The username to validate
 pub fn validate_username(username: &str) -> ValidationFieldError {
-    let mut ret = ValidationFieldError {
-        field: FieldType::Username as i32,
-        errors: Vec::new(),
-    };
+    let mut ret = ValidationFieldError::new(FieldType::Username);
 
     if username.len() < USERNAME_CHAR_MIN {
-        ret.errors.push(ValidationErrorCode::TooShort as i32);
+        ret.add_error(ValidationErrorCode::TooShort);
     }
     if username.len() > USERNAME_CHAR_MAX {
-        ret.errors.push(ValidationErrorCode::TooLong as i32);
+        ret.add_error(ValidationErrorCode::TooLong);
     }
 
     // Check for valid characters (printable UTF-8)
     if !username.chars().all(|c| !c.is_control()) {
-        ret.errors
-            .push(ValidationErrorCode::InvalidCharacters as i32);
+        ret.add_error(ValidationErrorCode::InvalidCharacters);
     }
-    return ret;
+    ret
 }
 
 /// Validates an email address.
@@ -63,20 +58,17 @@ pub fn validate_username(username: &str) -> ValidationFieldError {
 /// - Must not be empty
 /// - Must be of a valid format
 pub fn validate_email(email: &str) -> ValidationFieldError {
-    let mut ret = ValidationFieldError {
-        field: FieldType::Email as i32,
-        errors: Vec::new(),
-    };
+    let mut ret = ValidationFieldError::new(FieldType::Email);
     if email.is_empty() {
-        ret.errors.push(ValidationErrorCode::Required as i32);
+        ret.add_error(ValidationErrorCode::Required);
         return ret;
     }
     let address = email.parse::<Address>();
     if address.is_ok() {
         return ret;
     }
-    ret.errors.push(ValidationErrorCode::InvalidFormat as i32);
-    return ret;
+    ret.add_error(ValidationErrorCode::InvalidFormat);
+    ret
 }
 
 /// Validates a password according to security best practices.
@@ -89,73 +81,68 @@ pub fn validate_email(email: &str) -> ValidationFieldError {
 /// - At least PASSWORD_NUMBER_MIN number
 /// - At least PASSWORD_SPECIAL_MIN special character
 pub fn validate_password(password: &str) -> ValidationFieldError {
-    let mut ret = ValidationFieldError {
-        field: FieldType::Password as i32,
-        errors: Vec::new(),
-    };
+    let mut ret = ValidationFieldError::new(FieldType::Password);
 
     // Check length
     if password.len() < PASSWORD_CHAR_MIN {
-        ret.errors.push(ValidationErrorCode::TooShort as i32)
+        ret.add_error(ValidationErrorCode::TooShort);
     }
     if password.len() > PASSWORD_CHAR_MAX {
-        ret.errors.push(ValidationErrorCode::TooLong as i32)
+        ret.add_error(ValidationErrorCode::TooLong);
     }
 
     // Check for uppercase letter
     if password.chars().filter(|c| c.is_uppercase()).count() < PASSWORD_UPPERCASE_MIN {
-        ret.errors
-            .push(ValidationErrorCode::TooFewUppercaseLetters as i32);
+        ret.add_error(ValidationErrorCode::TooFewUppercaseLetters);
     }
 
     // Check for lowercase letter
     if password.chars().filter(|c| c.is_lowercase()).count() < PASSWORD_LOWERCASE_MIN {
-        ret.errors
-            .push(ValidationErrorCode::TooFewLowercaseLetters as i32);
+        ret.add_error(ValidationErrorCode::TooFewLowercaseLetters);
     }
 
     // Check for number
     if password.chars().filter(|c| c.is_numeric()).count() < PASSWORD_NUMBER_MIN {
-        ret.errors.push(ValidationErrorCode::TooFewDigits as i32);
+        ret.add_error(ValidationErrorCode::TooFewDigits);
     }
 
     // Check for special character
     if password.chars().filter(|c| !c.is_alphanumeric()).count() < PASSWORD_SPECIAL_MIN {
-        ret.errors
-            .push(ValidationErrorCode::TooFewSpecialCharacters as i32);
+        ret.add_error(ValidationErrorCode::TooFewSpecialCharacters);
     }
-    return ret;
+    ret
 }
 
 /// Validates a field based on its type.
 ///
 /// # Parameters
-/// - `field_type`: The type of field to validate (FieldType encoded as a string)
+/// - `field_type`: The type of field to validate (FieldType as a string)
 /// - `value`: The value to validate
 /// # Returns
-/// - `ValidationErrorData` encoded as bytes
+/// - JSON string of `ValidationFieldError`
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn validate_field(field_type: &str, value: &str) -> Vec<u8> {
-    match FieldType::from_str_name(field_type) {
+pub fn validate_field(field_type: &str, value: &str) -> String {
+    let result = match FieldType::from_str_name(field_type) {
         Some(field_type) => match field_type {
-            FieldType::Username => validate_username(value).encode_to_vec(),
-            FieldType::Email => validate_email(value).encode_to_vec(),
-            FieldType::Password => validate_password(value).encode_to_vec(),
-            FieldType::Unspecified => todo!(),
+            FieldType::Username => validate_username(value),
+            FieldType::Email => validate_email(value),
+            FieldType::Password => validate_password(value),
+            FieldType::Unspecified => ValidationFieldError::new(FieldType::Unspecified),
         },
-        None => todo!(),
-    }
+        None => ValidationFieldError::new(FieldType::Unspecified),
+    };
+    serde_json::to_string(&result).unwrap_or_default()
 }
 
 /// Validates password and returns detailed strength information
 /// # Returns
-/// - `ValidationDetailedPasswordData` encoded as bytes
+/// - JSON string of `ValidationDetailedPasswordData`
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn validate_password_detailed(password: &str) -> Vec<u8> {
+pub fn validate_password_detailed(password: &str) -> String {
     let validation_errors = validate_password(password);
 
     // Calculate score based on various factors
-    let mut score = 0;
+    let mut score = 0u32;
 
     let len = password.len();
 
@@ -185,10 +172,6 @@ pub fn validate_password_detailed(password: &str) -> Vec<u8> {
         ..=PASSWORD_SCORE_STRONG_MAX => PasswordStrength::Strong,
         _ => PasswordStrength::Cia,
     };
-    let ret = ValidationDetailedPasswordData {
-        data: Some(validation_errors),
-        strength: strength as i32,
-        score: score,
-    };
-    return ret.encode_to_vec();
+    let ret = ValidationDetailedPasswordData::new(validation_errors, strength, score);
+    serde_json::to_string(&ret).unwrap_or_default()
 }

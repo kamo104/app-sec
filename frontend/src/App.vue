@@ -59,7 +59,7 @@
 <script lang="ts" setup>
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { logoutUser } from '@/services/api'
+import { logoutUser } from '@/api/client'
 
 const authStore = useAuthStore()
 const router = useRouter()

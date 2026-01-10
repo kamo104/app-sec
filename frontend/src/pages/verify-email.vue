@@ -92,8 +92,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { verifyEmail, type ApiError } from '@/services/api'
-import { translate_response } from '@/wasm/translator.js'
+import { verifyEmail, type ErrorResponse } from '@/api/client'
+import { translate_success_code } from '@/wasm/translator.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -118,21 +118,22 @@ const verifyToken = async () => {
   hasToken.value = true
 
   try {
-    const { bytes } = await verifyEmail(token)
+    const { data, error: apiError, response } = await verifyEmail({ body: { token } })
 
-    message.value = translate_response(bytes, undefined)
-    success.value = true
-  } catch (err) {
-    const apiError = err as ApiError
-    error.value = true
-
-    if (apiError.status === 400) {
-      message.value = 'Invalid or expired verification link. Please request a new verification email.'
-    } else if (apiError.status === 0) {
-      message.value = 'Cannot connect to the server. Please try again later.'
-    } else {
-      message.value = apiError.message || 'An error occurred during verification.'
+    if (data) {
+      message.value = translate_success_code(data.success, undefined)
+      success.value = true
+    } else if (apiError) {
+      error.value = true
+      if (response.status === 400) {
+        message.value = 'Invalid or expired verification link. Please request a new verification email.'
+      } else {
+        message.value = apiError.error || 'An error occurred during verification.'
+      }
     }
+  } catch (err) {
+    error.value = true
+    message.value = 'Cannot connect to the server. Please try again later.'
   } finally {
     loading.value = false
   }

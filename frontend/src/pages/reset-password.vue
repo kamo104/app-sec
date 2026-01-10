@@ -71,8 +71,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { completePasswordReset } from '@/services/api'
-import { translate_response } from '@/wasm/translator.js'
+import { completePasswordReset } from '@/api/client'
+import { translate_success_code, translate_error_code } from '@/wasm/translator.js'
 
 import PasswordField from '@/components/auth/PasswordField.vue'
 
@@ -116,17 +116,24 @@ const handleSubmit = async () => {
   statusMessage.value = ''
 
   try {
-    const { bytes } = await completePasswordReset({
-      token: token.value,
-      newPassword: password.value,
+    const { data, error, response } = await completePasswordReset({
+      body: {
+        token: token.value,
+        newPassword: password.value,
+      }
     })
 
-    statusMessage.value = translate_response(bytes, undefined)
-    messageType.value = 'success'
-    completed.value = true
+    if (data) {
+      statusMessage.value = translate_success_code(data.success, undefined)
+      messageType.value = 'success'
+      completed.value = true
+    } else if (error) {
+      statusMessage.value = translate_error_code(error.error, undefined)
+      messageType.value = 'error'
+    }
   } catch (e: any) {
     console.error('Password reset failed', e)
-    statusMessage.value = e.message || 'An error occurred during password reset'
+    statusMessage.value = 'An error occurred during password reset'
     messageType.value = 'error'
   } finally {
     loading.value = false

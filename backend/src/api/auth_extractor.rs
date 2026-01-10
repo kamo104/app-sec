@@ -1,15 +1,14 @@
 use axum::{
     extract::{FromRef, FromRequestParts},
     http::{StatusCode, request::Parts},
+    Json,
 };
-use axum_extra::protobuf::Protobuf;
 use tower_cookies::Cookies;
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, UserLogin, UserSession, hash_token};
-use proto_types::v1::ApiResponse;
-use super::utils::{auth_error, internal_error};
+use api_types::responses::{AuthErrorResponse, AuthError};
 
 pub struct AuthenticatedUser {
     pub user: UserLogin,
@@ -21,7 +20,7 @@ where
     S: Send + Sync,
     Arc<DBHandle>: FromRef<S>,
 {
-    type Rejection = (StatusCode, Protobuf<ApiResponse>);
+    type Rejection = (StatusCode, Json<AuthErrorResponse>);
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let db = Arc::<DBHandle>::from_ref(state);

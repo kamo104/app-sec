@@ -43,7 +43,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { validate_password_detailed } from '@/wasm/field-validator.js'
-import { ValidationDetailedPasswordData, ValidationFieldError, PasswordStrength } from '@/generated/api'
+import type { ValidationDetailedPasswordData, PasswordStrength } from '@/api/wasm-types'
 import { translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
@@ -72,7 +72,7 @@ const touched = ref(false)
 const hasError = ref(false)
 const errors = ref<string[]>([])
 const score = ref<number | null>(null)
-const strength = ref<PasswordStrength>(PasswordStrength.PASSWORD_STRENGTH_UNSPECIFIED)
+const strength = ref<PasswordStrength>('PASSWORD_STRENGTH_UNSPECIFIED')
 
 const rules = [
   async (value: string): Promise<string | boolean> => {
@@ -81,11 +81,13 @@ const rules = [
     }
 
     try {
-      const resultBytes = validate_password_detailed(value || '')
-      const result = ValidationDetailedPasswordData.decode(resultBytes)
+      const resultJson = validate_password_detailed(value || '')
+      const result: ValidationDetailedPasswordData = JSON.parse(resultJson)
 
-      const translatedErrors = result.data?.errors.map((err: number) => {
-        return translate_field_validation_error(result.data!.field, err, undefined)
+      const translatedErrors = result.data?.errors.map((err: string) => {
+        const fieldName = typeof result.data!.field === 'string' ? result.data!.field : 'PASSWORD'
+        const errorCode = typeof err === 'string' ? err : 'VALIDATION_ERROR_CODE_UNSPECIFIED'
+        return translate_field_validation_error(fieldName, errorCode, undefined)
       }) || []
 
       errors.value = translatedErrors
@@ -109,7 +111,7 @@ const rules = [
       hasError.value = false
       errors.value = []
       score.value = null
-      strength.value = PasswordStrength.PASSWORD_STRENGTH_UNSPECIFIED
+      strength.value = 'PASSWORD_STRENGTH_UNSPECIFIED'
       return true
     }
   }
@@ -117,13 +119,13 @@ const rules = [
 
 const getStrengthClass = (strengthValue: PasswordStrength): string => {
   switch (strengthValue) {
-    case PasswordStrength.PASSWORD_STRENGTH_WEAK:
+    case 'PASSWORD_STRENGTH_WEAK':
       return 'weak'
-    case PasswordStrength.PASSWORD_STRENGTH_MEDIUM:
+    case 'PASSWORD_STRENGTH_MEDIUM':
       return 'medium'
-    case PasswordStrength.PASSWORD_STRENGTH_STRONG:
+    case 'PASSWORD_STRENGTH_STRONG':
       return 'strong'
-    case PasswordStrength.PASSWORD_STRENGTH_CIA:
+    case 'PASSWORD_STRENGTH_CIA':
       return 'cia'
     default:
       return 'weak'
@@ -148,11 +150,13 @@ const validate_field = async (): Promise<{ valid: boolean; errors: string[] }> =
   }
 
   try {
-    const resultBytes = validate_password_detailed(props.modelValue || '')
-    const result = ValidationDetailedPasswordData.decode(resultBytes)
+    const resultJson = validate_password_detailed(props.modelValue || '')
+    const result: ValidationDetailedPasswordData = JSON.parse(resultJson)
 
-    const translatedErrors = result.data?.errors.map((err: number) => {
-      return translate_field_validation_error(result.data!.field, err, undefined)
+    const translatedErrors = result.data?.errors.map((err: string) => {
+      const fieldName = typeof result.data!.field === 'string' ? result.data!.field : 'PASSWORD'
+      const errorCode = typeof err === 'string' ? err : 'VALIDATION_ERROR_CODE_UNSPECIFIED'
+      return translate_field_validation_error(fieldName, errorCode, undefined)
     }) || []
 
     errors.value = translatedErrors

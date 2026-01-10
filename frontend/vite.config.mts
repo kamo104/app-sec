@@ -13,29 +13,6 @@ import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 
-// Custom plugin to generate protobuf types before build
-function protobufPlugin() {
-  return {
-    name: 'protobuf-generator',
-    buildStart() {
-      const generatedDir = './src/generated'
-      if (!existsSync(generatedDir)) {
-        mkdirSync(generatedDir, { recursive: true })
-      }
-
-      try {
-        execSync(
-          'protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/generated --proto_path=../proto api.proto',
-          { stdio: 'inherit', cwd: process.cwd() }
-        )
-        console.log('Protobuf types generated successfully')
-      } catch (error) {
-        console.warn('Could not generate protobuf types:', (error as Error).message)
-      }
-    }
-  }
-}
-
 // Custom plugin to build WebAssembly field validator before build
 function wasmPlugin() {
   return {
@@ -70,7 +47,6 @@ function wasmPlugin() {
 export default defineConfig({
   plugins: [
     wasmPlugin(),
-    protobufPlugin(),
     VueRouter({
       dts: 'src/typed-router.d.ts',
     }),

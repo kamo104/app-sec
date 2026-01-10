@@ -67,9 +67,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { registerUser, type ApiError } from '@/services/api'
-import { translate_response, translate_validation_error } from '@/wasm/translator.js'
-import { FieldType } from '@/generated/api'
+import { registerUser, type ErrorResponse, type FieldType } from '@/api/client'
+import { translate_success_code, translate_error_code, translate_field_validation_error } from '@/wasm/translator.js'
 
 // Import reusable components
 import AuthFormLayout from './auth/AuthFormLayout.vue'
@@ -165,55 +164,60 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const { bytes } = await registerUser({
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
+    const { data, error, response } = await registerUser({
+      body: {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      }
     })
 
-    const message = translate_response(bytes, undefined)
-    showMessage(message, 'success')
-  } catch (error) {
-    const apiError = error as ApiError
-    console.error('Registration error:', apiError)
-
-    // Handle specific error cases
-    if (apiError.validationError) {
-      // ValidationErrorData now has fieldErrors array
-      for (const fieldError of apiError.validationError.fieldErrors) {
-        const translatedErrors = fieldError.errors.map(err => {
-          try {
-            const errorBytes = new Uint8Array([err])
-            return translate_validation_error(errorBytes, undefined)
-          } catch {
-            return String(err)
-          }
-        })
-
-        if (fieldError.field === FieldType.USERNAME) {
-          usernameField.value.errors = translatedErrors
-          usernameField.value.hasError = true
-        } else if (fieldError.field === FieldType.EMAIL) {
-          emailField.value.errors = translatedErrors
-          emailField.value.hasError = true
-        } else if (fieldError.field === FieldType.PASSWORD) {
-          passwordField.value.errors = translatedErrors
-          passwordField.value.hasError = true
-        }
-      }
-      showMessage('Please fix the validation errors.', 'error')
-    } else if (apiError.status === 409) {
-      // Username or email already taken - show error message from API
-      showMessage(apiError.message || 'Registration failed', 'error')
-    } else if (apiError.status === 0) {
-      // Network error - backend not running
-      showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')
-    } else {
-      // Other errors
-      showMessage(apiError.message || 'An error occurred during registration', 'error')
+    if (data) {
+      const message = translate_success_code(data.success, undefined)
+      showMessage(message, 'success')
+    } else if (error) {
+      handleRegistrationError(error, response.status)
     }
+  } catch (e) {
+    console.error('Registration error:', e)
+    showMessage('An error occurred during registration', 'error')
   } finally {
     loading.value = false
+  }
+}
+
+const handleRegistrationError = (error: ErrorResponse, status: number) => {
+  console.error('Registration error:', error)
+
+  // Handle specific error cases
+  if (error.validation) {
+    // ValidationErrorData has fieldErrors array
+    for (const fieldError of error.validation.fieldErrors) {
+      const translatedErrors = fieldError.errors.map(err => {
+        return translate_field_validation_error(fieldError.field, err, undefined)
+      })
+
+      if (fieldError.field === 'USERNAME') {
+        usernameField.value.errors = translatedErrors
+        usernameField.value.hasError = true
+      } else if (fieldError.field === 'EMAIL') {
+        emailField.value.errors = translatedErrors
+        emailField.value.hasError = true
+      } else if (fieldError.field === 'PASSWORD') {
+        passwordField.value.errors = translatedErrors
+        passwordField.value.hasError = true
+      }
+    }
+    showMessage('Please fix the validation errors.', 'error')
+  } else if (status === 409) {
+    // Username or email already taken - translate the error code
+    showMessage(translate_error_code(error.error, undefined), 'error')
+  } else if (status === 0) {
+    // Network error - backend not running
+    showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')
+  } else {
+    // Other errors
+    showMessage(translate_error_code(error.error, undefined), 'error')
   }
 }
 </script>

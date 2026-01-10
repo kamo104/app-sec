@@ -2,20 +2,31 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
+    Json,
 };
-use axum_extra::protobuf::Protobuf;
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use proto_types::v1::{SuccessCode, ErrorCode};
+use api_types::{SuccessCode, ErrorCode, SuccessResponse, ErrorResponse, RegistrationRequest};
 use super::utils::{internal_error, validation_error, error_response, success_response, BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 
+#[utoipa::path(
+    post,
+    path = "/api/register",
+    request_body = RegistrationRequest,
+    responses(
+        (status = 200, description = "User registered successfully", body = SuccessResponse),
+        (status = 400, description = "Validation error", body = ErrorResponse),
+        (status = 409, description = "Username or email already taken", body = ErrorResponse)
+    ),
+    tag = "auth"
+)]
 pub async fn register_user(
     State(db): State<Arc<DBHandle>>,
-    Protobuf(payload): Protobuf<proto_types::v1::RegistrationRequest>,
+    Json(payload): Json<RegistrationRequest>,
 ) -> impl IntoResponse {
     debug!(
         "Received registration request - username: {}, email: {}",
@@ -27,19 +38,19 @@ pub async fn register_user(
     let password_result = field_validator::validate_password(&payload.password);
 
     let mut errors = Vec::new();
-    if !username_result.errors.is_empty() {
+    if !username_result.is_valid() {
         errors.push(username_result);
     }
-    if !email_result.errors.is_empty() {
+    if !email_result.is_valid() {
         errors.push(email_result);
     }
-    if !password_result.errors.is_empty() {
+    if !password_result.is_valid() {
         errors.push(password_result);
     }
 
     if !errors.is_empty() {
         debug!("Validation failed: {:?}", errors);
-        return validation_error(errors);
+        return validation_error(errors).into_response();
     }
 
     match db
@@ -55,14 +66,14 @@ pub async fn register_user(
                 "Registration failed: username '{}' already taken",
                 payload.username
             );
-            return error_response(StatusCode::CONFLICT, ErrorCode::UsernameTaken, None);
+            return error_response(StatusCode::CONFLICT, ErrorCode::UsernameTaken).into_response();
         }
         Err(e) => {
             debug!(
                 "Database error checking username '{}': {:?}",
                 payload.username, e
             );
-            return internal_error();
+            return internal_error().into_response();
         }
     }
 
@@ -79,14 +90,14 @@ pub async fn register_user(
                 "Registration failed: email '{}' already taken",
                 payload.email
             );
-            return error_response(StatusCode::CONFLICT, ErrorCode::EmailTaken, None);
+            return error_response(StatusCode::CONFLICT, ErrorCode::EmailTaken).into_response();
         }
         Err(e) => {
             debug!(
                 "Database error checking email '{}': {:?}",
                 payload.email, e
             );
-            return internal_error();
+            return internal_error().into_response();
         }
     }
 
@@ -97,7 +108,7 @@ pub async fn register_user(
                 "Failed to hash password for '{}': {:?}",
                 payload.username, e
             );
-            return internal_error();
+            return internal_error().into_response();
         }
     };
 
@@ -131,7 +142,7 @@ pub async fn register_user(
                         payload.username, cleanup_e
                     ),
                 }
-                return internal_error();
+                return internal_error().into_response();
             }
 
             let token = generate_verification_token();
@@ -149,7 +160,7 @@ pub async fn register_user(
                             payload.username, cleanup_e
                         ),
                     }
-                    return internal_error();
+                    return internal_error().into_response();
                 }
             };
 
@@ -189,10 +200,10 @@ pub async fn register_user(
                                 payload.username, cleanup_e
                             ),
                         }
-                        return internal_error();
+                        return internal_error().into_response();
                     }
 
-                    success_response(SuccessCode::SuccessRegistered, None)
+                    success_response(SuccessCode::Registered).into_response()
                 }
                 Err(e) => {
                     debug!(
@@ -206,7 +217,7 @@ pub async fn register_user(
                             payload.username, cleanup_e
                         ),
                     }
-                    return internal_error();
+                    internal_error().into_response()
                 }
             }
         }
@@ -217,7 +228,7 @@ pub async fn register_user(
                 (ErrorCode::Internal, StatusCode::BAD_REQUEST)
             };
             debug!("Failed to create user '{}': {:?}", payload.username, e);
-            error_response(status, error_code, None)
+            error_response(status, error_code).into_response()
         }
     }
 }

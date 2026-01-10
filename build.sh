@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Unified build script for the entire application
-# Builds password validator, WebAssembly, protobuf types, frontend, and backend
+# Builds field-validator, translator WebAssembly modules, frontend, and backend
 
 set -e  # Exit on error
 
@@ -55,13 +55,6 @@ if ! command -v deno &> /dev/null; then
 fi
 print_success "Deno found: $(deno --version | head -1)"
 
-# Check protoc
-if ! command -v protoc &> /dev/null; then
-    print_error "protoc not found. Please install protobuf compiler."
-    exit 1
-fi
-print_success "protoc found"
-
 # Function to build and bind a WASM crate using wasm-pack
 build_wasm_crate() {
     local crate_dir=$1
@@ -92,22 +85,6 @@ build_wasm_crate "translator" "translator" "wasm"
 
 print_success "Libraries built and bindings generated"
 
-# Generate protobuf types for frontend
-print_status "Generating protobuf types for frontend..."
-cd frontend
-if [ -f "node_modules/.bin/protoc-gen-ts_proto" ]; then
-    mkdir -p src/generated
-    protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/generated --proto_path=../proto api.proto
-    if [ $? -eq 0 ]; then
-        print_success "Frontend protobuf types generated"
-    else
-        print_warning "Frontend protobuf generation failed (may not be critical)"
-    fi
-else
-    print_warning "protoc-gen-ts_proto not found, skipping frontend protobuf generation"
-fi
-cd ..
-
 # Build backend
 print_status "Building backend server..."
 cd backend
@@ -117,6 +94,17 @@ if [ $? -eq 0 ]; then
 else
     print_error "Backend build failed"
     exit 1
+fi
+cd ..
+
+# Generate OpenAPI TypeScript client
+print_status "Generating OpenAPI TypeScript client..."
+cd frontend
+if [ -f "src/generated/openapi.json" ]; then
+    npx @hey-api/openapi-ts --input src/generated/openapi.json --output src/generated/api-client --client @hey-api/client-fetch 2>/dev/null
+    print_success "TypeScript API client generated"
+else
+    print_warning "OpenAPI spec not found. Run backend in dev mode and fetch /api/openapi.json to generate it."
 fi
 cd ..
 

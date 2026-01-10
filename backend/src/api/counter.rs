@@ -1,42 +1,55 @@
 use axum::{
     extract::State,
+    http::StatusCode,
     response::IntoResponse,
+    Json,
 };
-use axum_extra::protobuf::Protobuf;
 use std::sync::Arc;
 use tracing::error;
 
 use crate::db::DBHandle;
-use proto_types::v1::{ApiData, SuccessCode, CounterData, api_data};
+use api_types::{CounterData, ErrorResponse, SetCounterRequest};
 use super::auth_extractor::AuthenticatedUser;
-use super::utils::{internal_error, success_response};
+use super::utils::internal_error;
 
+#[utoipa::path(
+    get,
+    path = "/api/counter/get",
+    responses(
+        (status = 200, description = "Counter value retrieved", body = CounterData),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    ),
+    tag = "counter"
+)]
 pub async fn get_counter(
     State(db): State<Arc<DBHandle>>,
     auth: AuthenticatedUser,
 ) -> impl IntoResponse {
     match db.user_data_table.get_counter(auth.user.user_id).await {
         Ok(counter_value) => {
-            success_response(
-                SuccessCode::SuccessOk,
-                Some(ApiData {
-                    data: Some(api_data::Data::CounterData(CounterData {
-                        value: counter_value,
-                    })),
-                }),
-            )
+            (StatusCode::OK, Json(CounterData { value: counter_value })).into_response()
         }
         Err(e) => {
             error!("Failed to get counter: {:?}", e);
-            internal_error()
+            internal_error().into_response()
         }
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/counter/set",
+    request_body = SetCounterRequest,
+    responses(
+        (status = 200, description = "Counter value updated", body = CounterData),
+        (status = 401, description = "Not authenticated", body = ErrorResponse)
+    ),
+    tag = "counter"
+)]
 pub async fn set_counter(
     State(db): State<Arc<DBHandle>>,
     auth: AuthenticatedUser,
-    Protobuf(payload): Protobuf<proto_types::v1::SetCounterRequest>,
+    Json(payload): Json<SetCounterRequest>,
 ) -> impl IntoResponse {
     match db
         .user_data_table
@@ -44,18 +57,11 @@ pub async fn set_counter(
         .await
     {
         Ok(_) => {
-            success_response(
-                SuccessCode::SuccessCounterUpdated,
-                Some(ApiData {
-                    data: Some(api_data::Data::CounterData(CounterData {
-                        value: payload.value,
-                    })),
-                }),
-            )
+            (StatusCode::OK, Json(CounterData { value: payload.value })).into_response()
         }
         Err(e) => {
             error!("Failed to update counter: {:?}", e);
-            return internal_error();
+            internal_error().into_response()
         }
     }
 }

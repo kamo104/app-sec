@@ -7,9 +7,17 @@ use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, hash_token};
-use proto_types::v1::SuccessCode;
+use api_types::{SuccessCode, SuccessResponse};
 use super::utils::{create_session_cookie, success_response};
 
+#[utoipa::path(
+    post,
+    path = "/api/logout",
+    responses(
+        (status = 200, description = "Logged out successfully", body = SuccessResponse)
+    ),
+    tag = "auth"
+)]
 pub async fn logout_user(
     State(db): State<Arc<DBHandle>>,
     cookies: Cookies,
@@ -24,5 +32,5 @@ pub async fn logout_user(
 
     cookies.add(cookie);
 
-    success_response(SuccessCode::SuccessLoggedOut, None)
+    success_response(SuccessCode::LoggedOut)
 }

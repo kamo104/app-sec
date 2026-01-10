@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { validate_field } from '@/wasm/field-validator.js'
-import { ValidationFieldError } from '@/generated/api'
+import type { ValidationFieldError } from '@/generated/api-client'
 import { translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
@@ -43,11 +43,13 @@ const errors = ref<string[]>([])
 const rules = [
   async (value: string): Promise<string | boolean> => {
     try {
-      const resultBytes = validate_field('EMAIL', value)
-      const result = ValidationFieldError.decode(resultBytes)
+      const resultJson = validate_field('EMAIL', value)
+      const result: ValidationFieldError = JSON.parse(resultJson)
 
-      const translatedErrors = result.errors.map((err: number) => {
-        return translate_field_validation_error(result.field, err, undefined)
+      const translatedErrors = result.errors.map((err) => {
+        const fieldName = typeof result.field === 'string' ? result.field : 'EMAIL'
+        const errorCode = typeof err === 'string' ? err : 'VALIDATION_ERROR_CODE_UNSPECIFIED'
+        return translate_field_validation_error(fieldName, errorCode, undefined)
       })
       errors.value = translatedErrors
       hasError.value = result.errors.length > 0
@@ -79,10 +81,12 @@ const validate = async (): Promise<{ valid: boolean; errors: string[] }> => {
   }
 
   try {
-    const resultBytes = validate_field('EMAIL', props.modelValue)
-    const result = ValidationFieldError.decode(resultBytes)
-    const translatedErrors = result.errors.map((err: number) => {
-      return translate_field_validation_error(result.field, err, undefined)
+    const resultJson = validate_field('EMAIL', props.modelValue)
+    const result: ValidationFieldError = JSON.parse(resultJson)
+    const translatedErrors = result.errors.map((err) => {
+      const fieldName = typeof result.field === 'string' ? result.field : 'EMAIL'
+      const errorCode = typeof err === 'string' ? err : 'VALIDATION_ERROR_CODE_UNSPECIFIED'
+      return translate_field_validation_error(fieldName, errorCode, undefined)
     })
     errors.value = translatedErrors
     hasError.value = result.errors.length > 0

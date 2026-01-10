@@ -1,5 +1,5 @@
 import type { App, Plugin } from 'vue'
-import { initializeWasm } from '@/services/wasmLoader'
+import { initializeWasm } from '@/api/wasmLoader'
 
 export const wasmPlugin: Plugin = {
   async install(app: App) {

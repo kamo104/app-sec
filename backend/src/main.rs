@@ -4,7 +4,7 @@ use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     http::{Request, StatusCode},
     response::{IntoResponse, Response},
-    routing::{any, get, post},
+    routing::any,
 };
 use axum_extra::TypedHeader;
 use std::convert::Infallible;
@@ -21,6 +21,8 @@ use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
+use utoipa_axum::{router::OpenApiRouter, routes};
+use utoipa_swagger_ui::SwaggerUi;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::ops::ControlFlow;
@@ -33,7 +35,6 @@ use axum::extract::connect_info::ConnectInfo;
 //allows to split the websocket stream into separate TX and RX branches
 use futures_util::{sink::SinkExt, stream::StreamExt};
 
-// use log::{debug, error, info, warn};
 use tracing::{debug, info, warn};
 
 use clap::Parser;
@@ -41,10 +42,6 @@ use clap::Parser;
 mod api;
 mod db;
 mod email;
-use api::{
-    auth_check, complete_password_reset, get_counter, health_check, login_user, logout_user,
-    refresh_session, register_user, request_password_reset, set_counter, verify_email,
-};
 use db::DBHandle;
 
 #[derive(Parser, Debug)]
@@ -158,25 +155,44 @@ async fn main() {
     // Start the cleanup task for expired sessions and tokens
     let _cleanup_handle = db_handle.clone().start_cleanup_task();
 
-    // build our application with some routes
-    let app = Router::new()
-        // API routes
-        .route("/api/health", get(health_check))
-        .route("/api/auth/check", get(auth_check))
-        .route("/api/auth/refresh", post(refresh_session))
-        .route("/api/register", post(register_user))
-        .route("/api/login", post(login_user))
-        .route("/api/verify-email", post(verify_email))
-        .route("/api/logout", post(logout_user))
-        .route("/api/request-password-reset", post(request_password_reset))
-        .route(
-            "/api/complete-password-reset",
-            post(complete_password_reset),
-        )
-        .route("/api/counter/get", get(get_counter))
-        .route("/api/counter/set", post(set_counter))
-        // WebSocket route
-        .route("/ws", any(ws_upgrade_handler))
+    // Build OpenAPI router with all API routes
+    let (api_router, openapi) = OpenApiRouter::with_openapi(
+        utoipa::openapi::OpenApiBuilder::new()
+            .info(
+                utoipa::openapi::InfoBuilder::new()
+                    .title("AppSec Demo API")
+                    .version("1.0.0")
+                    .description(Some("Web app demonstration focused on using good web security practices"))
+                    .build()
+            )
+            .build()
+    )
+        .routes(routes!(api::health::health_check))
+        .routes(routes!(api::register::register_user))
+        .routes(routes!(api::login::login_user))
+        .routes(routes!(api::auth::auth_check))
+        .routes(routes!(api::auth::refresh_session))
+        .routes(routes!(api::logout::logout_user))
+        .routes(routes!(api::verify_email::verify_email))
+        .routes(routes!(api::password_reset::request_password_reset))
+        .routes(routes!(api::password_reset::complete_password_reset))
+        .routes(routes!(api::counter::get_counter))
+        .routes(routes!(api::counter::set_counter))
+        .split_for_parts();
+
+    // Build the main application router
+    let mut app = Router::new()
+        .merge(api_router)
+        .route("/ws", any(ws_upgrade_handler));
+
+    // Add OpenAPI and Swagger UI in dev mode
+    if args.dev {
+        app = app.merge(SwaggerUi::new("/api/docs").url("/api/openapi.json", openapi.clone()));
+        info!("OpenAPI spec available at /api/openapi.json");
+        info!("Swagger UI available at /api/docs");
+    }
+
+    let app = app
         // SPA fallback - serve index.html for all other routes
         .fallback_service(SpaFallbackService::new(assets_dir))
         // Add DB state

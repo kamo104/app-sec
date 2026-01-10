@@ -6,7 +6,12 @@ edition = "2024"
 [dependencies]
 ### SHARED:
 field-validator = { path = "../field-validator" }
-proto-types = { path = "../proto-types" }
+api-types = { path = "../api-types", features = ["openapi"] }
+
+### OPENAPI:
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-axum = "0.2"
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
 ### DB:
 argon2 = { version = "0.5.3", features = ["zeroize", "std"] }
@@ -25,7 +30,7 @@ uuid = "1.18.1"
 
 ### AXUM_WS:
 axum = { version = "0.8.6", features = ["ws", "macros"] }
-axum-extra = { version = "0.10.3", features = ["typed-header", "protobuf", "cookie"] }
+axum-extra = { version = "0.10.3", features = ["typed-header", "cookie"] }
 lettre = { version = "0.11", features = ["tokio1-rustls", "smtp-transport", "tokio1-native-tls", "rustls-native-certs", "ring", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -43,10 +48,5 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 tokio = { version = "1.48.0", features = ["full"] }
 anyhow = { version = "1.0.100", features = ["backtrace"] }
 
-### PROTOBUF:
-prost = "0.13"
-prost-types = "0.13"
-
 [build-dependencies]
-prost-build = "0.13"
 

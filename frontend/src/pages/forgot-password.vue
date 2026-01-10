@@ -45,8 +45,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { requestPasswordReset } from '@/services/api'
-import { translate_response } from '@/wasm/translator.js'
+import { requestPasswordReset } from '@/api/client'
+import { translate_success_code } from '@/wasm/translator.js'
 
 // Import reusable components
 import AuthFormLayout from '@/components/auth/AuthFormLayout.vue'
@@ -91,12 +91,19 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const { bytes } = await requestPasswordReset(username.value)
-    showMessage(translate_response(bytes, undefined), 'success')
-    username.value = ''
+    const { data, error } = await requestPasswordReset({ body: { email: username.value } })
+
+    if (data) {
+      showMessage(translate_success_code(data.success, undefined), 'success')
+      username.value = ''
+    } else if (error) {
+      // requestPasswordReset always returns success for security, so this branch
+      // only handles unexpected network errors
+      showMessage('An error occurred during password reset request', 'error')
+    }
   } catch (e: any) {
     console.error('Password reset request failed', e)
-    showMessage(e.message || 'An error occurred during password reset request', 'error')
+    showMessage('An error occurred during password reset request', 'error')
   } finally {
     loading.value = false
   }

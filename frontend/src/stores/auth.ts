@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { LoginResponseData } from '@/services/api'
-import { refreshSession } from '@/services/api'
+import { refreshSession, type LoginResponseData } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<LoginResponseData | null>(null)
@@ -89,9 +88,14 @@ export const useAuthStore = defineStore('auth', () => {
       console.log(`Session refresh scheduled in ${refreshIn} seconds`)
       refreshTimer = setTimeout(async () => {
         try {
-          const { loginData } = await refreshSession()
-          setUser(loginData)
-          console.log('Session refreshed successfully')
+          const { data, error } = await refreshSession()
+          if (data) {
+            setUser(data)
+            console.log('Session refreshed successfully')
+          } else {
+            console.error('Failed to refresh session:', error)
+            clearUser()
+          }
         } catch (e) {
           console.error('Failed to refresh session, logging out', e)
           clearUser()
