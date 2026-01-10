@@ -1,0 +1,87 @@
+[workspace]
+resolver = "2"
+members = [
+    "api-types",
+    "field-validator",
+    "translator",
+    "backend",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+# Workspace crates
+api-types = { path = "api-types" }
+field-validator = { path = "field-validator" }
+translator = { path = "translator" }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# WASM
+wasm-bindgen = "0.2"
+tsify-next = "0.5"
+
+# OpenAPI
+utoipa = "5"
+utoipa-axum = "0.2"
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
+
+# Utilities
+strum = { version = "0.27", features = ["derive"] }
+lettre = { version = "0.11", default-features = false }
+rust-i18n = "3.1"
+
+# Async runtime
+tokio = { version = "1.48", features = ["full"] }
+async-trait = "0.1"
+futures-util = { version = "0.3", features = ["sink", "std"] }
+
+# Web framework
+axum = { version = "0.8", features = ["ws", "macros"] }
+axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
+tower = "0.5"
+tower-cookies = { version = "0.11", features = ["private", "signed"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
+headers = "0.4"
+
+# Database
+sqlx = { version = "0.8", features = ["macros", "runtime-tokio", "sqlite", "time"] }
+libsqlite3-sys = { version = "0.30", features = ["bundled-sqlcipher"] }
+
+# Cryptography
+argon2 = { version = "0.5", features = ["zeroize", "std"] }
+sha2 = "0.10"
+hex = "0.4"
+rand_core = { version = "0.9", features = ["os_rng"] }
+
+# System
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "linux-native-async-persistent", "crypto-rust", "tokio", "vendored"] }
+clap = { version = "4.5", features = ["derive", "env", "string", "unicode"] }
+
+# Utilities
+time = { version = "0.3", features = ["serde"] }
+uuid = "1.18"
+anyhow = { version = "1.0", features = ["backtrace"] }
+konst = "0.3"
+const_format = "0.2"
+num-traits = "0.2"
+enum-primitive-derive = "0.3"
+tokio-tungstenite = "0.28"
+
+# Logging
+tracing = { version = "0.1", features = ["std", "max_level_debug", "release_max_level_warn"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Release profile - size optimized by default for WASM
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+
+# Backend optimized for speed
+[profile.release.package.appsec-server]
+opt-level = 3

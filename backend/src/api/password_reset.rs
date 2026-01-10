@@ -35,7 +35,7 @@ pub async fn request_password_reset(
 ) -> impl IntoResponse {
     debug!("Received password reset request for '{}'", payload.email);
 
-    let user = match db.user_login_table.get_by_username(&payload.email).await {
+    let user = match db.user_login_table.get_by_email(&payload.email).await {
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
             // Always return success for security (don't reveal if email exists)

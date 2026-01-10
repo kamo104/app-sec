@@ -1,0 +1,29 @@
+# Build artifacts - exclude all target directories
+**/target/
+frontend/dist/
+frontend/node_modules/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Development files
+data_dev.db
+data.db
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml

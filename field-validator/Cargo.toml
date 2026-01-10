@@ -1,25 +1,19 @@
 [package]
 name = "field-validator"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = { version = "0.2", optional = true }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-lettre = { version = "0.11", default-features = false }
-api-types = { path = "../api-types" }
-
+api-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+lettre.workspace = true
+wasm-bindgen = { workspace = true, optional = true }
 
 [features]
 default = ["std"]
 std = []
 wasm = ["wasm-bindgen", "api-types/wasm"]
-
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1

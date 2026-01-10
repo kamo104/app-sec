@@ -108,20 +108,23 @@ impl DBHandle {
     ) -> Result<Arc<Self>> {
         let mut secret_key = String::with_capacity(KEYRING_DB_KEY_LEN);
         if opts_override.is_none() {
-            let keyring_entry = Entry::new(KEYRING_SERVICE_NAME, KEYRING_USERNAME)?;
-            let keyring_secret = keyring_entry.get_secret()?;
-            let secret = if keyring_secret.len() != KEYRING_DB_KEY_LEN {
-                let mut key = vec![0u8; KEYRING_DB_KEY_LEN];
-                OsRng.try_fill_bytes(&mut key).unwrap();
-                keyring_entry.set_secret(&key)?;
-                key
-            } else {
-                keyring_secret
-            };
-            for byte in secret {
-                write!(secret_key, "{:02X}", byte)?;
-            }
-            secret_key = format!("\"x'{}'\"", secret_key);
+            secret_key = tokio::task::spawn_blocking(|| -> Result<String> {
+                let keyring_entry = Entry::new(KEYRING_SERVICE_NAME, KEYRING_USERNAME)?;
+                let keyring_secret = keyring_entry.get_secret()?;
+                let secret = if keyring_secret.len() != KEYRING_DB_KEY_LEN {
+                    let mut key = vec![0u8; KEYRING_DB_KEY_LEN];
+                    OsRng.try_fill_bytes(&mut key).unwrap();
+                    keyring_entry.set_secret(&key)?;
+                    key
+                } else {
+                    keyring_secret
+                };
+                let mut key_str = String::with_capacity(KEYRING_DB_KEY_LEN * 2);
+                for byte in secret {
+                    write!(key_str, "{:02X}", byte)?;
+                }
+                Ok(format!("\"x'{}'\"", key_str))
+            }).await??;
         }
         let opts = match opts_override {
             Some(opts) => opts,
