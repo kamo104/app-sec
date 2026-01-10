@@ -1,6 +1,8 @@
 use axum::response::IntoResponse;
 use axum::Json;
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK
 #[utoipa::path(
     get,
     path = "/api/health",

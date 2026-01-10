@@ -13,6 +13,8 @@ use crate::email::EmailSender;
 use api_types::{RegisterError, RegisterErrorResponse, RegistrationRequest, ValidationErrorData};
 use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 400 = BAD_REQUEST, 409 = CONFLICT, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     post,
     path = "/api/register",

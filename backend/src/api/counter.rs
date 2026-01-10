@@ -11,6 +11,8 @@ use crate::db::DBHandle;
 use api_types::{CounterData, SetCounterRequest, AuthErrorResponse};
 use super::auth_extractor::AuthenticatedUser;
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     get,
     path = "/api/counter/get",
@@ -36,6 +38,8 @@ pub async fn get_counter(
     }
 }
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     post,
     path = "/api/counter/set",

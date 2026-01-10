@@ -155,6 +155,18 @@ export type ValidationFieldError = {
     field: FieldType;
 };
 
+/**
+ * Error codes specific to email verification endpoint.
+ */
+export type VerifyEmailError = 'TOKEN_EXPIRED' | 'INTERNAL';
+
+/**
+ * Email verification error response.
+ */
+export type VerifyEmailErrorResponse = {
+    error: VerifyEmailError;
+};
+
 export type AuthCheckResponse = (AuthSessionResponse);
 
 export type AuthCheckError = (AuthErrorResponse);
@@ -221,4 +233,4 @@ export type VerifyEmailData = {
 
 export type VerifyEmailResponse = (unknown);
 
-export type VerifyEmailError = (unknown);
+export type VerifyEmailError2 = (VerifyEmailErrorResponse);

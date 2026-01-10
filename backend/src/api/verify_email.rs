@@ -9,16 +9,17 @@ use std::sync::Arc;
 use tracing::debug;
 
 use crate::db::{DBHandle, hash_token};
-use api_types::EmailVerificationRequest;
+use api_types::{EmailVerificationRequest, VerifyEmailError, VerifyEmailErrorResponse};
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 400 = BAD_REQUEST
 #[utoipa::path(
     post,
     path = "/api/verify-email",
     request_body = EmailVerificationRequest,
     responses(
         (status = 200, description = "Email verified successfully"),
-        (status = 400, description = "Invalid or expired token"),
-        (status = 500, description = "Internal server error")
+        (status = 400, description = "Invalid or expired token", body = VerifyEmailErrorResponse)
     ),
     tag = "auth"
 )]
@@ -33,14 +34,18 @@ pub async fn verify_email(
 
     if payload.token.is_empty() {
         debug!("Email verification failed: token is empty");
-        return StatusCode::BAD_REQUEST.into_response();
+        return (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+            error: VerifyEmailError::Internal,
+        })).into_response();
     }
 
     let token_hash = match hash_token(&payload.token) {
         Ok(hash) => hash,
         Err(e) => {
             debug!("Failed to hash verification token: {:?}", e);
-            return StatusCode::BAD_REQUEST.into_response();
+            return (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+                error: VerifyEmailError::Internal,
+            })).into_response();
         }
     };
 
@@ -52,17 +57,23 @@ pub async fn verify_email(
         Ok(record) => record,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Verification token not found in database");
-            return StatusCode::BAD_REQUEST.into_response();
+            return (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+                error: VerifyEmailError::Internal,
+            })).into_response();
         }
         Err(e) => {
             debug!("Database error looking up token: {:?}", e);
-            return StatusCode::BAD_REQUEST.into_response();
+            return (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+                error: VerifyEmailError::Internal,
+            })).into_response();
         }
     };
 
     if OffsetDateTime::now_utc() > token_record.expires_at {
         debug!("Verification token has expired");
-        return StatusCode::BAD_REQUEST.into_response();
+        return (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+            error: VerifyEmailError::TokenExpired,
+        })).into_response();
     }
 
     let user = match db
@@ -73,7 +84,9 @@ pub async fn verify_email(
         Ok(user) => user,
         Err(e) => {
             debug!("Failed to get user for verification: {:?}", e);
-            return StatusCode::BAD_REQUEST.into_response();
+            return (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+                error: VerifyEmailError::Internal,
+            })).into_response();
         }
     };
 
@@ -112,7 +125,9 @@ pub async fn verify_email(
         }
         Err(e) => {
             debug!("Failed to mark email as verified: {:?}", e);
-            StatusCode::BAD_REQUEST.into_response()
+            (StatusCode::BAD_REQUEST, Json(VerifyEmailErrorResponse {
+                error: VerifyEmailError::Internal,
+            })).into_response()
         }
     }
 }

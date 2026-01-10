@@ -93,8 +93,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { StatusCodes } from 'http-status-codes'
-import { verifyEmail } from '@/api/client'
-import { translate } from '@/wasm/translator.js'
+import { verifyEmail, type VerifyEmailErrorResponse } from '@/api/client'
+import { translate, translate_error_code } from '@/wasm/translator.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -124,9 +124,13 @@ const verifyToken = async () => {
     if (data) {
       message.value = translate('SUCCESS_EMAIL_VERIFIED', undefined)
       success.value = true
-    } else if (apiError || response.status >= StatusCodes.BAD_REQUEST) {
+    } else if (response.status === StatusCodes.BAD_REQUEST && apiError) {
       error.value = true
-      message.value = translate('INVALID_TOKEN', undefined)
+      const errorResponse = apiError as VerifyEmailErrorResponse
+      message.value = translate_error_code(errorResponse.error, undefined)
+    } else {
+      error.value = true
+      message.value = translate('INTERNAL', undefined)
     }
   } catch (err) {
     error.value = true

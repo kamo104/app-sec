@@ -17,6 +17,8 @@ use api_types::{
 };
 use super::utils::{BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     post,
     path = "/api/request-password-reset",

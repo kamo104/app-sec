@@ -81,8 +81,22 @@ pub struct LoginErrorResponse {
 // Email verification endpoint responses
 // =============================================================================
 
-// Email verification returns 400 Bad Request for any failure (token invalid,
-// expired, or internal errors). This prevents information leakage about token validity.
+/// Error codes specific to email verification endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub enum VerifyEmailError {
+    #[serde(rename = "TOKEN_EXPIRED")]
+    TokenExpired,
+    #[serde(rename = "INTERNAL")]
+    Internal,
+}
+
+/// Email verification error response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct VerifyEmailErrorResponse {
+    pub error: VerifyEmailError,
+}
 
 // =============================================================================
 // Password reset request endpoint responses

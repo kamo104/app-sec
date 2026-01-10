@@ -13,6 +13,8 @@ use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_tok
 use api_types::{LoginErrorResponse, LoginError, LoginResponse, LoginRequest, ValidationErrorData};
 use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 400 = BAD_REQUEST, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     post,
     path = "/api/login",

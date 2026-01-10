@@ -14,6 +14,8 @@ use api_types::{AuthErrorResponse, AuthError, AuthSessionResponse};
 use super::auth_extractor::AuthenticatedUser;
 use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     get,
     path = "/api/auth/check",
@@ -32,6 +34,8 @@ pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
     }))
 }
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
 #[utoipa::path(
     post,
     path = "/api/auth/refresh",

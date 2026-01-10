@@ -11,6 +11,8 @@ use std::sync::Arc;
 use crate::db::{DBHandle, hash_token};
 use super::utils::create_session_cookie;
 
+// Note: utoipa proc macros require literal integers for status codes.
+// 200 = OK
 #[utoipa::path(
     post,
     path = "/api/logout",
