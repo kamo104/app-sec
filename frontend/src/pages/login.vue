@@ -70,8 +70,9 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { StatusCodes } from 'http-status-codes'
 import { loginUser, type LoginErrorResponse } from '@/api/client'
-import { translate_error_code, translate_success_code, translate_field_validation_error } from '@/wasm/translator.js'
+import { translate_error_code, translate, translate_field_validation_error } from '@/wasm/translator.js'
 import { useAuthStore } from '@/stores/auth'
 
 import AuthFormLayout from '@/components/auth/AuthFormLayout.vue'
@@ -152,7 +153,7 @@ const handleSubmit = async (): Promise<void> => {
     })
 
     if (data) {
-      showMessage(translate_success_code(data.success, undefined), 'success')
+      showMessage(translate('SUCCESS_LOGGED_IN', undefined), 'success')
       authStore.setUser(data)
       router.push('/')
     } else if (error) {
@@ -184,7 +185,7 @@ const handleLoginError = (error: LoginErrorResponse, status: number): void => {
       }
     }
     showMessage(translate_error_code('VALIDATION', undefined), 'error')
-  } else if (status === 401) {
+  } else if (status === StatusCodes.UNAUTHORIZED) {
     showMessage(translate_error_code(error.error, undefined), 'error')
   } else if (status === 0) {
     showMessage(translate_error_code('INTERNAL', undefined), 'error')

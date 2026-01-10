@@ -46,7 +46,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { requestPasswordReset } from '@/api/client'
-import { translate_success_code } from '@/wasm/translator.js'
+import { translate } from '@/wasm/translator.js'
 
 // Import reusable components
 import AuthFormLayout from '@/components/auth/AuthFormLayout.vue'
@@ -94,7 +94,7 @@ const handleSubmit = async () => {
     const { data, error } = await requestPasswordReset({ body: { email: username.value } })
 
     if (data) {
-      showMessage(translate_success_code(data.success, undefined), 'success')
+      showMessage(translate('SUCCESS_PASSWORD_RESET_REQUESTED', undefined), 'success')
       username.value = ''
     } else if (error) {
       // requestPasswordReset always returns success for security, so this branch

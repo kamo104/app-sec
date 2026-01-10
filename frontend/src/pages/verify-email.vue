@@ -92,8 +92,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { verifyEmail, type VerifyEmailErrorResponse } from '@/api/client'
-import { translate_success_code } from '@/wasm/translator.js'
+import { StatusCodes } from 'http-status-codes'
+import { verifyEmail } from '@/api/client'
+import { translate } from '@/wasm/translator.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,15 +122,11 @@ const verifyToken = async () => {
     const { data, error: apiError, response } = await verifyEmail({ body: { token } })
 
     if (data) {
-      message.value = translate_success_code(data.success, undefined)
+      message.value = translate('SUCCESS_EMAIL_VERIFIED', undefined)
       success.value = true
-    } else if (apiError) {
+    } else if (apiError || response.status >= StatusCodes.BAD_REQUEST) {
       error.value = true
-      if (response.status === 400) {
-        message.value = 'Invalid or expired verification link. Please request a new verification email.'
-      } else {
-        message.value = apiError.error || 'An error occurred during verification.'
-      }
+      message.value = translate('INVALID_TOKEN', undefined)
     }
   } catch (err) {
     error.value = true

@@ -71,8 +71,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { completePasswordReset } from '@/api/client'
-import { translate_success_code, translate_error_code } from '@/wasm/translator.js'
+import { StatusCodes } from 'http-status-codes'
+import { completePasswordReset, type CompletePasswordResetErrorResponse } from '@/api/client'
+import { translate, translate_error_code } from '@/wasm/translator.js'
 
 import PasswordField from '@/components/auth/PasswordField.vue'
 
@@ -124,11 +125,18 @@ const handleSubmit = async () => {
     })
 
     if (data) {
-      statusMessage.value = translate_success_code(data.success, undefined)
+      statusMessage.value = translate('SUCCESS_PASSWORD_RESET_COMPLETED', undefined)
       messageType.value = 'success'
       completed.value = true
+    } else if (response.status === StatusCodes.INTERNAL_SERVER_ERROR) {
+      statusMessage.value = translate_error_code('INTERNAL', undefined)
+      messageType.value = 'error'
     } else if (error) {
-      statusMessage.value = translate_error_code(error.error, undefined)
+      const err = error as CompletePasswordResetErrorResponse
+      statusMessage.value = translate_error_code(err.error, undefined)
+      messageType.value = 'error'
+    } else {
+      statusMessage.value = translate_error_code('INTERNAL', undefined)
       messageType.value = 'error'
     }
   } catch (e: any) {

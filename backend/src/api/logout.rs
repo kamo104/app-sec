@@ -9,14 +9,13 @@ use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, hash_token};
-use api_types::LogoutResponse;
 use super::utils::create_session_cookie;
 
 #[utoipa::path(
     post,
     path = "/api/logout",
     responses(
-        (status = 200, description = "Logged out successfully", body = LogoutResponse)
+        (status = 200, description = "Logged out successfully")
     ),
     tag = "auth"
 )]
@@ -34,5 +33,5 @@ pub async fn logout_user(
 
     cookies.add(cookie);
 
-    (StatusCode::OK, Json(LogoutResponse::default()))
+    (StatusCode::OK, Json(serde_json::json!({})))
 }

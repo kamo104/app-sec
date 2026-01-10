@@ -4,7 +4,7 @@
  * Configures the generated OpenAPI client with base URL and credentials.
  */
 
-import { client } from '@/generated/api-client/client.gen';
+import { client } from '@/generated/api-client/sdk.gen';
 
 // Configure the client
 client.setConfig({

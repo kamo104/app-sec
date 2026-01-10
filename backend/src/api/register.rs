@@ -10,7 +10,7 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use api_types::{RegisterResponse, RegisterError, RegisterErrorResponse, RegistrationRequest, ValidationErrorData};
+use api_types::{RegisterError, RegisterErrorResponse, RegistrationRequest, ValidationErrorData};
 use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 
 #[utoipa::path(
@@ -18,7 +18,7 @@ use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATIO
     path = "/api/register",
     request_body = RegistrationRequest,
     responses(
-        (status = 200, description = "User registered successfully", body = RegisterResponse),
+        (status = 200, description = "User registered successfully"),
         (status = 400, description = "Validation error", body = RegisterErrorResponse),
         (status = 409, description = "Username or email already taken", body = RegisterErrorResponse),
         (status = 500, description = "Internal server error", body = RegisterErrorResponse)
@@ -258,7 +258,7 @@ pub async fn register_user(
                         ).into_response();
                     }
 
-                    (StatusCode::OK, Json(RegisterResponse::default())).into_response()
+                    (StatusCode::OK, Json(serde_json::json!({}))).into_response()
                 }
                 Err(e) => {
                     debug!(

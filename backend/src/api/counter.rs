@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tracing::error;
 
 use crate::db::DBHandle;
-use api_types::{CounterData, CounterErrorResponse, CounterError, SetCounterRequest, AuthErrorResponse};
+use api_types::{CounterData, SetCounterRequest, AuthErrorResponse};
 use super::auth_extractor::AuthenticatedUser;
 
 #[utoipa::path(
@@ -17,7 +17,7 @@ use super::auth_extractor::AuthenticatedUser;
     responses(
         (status = 200, description = "Counter value retrieved", body = CounterData),
         (status = 401, description = "Not authenticated", body = AuthErrorResponse),
-        (status = 500, description = "Internal server error", body = CounterErrorResponse)
+        (status = 500, description = "Internal server error")
     ),
     tag = "counter"
 )]
@@ -31,9 +31,7 @@ pub async fn get_counter(
         }
         Err(e) => {
             error!("Failed to get counter: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(CounterErrorResponse {
-                error: CounterError::Internal,
-            })).into_response()
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
@@ -45,7 +43,7 @@ pub async fn get_counter(
     responses(
         (status = 200, description = "Counter value updated", body = CounterData),
         (status = 401, description = "Not authenticated", body = AuthErrorResponse),
-        (status = 500, description = "Internal server error", body = CounterErrorResponse)
+        (status = 500, description = "Internal server error")
     ),
     tag = "counter"
 )]
@@ -64,9 +62,7 @@ pub async fn set_counter(
         }
         Err(e) => {
             error!("Failed to update counter: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(CounterErrorResponse {
-                error: CounterError::Internal,
-            })).into_response()
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

@@ -1,7 +1,7 @@
 //! API response types.
 //!
-//! Each endpoint has specific response types that document exactly which
-//! success/error codes are possible, making the API documentation precise.
+//! Simple success responses (200 OK) return empty JSON `{}`.
+//! The frontend uses translate('SUCCESS_KEY') to display success messages.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,54 +11,8 @@ use utoipa::ToSchema;
 use crate::ValidationErrorData;
 
 // =============================================================================
-// Health endpoint responses
-// =============================================================================
-
-/// Success code for health check endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum HealthSuccess {
-    #[serde(rename = "SUCCESS_OK")]
-    Ok,
-}
-
-/// Health check response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct HealthResponse {
-    pub success: HealthSuccess,
-}
-
-impl Default for HealthResponse {
-    fn default() -> Self {
-        Self { success: HealthSuccess::Ok }
-    }
-}
-
-// =============================================================================
 // Registration endpoint responses
 // =============================================================================
-
-/// Success code for registration endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum RegisterSuccess {
-    #[serde(rename = "SUCCESS_REGISTERED")]
-    Registered,
-}
-
-/// Registration success response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct RegisterResponse {
-    pub success: RegisterSuccess,
-}
-
-impl Default for RegisterResponse {
-    fn default() -> Self {
-        Self { success: RegisterSuccess::Registered }
-    }
-}
 
 /// Error codes specific to registration endpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,20 +41,11 @@ pub struct RegisterErrorResponse {
 // Login endpoint responses
 // =============================================================================
 
-/// Success code for login endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum LoginSuccess {
-    #[serde(rename = "SUCCESS_LOGGED_IN")]
-    LoggedIn,
-}
-
 /// Login success response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResponse {
-    pub success: LoginSuccess,
     pub username: String,
     pub email: String,
     /// Unix timestamp in seconds when the session expires.
@@ -133,142 +78,22 @@ pub struct LoginErrorResponse {
 }
 
 // =============================================================================
-// Logout endpoint responses
-// =============================================================================
-
-/// Success code for logout endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum LogoutSuccess {
-    #[serde(rename = "SUCCESS_LOGGED_OUT")]
-    LoggedOut,
-}
-
-/// Logout success response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct LogoutResponse {
-    pub success: LogoutSuccess,
-}
-
-impl Default for LogoutResponse {
-    fn default() -> Self {
-        Self { success: LogoutSuccess::LoggedOut }
-    }
-}
-
-// =============================================================================
 // Email verification endpoint responses
 // =============================================================================
 
-/// Success code for email verification endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum VerifyEmailSuccess {
-    #[serde(rename = "SUCCESS_EMAIL_VERIFIED")]
-    EmailVerified,
-}
-
-/// Email verification success response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct VerifyEmailResponse {
-    pub success: VerifyEmailSuccess,
-}
-
-impl Default for VerifyEmailResponse {
-    fn default() -> Self {
-        Self { success: VerifyEmailSuccess::EmailVerified }
-    }
-}
-
-/// Error codes specific to email verification endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum VerifyEmailError {
-    #[serde(rename = "INVALID_TOKEN")]
-    InvalidToken,
-    #[serde(rename = "INTERNAL")]
-    Internal,
-}
-
-/// Email verification error response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct VerifyEmailErrorResponse {
-    pub error: VerifyEmailError,
-}
+// Email verification returns 400 Bad Request for any failure (token invalid,
+// expired, or internal errors). This prevents information leakage about token validity.
 
 // =============================================================================
 // Password reset request endpoint responses
 // =============================================================================
 
-/// Success code for password reset request endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum RequestPasswordResetSuccess {
-    #[serde(rename = "SUCCESS_PASSWORD_RESET_REQUESTED")]
-    PasswordResetRequested,
-}
-
-/// Password reset request success response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct RequestPasswordResetResponse {
-    pub success: RequestPasswordResetSuccess,
-}
-
-impl Default for RequestPasswordResetResponse {
-    fn default() -> Self {
-        Self { success: RequestPasswordResetSuccess::PasswordResetRequested }
-    }
-}
-
-/// Error codes for password reset request endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum RequestPasswordResetError {
-    #[serde(rename = "INTERNAL")]
-    Internal,
-}
-
-/// Password reset request error response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct RequestPasswordResetErrorResponse {
-    pub error: RequestPasswordResetError,
-}
-
-impl Default for RequestPasswordResetErrorResponse {
-    fn default() -> Self {
-        Self { error: RequestPasswordResetError::Internal }
-    }
-}
+// Password reset request endpoint only returns INTERNAL errors,
+// which can be returned as a simple JSON: {"error": "INTERNAL"}
 
 // =============================================================================
 // Password reset completion endpoint responses
 // =============================================================================
-
-/// Success code for password reset completion endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum CompletePasswordResetSuccess {
-    #[serde(rename = "SUCCESS_PASSWORD_RESET_COMPLETED")]
-    PasswordResetCompleted,
-}
-
-/// Password reset completion success response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct CompletePasswordResetResponse {
-    pub success: CompletePasswordResetSuccess,
-}
-
-impl Default for CompletePasswordResetResponse {
-    fn default() -> Self {
-        Self { success: CompletePasswordResetSuccess::PasswordResetCompleted }
-    }
-}
 
 /// Error codes specific to password reset completion endpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -295,40 +120,11 @@ pub struct CompletePasswordResetErrorResponse {
 // Auth check/refresh endpoint responses
 // =============================================================================
 
-/// Success code for auth check endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum AuthCheckSuccess {
-    #[serde(rename = "SUCCESS_OK")]
-    Ok,
-}
-
-/// Success code for auth refresh endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum AuthRefreshSuccess {
-    #[serde(rename = "SUCCESS_SESSION_REFRESHED")]
-    SessionRefreshed,
-}
-
-/// Auth check success response.
+/// Auth session response - used for both auth check and refresh endpoints.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct AuthCheckResponse {
-    pub success: AuthCheckSuccess,
-    pub username: String,
-    pub email: String,
-    pub session_expires_at: i64,
-    pub session_created_at: i64,
-}
-
-/// Auth refresh success response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct AuthRefreshResponse {
-    pub success: AuthRefreshSuccess,
+pub struct AuthSessionResponse {
     pub username: String,
     pub email: String,
     pub session_expires_at: i64,
@@ -370,23 +166,5 @@ pub struct CounterData {
     pub value: i64,
 }
 
-/// Error codes for counter endpoints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub enum CounterError {
-    #[serde(rename = "INTERNAL")]
-    Internal,
-}
-
-/// Counter error response (for internal server errors).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct CounterErrorResponse {
-    pub error: CounterError,
-}
-
-impl Default for CounterErrorResponse {
-    fn default() -> Self {
-        Self { error: CounterError::Internal }
-    }
-}
+// Counter endpoint only returns INTERNAL errors,
+// which can be returned as a simple JSON: {"error": "INTERNAL"}

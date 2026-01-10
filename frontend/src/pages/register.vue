@@ -73,8 +73,9 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { StatusCodes } from 'http-status-codes'
 import { registerUser, type RegisterErrorResponse } from '@/api/client'
-import { translate_success_code, translate_error_code, translate_field_validation_error } from '@/wasm/translator.js'
+import { translate, translate_error_code, translate_field_validation_error } from '@/wasm/translator.js'
 
 import AuthFormLayout from '@/components/auth/AuthFormLayout.vue'
 import UsernameField from '@/components/auth/UsernameField.vue'
@@ -166,7 +167,7 @@ const handleSubmit = async (): Promise<void> => {
     })
 
     if (data) {
-      const message = translate_success_code(data.success, undefined)
+      const message = translate('SUCCESS_REGISTERED', undefined)
       showMessage(message, 'success')
     } else if (error) {
       handleRegistrationError(error, response.status)
@@ -200,7 +201,7 @@ const handleRegistrationError = (error: RegisterErrorResponse, status: number): 
       }
     }
     showMessage(translate_error_code('VALIDATION', undefined), 'error')
-  } else if (status === 409) {
+  } else if (status === StatusCodes.CONFLICT) {
     showMessage(translate_error_code(error.error, undefined), 'error')
   } else if (status === 0) {
     showMessage(translate_error_code('INTERNAL', undefined), 'error')
