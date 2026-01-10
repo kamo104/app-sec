@@ -12,7 +12,8 @@
         variant="text"
         to="/"
         prepend-icon="mdi-home"
-        class="d-none d-md-flex"
+        class="d-none d-md-flex text-white"
+        color="white"
       >
         Home
       </v-btn>
@@ -21,7 +22,8 @@
         variant="text"
         to="/login"
         prepend-icon="mdi-login"
-        class="d-none d-md-flex"
+        class="d-none d-md-flex text-white"
+        color="white"
       >
         Login
       </v-btn>
@@ -30,7 +32,8 @@
         variant="text"
         to="/register"
         prepend-icon="mdi-account-plus"
-        class="d-none d-md-flex"
+        class="d-none d-md-flex text-white"
+        color="white"
       >
         Register
       </v-btn>
