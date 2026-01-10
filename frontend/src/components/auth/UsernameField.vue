@@ -18,8 +18,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { validate_field } from '@/wasm/field-validator.js'
-import type { ValidationFieldError } from '@/generated/api-client'
+import { validate_field, type ValidationFieldError } from '@/wasm/field-validator.js'
 import { translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {

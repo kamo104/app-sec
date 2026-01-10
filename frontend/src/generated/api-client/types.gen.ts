@@ -5,10 +5,59 @@ export type ClientOptions = {
 };
 
 /**
+ * Error codes for auth check and refresh endpoints.
+ */
+export type AuthError = 'INVALID_CREDENTIALS' | 'INTERNAL';
+
+/**
+ * Auth error response (used for auth check and refresh).
+ */
+export type AuthErrorResponse = {
+    error: AuthError;
+};
+
+/**
+ * Error codes specific to password reset completion endpoint.
+ */
+export type CompletePasswordResetError = 'INVALID_TOKEN' | 'VALIDATION' | 'INTERNAL';
+
+/**
+ * Password reset completion error response.
+ */
+export type CompletePasswordResetErrorResponse = {
+    error: CompletePasswordResetError;
+    validation?: null | ValidationErrorData;
+};
+
+/**
+ * Password reset completion success response.
+ */
+export type CompletePasswordResetResponse = {
+    success: CompletePasswordResetSuccess;
+};
+
+/**
+ * Success code for password reset completion endpoint.
+ */
+export type CompletePasswordResetSuccess = 'SUCCESS_PASSWORD_RESET_COMPLETED';
+
+/**
  * Counter data containing the current counter value.
  */
 export type CounterData = {
     value: number;
+};
+
+/**
+ * Error codes for counter endpoints.
+ */
+export type CounterError = 'INTERNAL';
+
+/**
+ * Counter error response (for internal server errors).
+ */
+export type CounterErrorResponse = {
+    error: CounterError;
 };
 
 /**
@@ -19,22 +68,34 @@ export type EmailVerificationRequest = {
 };
 
 /**
- * Error codes for specific error types.
+ * Field types for validation errors.
  */
-export type ErrorCode = 'ERROR_CODE_UNSPECIFIED' | 'INVALID_INPUT' | 'USERNAME_TAKEN' | 'INVALID_CREDENTIALS' | 'EMAIL_NOT_VERIFIED' | 'INVALID_TOKEN' | 'DATABASE' | 'INTERNAL' | 'VALIDATION' | 'EMAIL_TAKEN';
+export type FieldType = 'UNSPECIFIED' | 'USERNAME' | 'EMAIL' | 'PASSWORD';
 
 /**
- * Error response returned for all error cases.
+ * Health check response.
  */
-export type ErrorResponse = {
-    error: ErrorCode;
-    validation?: null | ValidationErrorData;
+export type HealthResponse = {
+    success: HealthSuccess;
 };
 
 /**
- * Field types for validation errors.
+ * Success code for health check endpoint.
  */
-export type FieldType = 'FIELD_TYPE_UNSPECIFIED' | 'USERNAME' | 'EMAIL' | 'PASSWORD';
+export type HealthSuccess = 'SUCCESS_OK';
+
+/**
+ * Error codes specific to login endpoint.
+ */
+export type LoginError = 'INVALID_CREDENTIALS' | 'EMAIL_NOT_VERIFIED' | 'VALIDATION' | 'INTERNAL';
+
+/**
+ * Login error response.
+ */
+export type LoginErrorResponse = {
+    error: LoginError;
+    validation?: null | ValidationErrorData;
+};
 
 /**
  * Login request payload.
@@ -61,6 +122,18 @@ export type LoginResponseData = {
 };
 
 /**
+ * Logout success response.
+ */
+export type LogoutResponse = {
+    success: LogoutSuccess;
+};
+
+/**
+ * Success code for logout endpoint.
+ */
+export type LogoutSuccess = 'SUCCESS_LOGGED_OUT';
+
+/**
  * Password reset completion request payload.
  */
 export type PasswordResetCompleteRequest = {
@@ -76,6 +149,31 @@ export type PasswordResetRequest = {
 };
 
 /**
+ * Error codes specific to registration endpoint.
+ */
+export type RegisterError = 'USERNAME_TAKEN' | 'EMAIL_TAKEN' | 'VALIDATION' | 'INTERNAL';
+
+/**
+ * Registration error response.
+ */
+export type RegisterErrorResponse = {
+    error: RegisterError;
+    validation?: null | ValidationErrorData;
+};
+
+/**
+ * Registration success response.
+ */
+export type RegisterResponse = {
+    success: RegisterSuccess;
+};
+
+/**
+ * Success code for registration endpoint.
+ */
+export type RegisterSuccess = 'SUCCESS_REGISTERED';
+
+/**
  * Registration request payload.
  */
 export type RegistrationRequest = {
@@ -85,6 +183,30 @@ export type RegistrationRequest = {
 };
 
 /**
+ * Error codes for password reset request endpoint.
+ */
+export type RequestPasswordResetError = 'INTERNAL';
+
+/**
+ * Password reset request error response.
+ */
+export type RequestPasswordResetErrorResponse = {
+    error: RequestPasswordResetError;
+};
+
+/**
+ * Password reset request success response.
+ */
+export type RequestPasswordResetResponse = {
+    success: RequestPasswordResetSuccess;
+};
+
+/**
+ * Success code for password reset request endpoint.
+ */
+export type RequestPasswordResetSuccess = 'SUCCESS_PASSWORD_RESET_REQUESTED';
+
+/**
  * Set counter request payload.
  */
 export type SetCounterRequest = {
@@ -92,21 +214,9 @@ export type SetCounterRequest = {
 };
 
 /**
- * Success codes for specific success outcomes.
- */
-export type SuccessCode = 'SUCCESS_CODE_UNSPECIFIED' | 'SUCCESS_OK' | 'SUCCESS_REGISTERED' | 'SUCCESS_LOGGED_IN' | 'SUCCESS_LOGGED_OUT' | 'SUCCESS_EMAIL_VERIFIED' | 'SUCCESS_SESSION_REFRESHED' | 'SUCCESS_PASSWORD_RESET_REQUESTED' | 'SUCCESS_PASSWORD_RESET_COMPLETED' | 'SUCCESS_COUNTER_UPDATED';
-
-/**
- * Simple success response with a code indicating what succeeded.
- */
-export type SuccessResponse = {
-    success: SuccessCode;
-};
-
-/**
  * Validation error codes.
  */
-export type ValidationErrorCode = 'VALIDATION_ERROR_CODE_UNSPECIFIED' | 'REQUIRED' | 'TOO_SHORT' | 'TOO_LONG' | 'INVALID_CHARACTERS' | 'INVALID_FORMAT' | 'TOO_FEW_UPPERCASE_LETTERS' | 'TOO_FEW_LOWERCASE_LETTERS' | 'TOO_FEW_DIGITS' | 'TOO_FEW_SPECIAL_CHARACTERS';
+export type ValidationErrorCode = 'UNSPECIFIED' | 'REQUIRED' | 'TOO_SHORT' | 'TOO_LONG' | 'INVALID_CHARACTERS' | 'INVALID_FORMAT' | 'TOO_FEW_UPPERCASE_LETTERS' | 'TOO_FEW_LOWERCASE_LETTERS' | 'TOO_FEW_DIGITS' | 'TOO_FEW_SPECIAL_CHARACTERS';
 
 /**
  * Validation error data containing multiple field errors.
@@ -123,6 +233,30 @@ export type ValidationFieldError = {
     field: FieldType;
 };
 
+/**
+ * Error codes specific to email verification endpoint.
+ */
+export type VerifyEmailError = 'INVALID_TOKEN' | 'INTERNAL';
+
+/**
+ * Email verification error response.
+ */
+export type VerifyEmailErrorResponse = {
+    error: VerifyEmailError;
+};
+
+/**
+ * Email verification success response.
+ */
+export type VerifyEmailResponse = {
+    success: VerifyEmailSuccess;
+};
+
+/**
+ * Success code for email verification endpoint.
+ */
+export type VerifyEmailSuccess = 'SUCCESS_EMAIL_VERIFIED';
+
 export type AuthCheckData = {
     body?: never;
     path?: never;
@@ -134,7 +268,7 @@ export type AuthCheckErrors = {
     /**
      * Not authenticated
      */
-    401: ErrorResponse;
+    401: AuthErrorResponse;
 };
 
 export type AuthCheckError = AuthCheckErrors[keyof AuthCheckErrors];
@@ -159,7 +293,11 @@ export type RefreshSessionErrors = {
     /**
      * Not authenticated
      */
-    401: ErrorResponse;
+    401: AuthErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: AuthErrorResponse;
 };
 
 export type RefreshSessionError = RefreshSessionErrors[keyof RefreshSessionErrors];
@@ -184,19 +322,23 @@ export type CompletePasswordResetErrors = {
     /**
      * Invalid token or validation error
      */
-    400: ErrorResponse;
+    400: CompletePasswordResetErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: CompletePasswordResetErrorResponse;
 };
 
-export type CompletePasswordResetError = CompletePasswordResetErrors[keyof CompletePasswordResetErrors];
+export type CompletePasswordResetError2 = CompletePasswordResetErrors[keyof CompletePasswordResetErrors];
 
 export type CompletePasswordResetResponses = {
     /**
      * Password reset completed
      */
-    200: SuccessResponse;
+    200: CompletePasswordResetResponse;
 };
 
-export type CompletePasswordResetResponse = CompletePasswordResetResponses[keyof CompletePasswordResetResponses];
+export type CompletePasswordResetResponse2 = CompletePasswordResetResponses[keyof CompletePasswordResetResponses];
 
 export type GetCounterData = {
     body?: never;
@@ -209,7 +351,11 @@ export type GetCounterErrors = {
     /**
      * Not authenticated
      */
-    401: ErrorResponse;
+    401: AuthErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: CounterErrorResponse;
 };
 
 export type GetCounterError = GetCounterErrors[keyof GetCounterErrors];
@@ -234,7 +380,11 @@ export type SetCounterErrors = {
     /**
      * Not authenticated
      */
-    401: ErrorResponse;
+    401: AuthErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: CounterErrorResponse;
 };
 
 export type SetCounterError = SetCounterErrors[keyof SetCounterErrors];
@@ -259,7 +409,7 @@ export type HealthCheckResponses = {
     /**
      * Health check successful
      */
-    200: SuccessResponse;
+    200: HealthResponse;
 };
 
 export type HealthCheckResponse = HealthCheckResponses[keyof HealthCheckResponses];
@@ -275,11 +425,15 @@ export type LoginUserErrors = {
     /**
      * Validation error
      */
-    400: ErrorResponse;
+    400: LoginErrorResponse;
     /**
      * Invalid credentials or email not verified
      */
-    401: ErrorResponse;
+    401: LoginErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: LoginErrorResponse;
 };
 
 export type LoginUserError = LoginUserErrors[keyof LoginUserErrors];
@@ -304,7 +458,7 @@ export type LogoutUserResponses = {
     /**
      * Logged out successfully
      */
-    200: SuccessResponse;
+    200: LogoutResponse;
 };
 
 export type LogoutUserResponse = LogoutUserResponses[keyof LogoutUserResponses];
@@ -320,11 +474,15 @@ export type RegisterUserErrors = {
     /**
      * Validation error
      */
-    400: ErrorResponse;
+    400: RegisterErrorResponse;
     /**
      * Username or email already taken
      */
-    409: ErrorResponse;
+    409: RegisterErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: RegisterErrorResponse;
 };
 
 export type RegisterUserError = RegisterUserErrors[keyof RegisterUserErrors];
@@ -333,7 +491,7 @@ export type RegisterUserResponses = {
     /**
      * User registered successfully
      */
-    200: SuccessResponse;
+    200: RegisterResponse;
 };
 
 export type RegisterUserResponse = RegisterUserResponses[keyof RegisterUserResponses];
@@ -345,14 +503,23 @@ export type RequestPasswordResetData = {
     url: '/api/request-password-reset';
 };
 
+export type RequestPasswordResetErrors = {
+    /**
+     * Internal server error
+     */
+    500: RequestPasswordResetErrorResponse;
+};
+
+export type RequestPasswordResetError2 = RequestPasswordResetErrors[keyof RequestPasswordResetErrors];
+
 export type RequestPasswordResetResponses = {
     /**
      * Password reset requested (always returns success for security)
      */
-    200: SuccessResponse;
+    200: RequestPasswordResetResponse;
 };
 
-export type RequestPasswordResetResponse = RequestPasswordResetResponses[keyof RequestPasswordResetResponses];
+export type RequestPasswordResetResponse2 = RequestPasswordResetResponses[keyof RequestPasswordResetResponses];
 
 export type VerifyEmailData = {
     body: EmailVerificationRequest;
@@ -365,16 +532,20 @@ export type VerifyEmailErrors = {
     /**
      * Invalid or expired token
      */
-    400: ErrorResponse;
+    400: VerifyEmailErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: VerifyEmailErrorResponse;
 };
 
-export type VerifyEmailError = VerifyEmailErrors[keyof VerifyEmailErrors];
+export type VerifyEmailError2 = VerifyEmailErrors[keyof VerifyEmailErrors];
 
 export type VerifyEmailResponses = {
     /**
      * Email verified successfully
      */
-    200: SuccessResponse;
+    200: VerifyEmailResponse;
 };
 
-export type VerifyEmailResponse = VerifyEmailResponses[keyof VerifyEmailResponses];
+export type VerifyEmailResponse2 = VerifyEmailResponses[keyof VerifyEmailResponses];

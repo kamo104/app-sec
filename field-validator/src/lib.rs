@@ -8,7 +8,8 @@ use lettre::Address;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-use api_types::{
+// Re-export types from api-types for WASM consumers
+pub use api_types::{
     FieldType, PasswordStrength, ValidationDetailedPasswordData, ValidationErrorCode,
     ValidationFieldError,
 };

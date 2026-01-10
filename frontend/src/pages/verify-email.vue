@@ -92,7 +92,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { verifyEmail, type ErrorResponse } from '@/api/client'
+import { verifyEmail, type VerifyEmailErrorResponse } from '@/api/client'
 import { translate_success_code } from '@/wasm/translator.js'
 
 const route = useRoute()

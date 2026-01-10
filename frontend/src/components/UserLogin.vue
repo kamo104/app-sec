@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginUser, type ErrorResponse, type FieldType } from '@/api/client'
+import { loginUser, type LoginErrorResponse, type FieldType } from '@/api/client'
 import { translate_error_code, translate_success_code, translate_field_validation_error } from '@/wasm/translator.js'
 import { useAuthStore } from '@/stores/auth'
 
@@ -177,7 +177,7 @@ const handleSubmit = async () => {
   }
 }
 
-const handleLoginError = (error: ErrorResponse, status: number) => {
+const handleLoginError = (error: LoginErrorResponse, status: number) => {
   console.error('Login error:', error)
 
   // Handle specific error cases

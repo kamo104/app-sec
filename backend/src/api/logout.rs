@@ -1,20 +1,22 @@
 use axum::{
     extract::State,
+    http::StatusCode,
     response::IntoResponse,
+    Json,
 };
 use tower_cookies::Cookies;
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 
 use crate::db::{DBHandle, hash_token};
-use api_types::{SuccessCode, SuccessResponse};
-use super::utils::{create_session_cookie, success_response};
+use api_types::LogoutResponse;
+use super::utils::create_session_cookie;
 
 #[utoipa::path(
     post,
     path = "/api/logout",
     responses(
-        (status = 200, description = "Logged out successfully", body = SuccessResponse)
+        (status = 200, description = "Logged out successfully", body = LogoutResponse)
     ),
     tag = "auth"
 )]
@@ -32,5 +34,5 @@ pub async fn logout_user(
 
     cookies.add(cookie);
 
-    success_response(SuccessCode::LoggedOut)
+    (StatusCode::OK, Json(LogoutResponse::default()))
 }

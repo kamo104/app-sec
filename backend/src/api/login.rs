@@ -10,8 +10,8 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
-use api_types::{ErrorCode, ErrorResponse, LoginResponseData, LoginRequest};
-use super::utils::{internal_error, validation_error, error_response, create_session_cookie, SESSION_DURATION_DAYS};
+use api_types::{LoginErrorResponse, LoginError, LoginResponseData, LoginRequest, ValidationErrorData};
+use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
 
 #[utoipa::path(
     post,
@@ -19,8 +19,9 @@ use super::utils::{internal_error, validation_error, error_response, create_sess
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login successful", body = LoginResponseData),
-        (status = 400, description = "Validation error", body = ErrorResponse),
-        (status = 401, description = "Invalid credentials or email not verified", body = ErrorResponse)
+        (status = 400, description = "Validation error", body = LoginErrorResponse),
+        (status = 401, description = "Invalid credentials or email not verified", body = LoginErrorResponse),
+        (status = 500, description = "Internal server error", body = LoginErrorResponse)
     ),
     tag = "auth"
 )]
@@ -34,21 +35,39 @@ pub async fn login_user(
     let username_result = field_validator::validate_username(&payload.username);
     if !username_result.is_valid() {
         debug!("Username validation failed for '{}': {:?}", payload.username, username_result.errors);
-        return validation_error(vec![username_result]).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(LoginErrorResponse {
+                error: LoginError::Validation,
+                validation: Some(ValidationErrorData::from_errors(vec![username_result])),
+            })
+        ).into_response();
     }
 
     let user = match db.user_login_table.get_by_username(&payload.username).await {
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
             debug!("Login failed: user '{}' not found", payload.username);
-            return error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials).into_response();
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(LoginErrorResponse {
+                    error: LoginError::InvalidCredentials,
+                    validation: None,
+                })
+            ).into_response();
         }
         Err(e) => {
             debug!(
                 "Database error checking user '{}': {:?}",
                 payload.username, e
             );
-            return internal_error().into_response();
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(LoginErrorResponse {
+                    error: LoginError::Internal,
+                    validation: None,
+                })
+            ).into_response();
         }
     };
 
@@ -57,7 +76,13 @@ pub async fn login_user(
             "Login failed: user '{}' has not verified their email",
             payload.username
         );
-        return error_response(StatusCode::UNAUTHORIZED, ErrorCode::EmailNotVerified).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(LoginErrorResponse {
+                error: LoginError::EmailNotVerified,
+                validation: None,
+            })
+        ).into_response();
     }
 
     match db
@@ -73,7 +98,13 @@ pub async fn login_user(
                 Ok(hash) => hash,
                 Err(e) => {
                     error!("Failed to hash session token: {:?}", e);
-                    return internal_error().into_response();
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(LoginErrorResponse {
+                            error: LoginError::Internal,
+                            validation: None,
+                        })
+                    ).into_response();
                 }
             };
 
@@ -89,7 +120,13 @@ pub async fn login_user(
 
             if let Err(e) = db.user_sessions_table.insert(&session).await {
                 error!("Failed to store session: {:?}", e);
-                return internal_error().into_response();
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(LoginErrorResponse {
+                        error: LoginError::Internal,
+                        validation: None,
+                    })
+                ).into_response();
             }
 
             let cookie = create_session_cookie(session_token, Some(expiry), db.is_dev);
@@ -110,14 +147,26 @@ pub async fn login_user(
                 "Login failed: incorrect password for '{}'",
                 payload.username
             );
-            error_response(StatusCode::UNAUTHORIZED, ErrorCode::InvalidCredentials).into_response()
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(LoginErrorResponse {
+                    error: LoginError::InvalidCredentials,
+                    validation: None,
+                })
+            ).into_response()
         }
         Err(e) => {
             debug!(
                 "Password verification error for '{}': {:?}",
                 payload.username, e
             );
-            error_response(StatusCode::UNAUTHORIZED, ErrorCode::Internal).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(LoginErrorResponse {
+                    error: LoginError::Internal,
+                    validation: None,
+                })
+            ).into_response()
         }
     }
 }

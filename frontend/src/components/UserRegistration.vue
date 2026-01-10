@@ -67,7 +67,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { registerUser, type ErrorResponse, type FieldType } from '@/api/client'
+import { registerUser, type RegisterErrorResponse, type FieldType } from '@/api/client'
 import { translate_success_code, translate_error_code, translate_field_validation_error } from '@/wasm/translator.js'
 
 // Import reusable components
@@ -186,7 +186,7 @@ const handleSubmit = async () => {
   }
 }
 
-const handleRegistrationError = (error: ErrorResponse, status: number) => {
+const handleRegistrationError = (error: RegisterErrorResponse, status: number) => {
   console.error('Registration error:', error)
 
   // Handle specific error cases

@@ -5,11 +5,16 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
+#[cfg(feature = "wasm")]
+use tsify_next::Tsify;
+
 use crate::{FieldType, PasswordStrength, ValidationErrorCode};
 
 /// Validation error for a single field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
 pub struct ValidationFieldError {
     pub field: FieldType,
@@ -74,6 +79,8 @@ impl Default for ValidationErrorData {
 /// Detailed password validation data including strength assessment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
 pub struct ValidationDetailedPasswordData {
     pub data: Option<ValidationFieldError>,

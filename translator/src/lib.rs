@@ -131,18 +131,9 @@ pub fn translate_field_validation_error(field: &str, error_code: &str, locale: O
         None => return t!("INTERNAL", locale = &locale).to_string(),
     };
 
-    let validation_code = match error_code {
-        "VALIDATION_ERROR_CODE_UNSPECIFIED" => ValidationErrorCode::Unspecified,
-        "REQUIRED" => ValidationErrorCode::Required,
-        "TOO_SHORT" => ValidationErrorCode::TooShort,
-        "TOO_LONG" => ValidationErrorCode::TooLong,
-        "INVALID_CHARACTERS" => ValidationErrorCode::InvalidCharacters,
-        "INVALID_FORMAT" => ValidationErrorCode::InvalidFormat,
-        "TOO_FEW_UPPERCASE_LETTERS" => ValidationErrorCode::TooFewUppercaseLetters,
-        "TOO_FEW_LOWERCASE_LETTERS" => ValidationErrorCode::TooFewLowercaseLetters,
-        "TOO_FEW_DIGITS" => ValidationErrorCode::TooFewDigits,
-        "TOO_FEW_SPECIAL_CHARACTERS" => ValidationErrorCode::TooFewSpecialCharacters,
-        _ => return t!("INTERNAL", locale = &locale).to_string(),
+    let validation_code = match ValidationErrorCode::from_str_name(error_code) {
+        Some(vc) => vc,
+        None => return t!("INTERNAL", locale = &locale).to_string(),
     };
 
     translate_field_validation_error_internal(field_type, validation_code, &locale)

@@ -6,6 +6,9 @@ use strum::{EnumString, IntoStaticStr};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
+#[cfg(feature = "wasm")]
+use tsify_next::Tsify;
+
 /// Helper macro to define an enum with consistent strum/serde serialization.
 /// For variants that need a custom name (not matching SCREAMING_SNAKE_CASE of variant name),
 /// use the tuple form: `VariantName = "CUSTOM_NAME"`.
@@ -22,7 +25,10 @@ macro_rules! define_enum {
         $(#[$enum_meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, IntoStaticStr, EnumString)]
         #[cfg_attr(feature = "openapi", derive(ToSchema))]
+        #[cfg_attr(feature = "wasm", derive(Tsify))]
+        #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
         #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+        #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
         $vis enum $name {
             $(
                 $(#[$variant_meta])*
@@ -37,6 +43,10 @@ macro_rules! define_enum {
         impl $name {
             pub fn as_str_name(&self) -> &'static str {
                 (*self).into()
+            }
+
+            pub fn from_str_name(name: &str) -> Option<Self> {
+                name.parse().ok()
             }
         }
     };
@@ -84,12 +94,6 @@ define_enum! {
         Username,
         Email,
         Password,
-    }
-}
-
-impl FieldType {
-    pub fn from_str_name(name: &str) -> Option<Self> {
-        name.parse().ok()
     }
 }
 

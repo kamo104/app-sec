@@ -10,17 +10,18 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use api_types::{SuccessCode, ErrorCode, SuccessResponse, ErrorResponse, RegistrationRequest};
-use super::utils::{internal_error, validation_error, error_response, success_response, BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
+use api_types::{RegisterResponse, RegisterError, RegisterErrorResponse, RegistrationRequest, ValidationErrorData};
+use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 
 #[utoipa::path(
     post,
     path = "/api/register",
     request_body = RegistrationRequest,
     responses(
-        (status = 200, description = "User registered successfully", body = SuccessResponse),
-        (status = 400, description = "Validation error", body = ErrorResponse),
-        (status = 409, description = "Username or email already taken", body = ErrorResponse)
+        (status = 200, description = "User registered successfully", body = RegisterResponse),
+        (status = 400, description = "Validation error", body = RegisterErrorResponse),
+        (status = 409, description = "Username or email already taken", body = RegisterErrorResponse),
+        (status = 500, description = "Internal server error", body = RegisterErrorResponse)
     ),
     tag = "auth"
 )]
@@ -50,7 +51,13 @@ pub async fn register_user(
 
     if !errors.is_empty() {
         debug!("Validation failed: {:?}", errors);
-        return validation_error(errors).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(RegisterErrorResponse {
+                error: RegisterError::Validation,
+                validation: Some(ValidationErrorData::from_errors(errors)),
+            })
+        ).into_response();
     }
 
     match db
@@ -66,14 +73,26 @@ pub async fn register_user(
                 "Registration failed: username '{}' already taken",
                 payload.username
             );
-            return error_response(StatusCode::CONFLICT, ErrorCode::UsernameTaken).into_response();
+            return (
+                StatusCode::CONFLICT,
+                Json(RegisterErrorResponse {
+                    error: RegisterError::UsernameTaken,
+                    validation: None,
+                })
+            ).into_response();
         }
         Err(e) => {
             debug!(
                 "Database error checking username '{}': {:?}",
                 payload.username, e
             );
-            return internal_error().into_response();
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RegisterErrorResponse {
+                    error: RegisterError::Internal,
+                    validation: None,
+                })
+            ).into_response();
         }
     }
 
@@ -90,14 +109,26 @@ pub async fn register_user(
                 "Registration failed: email '{}' already taken",
                 payload.email
             );
-            return error_response(StatusCode::CONFLICT, ErrorCode::EmailTaken).into_response();
+            return (
+                StatusCode::CONFLICT,
+                Json(RegisterErrorResponse {
+                    error: RegisterError::EmailTaken,
+                    validation: None,
+                })
+            ).into_response();
         }
         Err(e) => {
             debug!(
                 "Database error checking email '{}': {:?}",
                 payload.email, e
             );
-            return internal_error().into_response();
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RegisterErrorResponse {
+                    error: RegisterError::Internal,
+                    validation: None,
+                })
+            ).into_response();
         }
     }
 
@@ -108,7 +139,13 @@ pub async fn register_user(
                 "Failed to hash password for '{}': {:?}",
                 payload.username, e
             );
-            return internal_error().into_response();
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RegisterErrorResponse {
+                    error: RegisterError::Internal,
+                    validation: None,
+                })
+            ).into_response();
         }
     };
 
@@ -142,7 +179,13 @@ pub async fn register_user(
                         payload.username, cleanup_e
                     ),
                 }
-                return internal_error().into_response();
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(RegisterErrorResponse {
+                        error: RegisterError::Internal,
+                        validation: None,
+                    })
+                ).into_response();
             }
 
             let token = generate_verification_token();
@@ -160,7 +203,13 @@ pub async fn register_user(
                             payload.username, cleanup_e
                         ),
                     }
-                    return internal_error().into_response();
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(RegisterErrorResponse {
+                            error: RegisterError::Internal,
+                            validation: None,
+                        })
+                    ).into_response();
                 }
             };
 
@@ -200,10 +249,16 @@ pub async fn register_user(
                                 payload.username, cleanup_e
                             ),
                         }
-                        return internal_error().into_response();
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(RegisterErrorResponse {
+                                error: RegisterError::Internal,
+                                validation: None,
+                            })
+                        ).into_response();
                     }
 
-                    success_response(SuccessCode::Registered).into_response()
+                    (StatusCode::OK, Json(RegisterResponse::default())).into_response()
                 }
                 Err(e) => {
                     debug!(
@@ -217,18 +272,30 @@ pub async fn register_user(
                             payload.username, cleanup_e
                         ),
                     }
-                    internal_error().into_response()
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(RegisterErrorResponse {
+                            error: RegisterError::Internal,
+                            validation: None,
+                        })
+                    ).into_response()
                 }
             }
         }
         Err(e) => {
             let (error_code, status) = if e.to_string().contains("username already taken") {
-                (ErrorCode::UsernameTaken, StatusCode::CONFLICT)
+                (RegisterError::UsernameTaken, StatusCode::CONFLICT)
             } else {
-                (ErrorCode::Internal, StatusCode::BAD_REQUEST)
+                (RegisterError::Internal, StatusCode::BAD_REQUEST)
             };
             debug!("Failed to create user '{}': {:?}", payload.username, e);
-            error_response(status, error_code).into_response()
+            (
+                status,
+                Json(RegisterErrorResponse {
+                    error: error_code,
+                    validation: None,
+                })
+            ).into_response()
         }
     }
 }

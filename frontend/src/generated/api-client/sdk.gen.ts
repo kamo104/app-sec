@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthCheckData, AuthCheckErrors, AuthCheckResponses, CompletePasswordResetData, CompletePasswordResetErrors, CompletePasswordResetResponses, GetCounterData, GetCounterErrors, GetCounterResponses, HealthCheckData, HealthCheckResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserResponses, RefreshSessionData, RefreshSessionErrors, RefreshSessionResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RequestPasswordResetData, RequestPasswordResetResponses, SetCounterData, SetCounterErrors, SetCounterResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses } from './types.gen';
+import type { AuthCheckData, AuthCheckErrors, AuthCheckResponses, CompletePasswordResetData, CompletePasswordResetErrors, CompletePasswordResetResponses, GetCounterData, GetCounterErrors, GetCounterResponses, HealthCheckData, HealthCheckResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserResponses, RefreshSessionData, RefreshSessionErrors, RefreshSessionResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RequestPasswordResetData, RequestPasswordResetErrors, RequestPasswordResetResponses, SetCounterData, SetCounterErrors, SetCounterResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -64,7 +64,7 @@ export const registerUser = <ThrowOnError extends boolean = false>(options: Opti
     }
 });
 
-export const requestPasswordReset = <ThrowOnError extends boolean = false>(options: Options<RequestPasswordResetData, ThrowOnError>) => (options.client ?? client).post<RequestPasswordResetResponses, unknown, ThrowOnError>({
+export const requestPasswordReset = <ThrowOnError extends boolean = false>(options: Options<RequestPasswordResetData, ThrowOnError>) => (options.client ?? client).post<RequestPasswordResetResponses, RequestPasswordResetErrors, ThrowOnError>({
     url: '/api/request-password-reset',
     ...options,
     headers: {

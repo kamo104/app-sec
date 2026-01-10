@@ -97,6 +97,26 @@ else
 fi
 cd ..
 
+# Fetch fresh OpenAPI spec from backend
+print_status "Fetching OpenAPI spec from backend..."
+./backend/target/release/appsec-server --dev > /tmp/backend.log 2>&1 &
+BACKEND_PID=$!
+
+sleep 3
+
+if curl -s --max-time 5 http://localhost:4000/api/openapi.json > frontend/src/generated/openapi.json 2>/dev/null; then
+    print_success "OpenAPI spec fetched successfully"
+else
+    print_warning "Could not fetch OpenAPI spec from backend. Using existing spec if available."
+fi
+
+# Kill the backend process
+kill $BACKEND_PID 2>/dev/null
+# Wait briefly for clean shutdown, but don't hang indefinitely
+sleep 1
+kill -9 $BACKEND_PID 2>/dev/null
+wait $BACKEND_PID 2>/dev/null || true
+
 # Generate OpenAPI TypeScript client
 print_status "Generating OpenAPI TypeScript client..."
 cd frontend
@@ -104,7 +124,8 @@ if [ -f "src/generated/openapi.json" ]; then
     npx @hey-api/openapi-ts --input src/generated/openapi.json --output src/generated/api-client --client @hey-api/client-fetch 2>/dev/null
     print_success "TypeScript API client generated"
 else
-    print_warning "OpenAPI spec not found. Run backend in dev mode and fetch /api/openapi.json to generate it."
+    print_error "OpenAPI spec not found. Cannot generate TypeScript client."
+    exit 1
 fi
 cd ..
 

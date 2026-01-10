@@ -227,6 +227,27 @@ impl Default for RequestPasswordResetResponse {
     }
 }
 
+/// Error codes for password reset request endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub enum RequestPasswordResetError {
+    #[serde(rename = "INTERNAL")]
+    Internal,
+}
+
+/// Password reset request error response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct RequestPasswordResetErrorResponse {
+    pub error: RequestPasswordResetError,
+}
+
+impl Default for RequestPasswordResetErrorResponse {
+    fn default() -> Self {
+        Self { error: RequestPasswordResetError::Internal }
+    }
+}
+
 // =============================================================================
 // Password reset completion endpoint responses
 // =============================================================================
@@ -283,6 +304,8 @@ pub struct CompletePasswordResetErrorResponse {
 pub enum AuthError {
     #[serde(rename = "INVALID_CREDENTIALS")]
     InvalidCredentials,
+    #[serde(rename = "INTERNAL")]
+    Internal,
 }
 
 /// Auth error response (used for auth check and refresh).
@@ -306,11 +329,11 @@ impl Default for AuthErrorResponse {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum CounterError {
-    #[serde(rename = "INVALID_CREDENTIALS")]
-    InvalidCredentials,
+    #[serde(rename = "INTERNAL")]
+    Internal,
 }
 
-/// Counter error response.
+/// Counter error response (for internal server errors).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CounterErrorResponse {
@@ -319,6 +342,6 @@ pub struct CounterErrorResponse {
 
 impl Default for CounterErrorResponse {
     fn default() -> Self {
-        Self { error: CounterError::InvalidCredentials }
+        Self { error: CounterError::Internal }
     }
 }

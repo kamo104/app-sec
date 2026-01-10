@@ -17,7 +17,7 @@ api-types = { path = "../api-types" }
 [features]
 default = ["std"]
 std = []
-wasm = ["wasm-bindgen"]
+wasm = ["wasm-bindgen", "api-types/wasm"]
 
 [profile.release]
 opt-level = "z"

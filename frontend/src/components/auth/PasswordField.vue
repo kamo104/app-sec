@@ -42,8 +42,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { validate_password_detailed } from '@/wasm/field-validator.js'
-import type { ValidationDetailedPasswordData, PasswordStrength } from '@/api/wasm-types'
+import { validate_password_detailed, type PasswordStrength, type ValidationDetailedPasswordData } from '@/wasm/field-validator.js'
 import { translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {

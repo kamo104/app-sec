@@ -10,16 +10,16 @@ use std::sync::Arc;
 use tracing::{debug, error};
 
 use crate::db::{DBHandle, hash_token};
-use api_types::{ErrorResponse, LoginResponseData};
+use api_types::{AuthErrorResponse, AuthError, LoginResponseData};
 use super::auth_extractor::AuthenticatedUser;
-use super::utils::{auth_error, internal_error, create_session_cookie, SESSION_DURATION_DAYS};
+use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
 
 #[utoipa::path(
     get,
     path = "/api/auth/check",
     responses(
         (status = 200, description = "Session is valid", body = LoginResponseData),
-        (status = 401, description = "Not authenticated", body = ErrorResponse)
+        (status = 401, description = "Not authenticated", body = AuthErrorResponse)
     ),
     tag = "auth"
 )]
@@ -37,7 +37,8 @@ pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
     path = "/api/auth/refresh",
     responses(
         (status = 200, description = "Session refreshed successfully", body = LoginResponseData),
-        (status = 401, description = "Not authenticated", body = ErrorResponse)
+        (status = 401, description = "Not authenticated", body = AuthErrorResponse),
+        (status = 500, description = "Internal server error", body = AuthErrorResponse)
     ),
     tag = "auth"
 )]
@@ -52,7 +53,7 @@ pub async fn refresh_session(
         Some(t) => t,
         None => {
             error!("No session token found in refresh request");
-            return auth_error().into_response();
+            return (StatusCode::UNAUTHORIZED, Json(AuthErrorResponse::default())).into_response();
         }
     };
 
@@ -60,7 +61,7 @@ pub async fn refresh_session(
         Ok(hash) => hash,
         Err(e) => {
             error!("Failed to hash session token: {:?}", e);
-            return internal_error().into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(AuthErrorResponse { error: AuthError::Internal })).into_response();
         }
     };
 
@@ -82,7 +83,7 @@ pub async fn refresh_session(
         }
         Err(e) => {
             error!("Failed to refresh session: {:?}", e);
-            internal_error().into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(AuthErrorResponse { error: AuthError::Internal })).into_response()
         }
     }
 }

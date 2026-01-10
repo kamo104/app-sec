@@ -8,7 +8,7 @@ When working with this codebase:
   - DON'T repeat code across different modules - try to look if a funciton is already implemented somewhere else.
   - Write as little code as possible to achieve the stated goal.
   - Write as few adapters as possible and use the provided API or functions directly.
-  - NEVER use hard coded text in the user facing text - use the api-translator.
+  - NEVER use hard coded text in the user facing text - use the translator.
   - NEVER use magic numbers - use a const variable.
 
 ## About This Project
@@ -19,9 +19,9 @@ A web app demonstration focused on using good web security practices.
 
 - `frontend/` - an npm, vue.js + vuetify web frontend,
 - `backend/` - a rust axum backend server that has ../frontend/dist linked to it so that it can serve the web files,
-- `proto/` - protobuf api buffers,
-- `api-translator/` - rust crate compiled natively to the backend as well as the frontend using wasm-pack that is mainly used for translating encoded responses or errors to text,
-- `field-validator/` - rust crate compiled to backend and frontend that is responsible for validating all data.
+- `translator/` - rust crate compiled natively to the backend as well as the frontend using wasm-pack that is used for translating user facing errors from codes to text,
+- `field-validator/` - rust crate compiled to backend and frontend that is responsible for validating all data,
+- `api-types/` - rust crate shared across the project for defining api response types as precisely as possible.
 
 ## Standards
 

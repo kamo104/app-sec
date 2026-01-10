@@ -10,15 +10,22 @@ use tracing::{debug, error};
 
 use crate::db::{DBHandle, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use api_types::{SuccessCode, ErrorCode, SuccessResponse, ErrorResponse, PasswordResetRequest, PasswordResetCompleteRequest};
-use super::utils::{internal_error, validation_error, error_response, success_response, BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
+use api_types::{
+    PasswordResetRequest, PasswordResetCompleteRequest,
+    RequestPasswordResetResponse, RequestPasswordResetErrorResponse, RequestPasswordResetError,
+    CompletePasswordResetResponse,
+    CompletePasswordResetErrorResponse, CompletePasswordResetError,
+    ValidationErrorData,
+};
+use super::utils::{BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
 
 #[utoipa::path(
     post,
     path = "/api/request-password-reset",
     request_body = PasswordResetRequest,
     responses(
-        (status = 200, description = "Password reset requested (always returns success for security)", body = SuccessResponse)
+        (status = 200, description = "Password reset requested (always returns success for security)", body = RequestPasswordResetResponse),
+        (status = 500, description = "Internal server error", body = RequestPasswordResetErrorResponse)
     ),
     tag = "auth"
 )]
@@ -31,11 +38,14 @@ pub async fn request_password_reset(
     let user = match db.user_login_table.get_by_username(&payload.email).await {
         Ok(user) => user,
         Err(sqlx::Error::RowNotFound) => {
-            return success_response(SuccessCode::PasswordResetRequested).into_response();
+            // Always return success for security (don't reveal if email exists)
+            return (StatusCode::OK, Json(RequestPasswordResetResponse::default())).into_response();
         }
         Err(e) => {
             error!("Database error checking user: {:?}", e);
-            return internal_error().into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(RequestPasswordResetErrorResponse {
+                error: RequestPasswordResetError::Internal,
+            })).into_response();
         }
     };
 
@@ -44,7 +54,9 @@ pub async fn request_password_reset(
         Ok(hash) => hash,
         Err(e) => {
             error!("Failed to hash reset token: {:?}", e);
-            return internal_error().into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(RequestPasswordResetErrorResponse {
+                error: RequestPasswordResetError::Internal,
+            })).into_response();
         }
     };
 
@@ -52,12 +64,16 @@ pub async fn request_password_reset(
 
     if let Err(e) = db.password_reset_tokens_table.insert(user.user_id, &token_hash, expires_at).await {
         error!("Failed to store reset token: {:?}", e);
-        return internal_error().into_response();
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(RequestPasswordResetErrorResponse {
+            error: RequestPasswordResetError::Internal,
+        })).into_response();
     }
 
     if let Err(e) = db.user_login_table.set_password_reset_flag(user.user_id, true).await {
         error!("Failed to set password reset flag: {:?}", e);
-        return internal_error().into_response();
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(RequestPasswordResetErrorResponse {
+            error: RequestPasswordResetError::Internal,
+        })).into_response();
     }
 
     let base_url = if db.is_dev {
@@ -70,10 +86,12 @@ pub async fn request_password_reset(
 
     if let Err(e) = email_sender.send_password_reset_email(&user.email, &reset_link).await {
         error!("Failed to send reset email: {:?}", e);
-        return internal_error().into_response();
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(RequestPasswordResetErrorResponse {
+            error: RequestPasswordResetError::Internal,
+        })).into_response();
     }
 
-    success_response(SuccessCode::PasswordResetRequested).into_response()
+    (StatusCode::OK, Json(RequestPasswordResetResponse::default())).into_response()
 }
 
 #[utoipa::path(
@@ -81,8 +99,9 @@ pub async fn request_password_reset(
     path = "/api/complete-password-reset",
     request_body = PasswordResetCompleteRequest,
     responses(
-        (status = 200, description = "Password reset completed", body = SuccessResponse),
-        (status = 400, description = "Invalid token or validation error", body = ErrorResponse)
+        (status = 200, description = "Password reset completed", body = CompletePasswordResetResponse),
+        (status = 400, description = "Invalid token or validation error", body = CompletePasswordResetErrorResponse),
+        (status = 500, description = "Internal server error", body = CompletePasswordResetErrorResponse)
     ),
     tag = "auth"
 )]
@@ -96,28 +115,43 @@ pub async fn complete_password_reset(
         Ok(hash) => hash,
         Err(e) => {
             error!("Failed to hash reset token: {:?}", e);
-            return internal_error().into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(CompletePasswordResetErrorResponse {
+                error: CompletePasswordResetError::Internal,
+                validation: None,
+            })).into_response();
         }
     };
 
     let reset_record = match db.password_reset_tokens_table.get_by_token_hash(&token_hash).await {
         Ok(record) => record,
         Err(sqlx::Error::RowNotFound) => {
-            return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken).into_response();
+            return (StatusCode::BAD_REQUEST, Json(CompletePasswordResetErrorResponse {
+                error: CompletePasswordResetError::InvalidToken,
+                validation: None,
+            })).into_response();
         }
         Err(e) => {
             error!("Database error looking up reset token: {:?}", e);
-            return internal_error().into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(CompletePasswordResetErrorResponse {
+                error: CompletePasswordResetError::Internal,
+                validation: None,
+            })).into_response();
         }
     };
 
     if OffsetDateTime::now_utc() > reset_record.expires_at {
-        return error_response(StatusCode::BAD_REQUEST, ErrorCode::InvalidToken).into_response();
+        return (StatusCode::BAD_REQUEST, Json(CompletePasswordResetErrorResponse {
+            error: CompletePasswordResetError::InvalidToken,
+            validation: None,
+        })).into_response();
     }
 
     let password_result = field_validator::validate_password(&payload.new_password);
     if !password_result.is_valid() {
-        return validation_error(vec![password_result]).into_response();
+        return (StatusCode::BAD_REQUEST, Json(CompletePasswordResetErrorResponse {
+            error: CompletePasswordResetError::Validation,
+            validation: Some(ValidationErrorData::from_errors(vec![password_result])),
+        })).into_response();
     }
 
     match db.user_login_table.set_password_by_user_id(reset_record.user_id, &payload.new_password).await {
@@ -125,11 +159,14 @@ pub async fn complete_password_reset(
             let _ = db.user_login_table.set_password_reset_flag(reset_record.user_id, false).await;
             let _ = db.password_reset_tokens_table.delete_by_user_id(reset_record.user_id).await;
 
-            success_response(SuccessCode::PasswordResetCompleted).into_response()
+            (StatusCode::OK, Json(CompletePasswordResetResponse::default())).into_response()
         }
         Err(e) => {
             error!("Failed to update password: {:?}", e);
-            internal_error().into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(CompletePasswordResetErrorResponse {
+                error: CompletePasswordResetError::Internal,
+                validation: None,
+            })).into_response()
         }
     }
 }
