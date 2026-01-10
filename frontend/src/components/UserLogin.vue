@@ -7,6 +7,7 @@
           ref="usernameField"
           v-model="formData.username"
           :validate-length="false"
+          :hide-details="true"
           @touched="markFieldTouched('username')"
         />
 
@@ -16,6 +17,7 @@
           v-model="formData.password"
           :show-strength="false"
           :validate="false"
+          :hide-details="true"
           @touched="markFieldTouched('password')"
         />
 
@@ -62,8 +64,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginUser, requestPasswordReset, type ApiError, ErrorCode } from '@/services/api'
-import { translate_error_code, translate_validation_error } from '@/wasm/api-translator.js'
+import { loginUser, requestPasswordReset, type ApiError, ErrorCode, SuccessCode } from '@/services/api'
+import { translate_error_code, translate_validation_error, translate_success_code } from '@/wasm/api-translator.js'
 import { FieldType } from '@/generated/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -126,6 +128,12 @@ const handleSubmit = async () => {
   // Reset messages
   clearMessage()
 
+  // Check if fields are empty before validation
+  if (!formData.username.trim() || !formData.password.trim()) {
+    showMessage(translate_error_code(ErrorCode.INVALID_INPUT, 'en'), 'error')
+    return
+  }
+
   // Validate all fields using component validation methods
   const validations = await Promise.all([
     usernameField.value?.validate(),
@@ -148,7 +156,7 @@ const handleSubmit = async () => {
       password: formData.password,
     })
 
-    showMessage('Login successful', 'success')
+    showMessage(translate_success_code(SuccessCode.SUCCESS_LOGGED_IN, 'en'), 'success')
 
     // Store user in auth store
     authStore.setUser(loginResponse)
@@ -181,16 +189,14 @@ const handleSubmit = async () => {
           passwordField.value.hasError = true
         }
       }
-      showMessage('Please fix the validation errors.', 'error')
+      showMessage(translate_error_code(ErrorCode.VALIDATION, 'en'), 'error')
     } else if (apiError.status === 401) {
       // Use the actual error message from the backend
-      showMessage(apiError.message || 'Invalid username or password', 'error')
+      showMessage(apiError.message || translate_error_code(ErrorCode.INVALID_CREDENTIALS, 'en'), 'error')
     } else if (apiError.status === 0) {
-      // Network error - backend not running
-      showMessage('Cannot connect to the backend server. Please ensure it is running on port 4000.', 'error')
+      showMessage(translate_error_code(ErrorCode.INTERNAL, 'en'), 'error')
     } else {
-      // Other errors
-      showMessage(apiError.message || 'An error occurred during login', 'error')
+      showMessage(apiError.message || translate_error_code(ErrorCode.INTERNAL, 'en'), 'error')
     }
   } finally {
     loading.value = false

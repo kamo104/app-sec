@@ -13,14 +13,17 @@
       @click:append-inner="showPassword = !showPassword"
       validate-on="input"
       :error="hasError && touched"
+      :hide-details="hideDetails ? true : 'auto'"
       class="custom-field"
     >
-      <template v-if="showStrength && errors.length > 0 && touched" #message>
-        <div v-for="(error, index) in errors" :key="index" class="auth-password-error">
-          • {{ error }}
-        </div>
-      </template>
     </v-text-field>
+
+    <!-- Password validation errors (shown when showStrength is true) -->
+    <div v-if="showStrength && errors.length > 0 && touched" class="auth-password-errors">
+      <div v-for="(error, index) in errors" :key="index" class="auth-password-error">
+        {{ error }}
+      </div>
+    </div>
 
     <div v-if="showStrength && touched && score !== null" class="auth-password-strength-indicator">
       <div class="auth-strength-label">
@@ -48,12 +51,14 @@ interface Props {
   required?: boolean
   showStrength?: boolean
   validate?: boolean
+  hideDetails?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   required: true,
   showStrength: true,
-  validate: true
+  validate: true,
+  hideDetails: false
 })
 
 const emit = defineEmits<{
@@ -75,12 +80,8 @@ const rules = [
       return true
     }
 
-    if (!value) {
-      return true
-    }
-
     try {
-      const resultBytes = validate_password_detailed(value)
+      const resultBytes = validate_password_detailed(value || '')
       const result = ValidationDetailedPasswordData.decode(resultBytes)
 
       const translatedErrors = result.data?.errors.map((err: number) => {
@@ -93,6 +94,11 @@ const rules = [
       hasError.value = translatedErrors.length > 0
 
       emit('validation', translatedErrors.length === 0, translatedErrors)
+
+      // When showStrength is true, errors are displayed via #message slot and don't need to be returned
+      if (props.showStrength) {
+        return true
+      }
 
       if (touched.value && translatedErrors.length > 0) {
         return translatedErrors[0]!
@@ -142,7 +148,7 @@ const validate_field = async (): Promise<{ valid: boolean; errors: string[] }> =
   }
 
   try {
-    const resultBytes = validate_password_detailed(props.modelValue)
+    const resultBytes = validate_password_detailed(props.modelValue || '')
     const result = ValidationDetailedPasswordData.decode(resultBytes)
 
     const translatedErrors = result.data?.errors.map((err: number) => {

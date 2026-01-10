@@ -10,6 +10,7 @@
       required
       validate-on="input"
       :error="hasError && touched"
+      :hide-details="hideDetails"
       class="custom-field"
     ></v-text-field>
   </div>
@@ -27,13 +28,15 @@ interface Props {
   minLength?: number
   maxLength?: number
   validateLength?: boolean
+  hideDetails?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   required: true,
   minLength: 3,
   maxLength: 20,
-  validateLength: true
+  validateLength: true,
+  hideDetails: false
 })
 
 const emit = defineEmits<{
