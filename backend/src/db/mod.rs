@@ -26,6 +26,7 @@ pub use user_data::UserDataTable;
 const KEYRING_SERVICE_NAME: &str = "APPSEC_DB_KEY";
 const KEYRING_USERNAME: &str = "APPSEC";
 const KEYRING_DB_KEY_LEN: usize = 32;
+const DB_KEY_ENV_VAR: &str = "APPSEC_DB_KEY";
 
 const DEV_DATABASE_PATH: &str = "data_dev.db";
 

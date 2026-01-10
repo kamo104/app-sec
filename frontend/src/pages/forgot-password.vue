@@ -3,14 +3,12 @@
     <template #default="{ handleSubmit: formSubmit }">
       <v-form @submit.prevent="handleSubmit" ref="form" validate-on="input lazy">
         <p class="text-body-1 mb-6">
-          Enter your email address or username and we'll send you a link to reset your password.
+          Enter your email address and we'll send you a link to reset your password.
         </p>
 
-        <UsernameField
-          ref="usernameField"
-          v-model="username"
-          label="Email or Username"
-          :validate-length="false"
+        <EmailField
+          ref="emailField"
+          v-model="email"
         />
 
         <StatusMessage
@@ -50,17 +48,17 @@ import { translate } from '@/wasm/translator.js'
 
 // Import reusable components
 import AuthFormLayout from '@/components/auth/AuthFormLayout.vue'
-import UsernameField from '@/components/auth/UsernameField.vue'
+import EmailField from '@/components/auth/EmailField.vue'
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton.vue'
 import StatusMessage from '@/components/auth/StatusMessage.vue'
 
-const username = ref('')
+const email = ref('')
 const loading = ref(false)
 const statusMessage = ref('')
 const messageType = ref<'success' | 'error' | 'warning' | 'info'>('success')
 
 // Refs to component instances
-const usernameField = ref<any>(null)
+const emailField = ref<any>(null)
 
 // Clear status message
 const clearMessage = () => {
@@ -78,24 +76,24 @@ const handleSubmit = async () => {
   clearMessage()
 
   // Validate field
-  const validation = await usernameField.value?.validate()
+  const validation = await emailField.value?.validate()
   if (validation?.valid === false) {
     return
   }
 
-  if (!username.value) {
-    showMessage('Please enter your email or username', 'warning')
+  if (!email.value) {
+    showMessage('Please enter your email address', 'warning')
     return
   }
 
   loading.value = true
 
   try {
-    const { data, error } = await requestPasswordReset({ body: { email: username.value } })
+    const { data, error } = await requestPasswordReset({ body: { email: email.value } })
 
     if (data) {
       showMessage(translate('SUCCESS_PASSWORD_RESET_REQUESTED', undefined), 'success')
-      username.value = ''
+      email.value = ''
     } else if (error) {
       // requestPasswordReset always returns success for security, so this branch
       // only handles unexpected network errors
