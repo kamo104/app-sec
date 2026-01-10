@@ -5,269 +5,28 @@
  * Provides type-safe wrappers around all API endpoints.
  */
 
-import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
-import {
-  ApiResponse,
-  ApiData,
-  RegistrationRequest,
-  LoginRequest,
-  LoginResponseData,
-  EmailVerificationRequest,
-  ValidationErrorData,
-  ResponseCode,
-  SuccessCode,
-  ErrorCode,
-  successCodeToJSON,
-  errorCodeToJSON,
-  CounterData,
-  SetCounterRequest,
-  PasswordResetRequest,
-  PasswordResetCompleteRequest,
-} from '@/generated/api';
-import { translate_success_code, translate_error_code, translate_validation_error } from '@/wasm/api-translator.js';
+// Re-export API client utilities
+export { ApiError, API_BASE_URL } from './api-client';
 
-const API_BASE_URL = 'http://localhost:4000/api';
+// Re-export auth endpoints
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  checkAuth,
+  refreshSession,
+  verifyEmail,
+  requestPasswordReset,
+  completePasswordReset,
+} from './auth/auth';
 
-/**
- * Custom error class for API errors with structured information.
- */
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly errorCode?: ErrorCode,
-    public readonly validationError?: ValidationErrorData
-  ) {
-    super(message);
-    this.name = 'ApiError';
-    Object.setPrototypeOf(this, ApiError.prototype);
-  }
-}
+// Re-export counter endpoints
+export { getCounter, setCounter } from './counter';
 
-/**
- * Encodes a protobuf message to Uint8Array.
- */
-function encodeMessage<T>(message: T, encodeFn: (msg: T, writer?: BinaryWriter) => BinaryWriter): Uint8Array {
-  const writer = encodeFn(message);
-  return writer.finish();
-}
+// Re-export health endpoint
+export { healthCheck } from './health';
 
-/**
- * Decodes a protobuf message from Uint8Array.
- */
-function decodeMessage<T>(data: Uint8Array, decodeFn: (reader: BinaryReader | Uint8Array, length?: number) => T): T {
-  return decodeFn(data);
-}
-
-/**
- * Makes an HTTP request to the API with protobuf encoding.
- */
-async function makeApiRequest(
-  endpoint: string,
-  method: 'GET' | 'POST',
-  requestBody?: Uint8Array
-): Promise<ApiResponse> {
-  const url = `${API_BASE_URL}${endpoint}`;
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/x-protobuf',
-        'Accept': 'application/x-protobuf',
-      },
-      credentials: 'include',
-      body: requestBody as BodyInit | undefined,
-    });
-
-    const responseData = await response.arrayBuffer();
-    const decoded = decodeMessage(new Uint8Array(responseData), ApiResponse.decode);
-
-    // Check response code and handle errors
-    if (decoded.code === ResponseCode.ERROR) {
-      const errorCode = decoded.error ?? ErrorCode.ERROR_CODE_UNSPECIFIED;
-      const errorMessage = translate_error_code(errorCode, undefined);
-      const validationError = decoded.data?.validationError;
-      throw new ApiError(errorMessage, response.status, errorCode, validationError);
-    }
-
-    if (decoded.code !== ResponseCode.SUCCESS) {
-      throw new ApiError('An unexpected response was received', response.status);
-    }
-
-    return decoded;
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new ApiError(
-        'Cannot connect to the server. Please ensure the backend is running.',
-        0,
-        ErrorCode.INTERNAL
-      );
-    }
-
-    throw new ApiError(
-      (error as Error).message || 'An unexpected error occurred',
-      500,
-      ErrorCode.INTERNAL
-    );
-  }
-}
-
-/**
- * Extracts login response data from ApiResponse.
- */
-function extractLoginResponse(response: ApiResponse): LoginResponseData {
-  if (!response.data?.loginResponse) {
-    throw new ApiError('Invalid response: missing login data', 500, ErrorCode.INTERNAL);
-  }
-  return response.data.loginResponse;
-}
-
-/**
- * Extracts counter data from ApiResponse.
- */
-function extractCounterData(response: ApiResponse): CounterData {
-  if (!response.data?.counterData) {
-    throw new ApiError('Invalid response: missing counter data', 500, ErrorCode.INTERNAL);
-  }
-  return response.data.counterData;
-}
-
-/**
- * Register a new user account.
- */
-export async function registerUser(data: {
-  username: string;
-  email: string;
-  password: string;
-}): Promise<ApiResponse> {
-  const request: RegistrationRequest = {
-    username: data.username,
-    email: data.email,
-    password: data.password,
-  };
-  const requestBytes = encodeMessage(request, RegistrationRequest.encode);
-  return makeApiRequest('/register', 'POST', requestBytes);
-}
-
-/**
- * Login with username and password.
- */
-export async function loginUser(data: {
-  username: string;
-  password: string;
-}): Promise<LoginResponseData> {
-  const request: LoginRequest = {
-    username: data.username,
-    password: data.password,
-  };
-  const requestBytes = encodeMessage(request, LoginRequest.encode);
-  const response = await makeApiRequest('/login', 'POST', requestBytes);
-  return extractLoginResponse(response);
-}
-
-/**
- * Verify email address with verification token.
- */
-export async function verifyEmail(token: string): Promise<ApiResponse> {
-  const request: EmailVerificationRequest = { token };
-  const requestBytes = encodeMessage(request, EmailVerificationRequest.encode);
-  return makeApiRequest('/verify-email', 'POST', requestBytes);
-}
-
-/**
- * Get the current counter value.
- */
-export async function getCounter(): Promise<CounterData> {
-  const response = await makeApiRequest('/counter/get', 'GET');
-  return extractCounterData(response);
-}
-
-/**
- * Set the counter to a specific value.
- */
-export async function setCounter(value: number): Promise<CounterData> {
-  const request: SetCounterRequest = { value };
-  const requestBytes = encodeMessage(request, SetCounterRequest.encode);
-  const response = await makeApiRequest('/counter/set', 'POST', requestBytes);
-  return extractCounterData(response);
-}
-
-/**
- * Logout the current user session.
- */
-export async function logoutUser(): Promise<ApiResponse> {
-  return makeApiRequest('/logout', 'POST', new Uint8Array());
-}
-
-/**
- * Request a password reset email.
- */
-export async function requestPasswordReset(email: string): Promise<ApiResponse> {
-  const request: PasswordResetRequest = { email };
-  const requestBytes = encodeMessage(request, PasswordResetRequest.encode);
-  return makeApiRequest('/request-password-reset', 'POST', requestBytes);
-}
-
-/**
- * Complete password reset with token and new password.
- */
-export async function completePasswordReset(data: {
-  token: string;
-  newPassword: string;
-}): Promise<ApiResponse> {
-  const request: PasswordResetCompleteRequest = {
-    token: data.token,
-    newPassword: data.newPassword,
-  };
-  const requestBytes = encodeMessage(request, PasswordResetCompleteRequest.encode);
-  return makeApiRequest('/complete-password-reset', 'POST', requestBytes);
-}
-
-/**
- * Health check endpoint to verify API availability.
- */
-export async function healthCheck(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/x-protobuf',
-      },
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const responseData = await response.arrayBuffer();
-    const decoded = decodeMessage(new Uint8Array(responseData), ApiResponse.decode);
-    return decoded.code === ResponseCode.SUCCESS;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Check if the current session is authenticated.
- */
-export async function checkAuth(): Promise<LoginResponseData> {
-  const response = await makeApiRequest('/auth/check', 'GET');
-  return extractLoginResponse(response);
-}
-
-/**
- * Refresh the current session, extending its expiry time.
- */
-export async function refreshSession(): Promise<LoginResponseData> {
-  const response = await makeApiRequest('/auth/refresh', 'POST', new Uint8Array());
-  return extractLoginResponse(response);
-}
-
+// Re-export types and enums
 export type {
   ApiResponse,
   ApiData,
@@ -280,6 +39,6 @@ export type {
   PasswordResetRequest,
   PasswordResetCompleteRequest,
   ValidationErrorData,
-};
+} from '@/generated/api';
 
-export { ResponseCode, SuccessCode, ErrorCode };
+export { ResponseCode, SuccessCode, ErrorCode, successCodeToJSON, errorCodeToJSON } from '@/generated/api';

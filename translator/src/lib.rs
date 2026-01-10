@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use rust_i18n::t;
 use prost::Message;
 
-use proto_types::v1::{SuccessCode, ErrorCode, FieldType, ValidationErrorCode, ValidationErrorData};
+use proto_types::v1::{SuccessCode, ErrorCode, FieldType, ValidationErrorCode, ValidationErrorData, ApiResponse, ResponseCode};
 use field_validator::{
     USERNAME_CHAR_MIN, USERNAME_CHAR_MAX,
     PASSWORD_CHAR_MIN, PASSWORD_CHAR_MAX,
@@ -14,32 +14,53 @@ use field_validator::{
 // Initialize i18n
 rust_i18n::i18n!("locales");
 
-/// Translates a success code into a localized string.
+/// Translates an arbitrary key with optional locale.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn translate_success_code(code: i32, locale: Option<String>) -> String {
+pub fn translate(key: &str, locale: Option<String>) -> String {
     let locale = locale.unwrap_or_else(|| "en".to_string());
-    let key = match SuccessCode::try_from(code) {
-        Ok(sc) => sc.as_str_name(),
-        Err(_) => SuccessCode::Unspecified.as_str_name(),
-    };
-
     t!(key, locale = &locale).to_string()
 }
 
-/// Translates an error code into a localized string.
+/// Translates an ApiResponse to a localized string.
+/// Automatically determines if it's a success or error code.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn translate_error_code(code: i32, locale: Option<String>) -> String {
+pub fn translate_response(response_bytes: &[u8], locale: Option<String>) -> String {
     let locale = locale.unwrap_or_else(|| "en".to_string());
-    let key = match ErrorCode::try_from(code) {
-        Ok(ec) => ec.as_str_name(),
-        Err(_) => ErrorCode::Unspecified.as_str_name(),
+
+    let response = match ApiResponse::decode(response_bytes) {
+        Ok(r) => r,
+        Err(_) => return t!("INTERNAL", locale = &locale).to_string(),
     };
 
-    t!(key, locale = &locale).to_string()
+    match ResponseCode::try_from(response.code) {
+        Ok(ResponseCode::Success) => {
+            if let Some(proto_types::v1::api_response::Detail::Success(success_code)) = response.detail {
+                let key = match SuccessCode::try_from(success_code) {
+                    Ok(sc) => sc.as_str_name(),
+                    Err(_) => SuccessCode::Unspecified.as_str_name(),
+                };
+                t!(key, locale = &locale).to_string()
+            } else {
+                t!("SUCCESS_OK", locale = &locale).to_string()
+            }
+        }
+        Ok(ResponseCode::Error) => {
+            if let Some(proto_types::v1::api_response::Detail::Error(error_code)) = response.detail {
+                let key = match ErrorCode::try_from(error_code) {
+                    Ok(ec) => ec.as_str_name(),
+                    Err(_) => ErrorCode::Unspecified.as_str_name(),
+                };
+                t!(key, locale = &locale).to_string()
+            } else {
+                t!("INTERNAL", locale = &locale).to_string()
+            }
+        }
+        _ => t!("INTERNAL", locale = &locale).to_string(),
+    }
 }
 
 /// Helper function to interpolate values in translation strings.
-fn translate_with_params(key: &str, field_type: FieldType, error_code: ValidationErrorCode, locale: &str) -> String {
+fn translate_validation_error_with_params(key: &str, field_type: FieldType, error_code: ValidationErrorCode, locale: &str) -> String {
     match (field_type, error_code) {
         (FieldType::Username, ValidationErrorCode::TooShort) => {
             t!(key, locale = locale, min = USERNAME_CHAR_MIN).to_string()
@@ -77,7 +98,7 @@ pub fn translate_validation_error(validation_error_bytes: &[u8], locale: Option<
 
     let validation_error = match ValidationErrorData::decode(validation_error_bytes) {
         Ok(v) => v,
-        Err(_) => return t!("RESPONSE_CODE_UNSPECIFIED", locale = &locale).to_string(),
+        Err(_) => return t!("INTERNAL", locale = &locale).to_string(),
     };
 
     let mut all_error_messages = Vec::new();
@@ -88,17 +109,13 @@ pub fn translate_validation_error(validation_error_bytes: &[u8], locale: Option<
             Err(_) => continue,
         };
 
-        let field_name = field_type.as_str_name();
-
         for error_code in field_error.errors {
             let validation_code = match ValidationErrorCode::try_from(error_code) {
                 Ok(vc) => vc,
                 Err(_) => continue,
             };
 
-            let code_name = validation_code.as_str_name();
-            let translation_key = format!("{}_{}", field_name, code_name);
-            let message = translate_with_params(&translation_key, field_type, validation_code, &locale);
+            let message = translate_field_validation_error(field_error.field, error_code, Some(locale.clone()));
             all_error_messages.push(message);
         }
     }
@@ -107,23 +124,23 @@ pub fn translate_validation_error(validation_error_bytes: &[u8], locale: Option<
 }
 
 /// Translates a single validation error code for a specific field.
+/// This is a public helper function for translating individual field errors.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn translate_field_validation_error(field: i32, error_code: i32, locale: Option<String>) -> String {
     let locale = locale.unwrap_or_else(|| "en".to_string());
 
     let field_type = match FieldType::try_from(field) {
         Ok(ft) => ft,
-        Err(_) => return t!("RESPONSE_CODE_UNSPECIFIED", locale = &locale).to_string(),
+        Err(_) => return t!("INTERNAL", locale = &locale).to_string(),
     };
 
     let validation_code = match ValidationErrorCode::try_from(error_code) {
         Ok(vc) => vc,
-        Err(_) => return t!("RESPONSE_CODE_UNSPECIFIED", locale = &locale).to_string(),
+        Err(_) => return t!("INTERNAL", locale = &locale).to_string(),
     };
 
     let field_name = field_type.as_str_name();
     let code_name = validation_code.as_str_name();
     let translation_key = format!("{}_{}", field_name, code_name);
-
-    translate_with_params(&translation_key, field_type, validation_code, &locale)
+    translate_validation_error_with_params(&translation_key, field_type, validation_code, &locale)
 }

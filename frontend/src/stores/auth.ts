@@ -89,8 +89,8 @@ export const useAuthStore = defineStore('auth', () => {
       console.log(`Session refresh scheduled in ${refreshIn} seconds`)
       refreshTimer = setTimeout(async () => {
         try {
-          const newData = await refreshSession()
-          setUser(newData)
+          const { loginData } = await refreshSession()
+          setUser(loginData)
           console.log('Session refreshed successfully')
         } catch (e) {
           console.error('Failed to refresh session, logging out', e)

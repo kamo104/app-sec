@@ -44,7 +44,7 @@
 import { ref } from 'vue'
 import { validate_password_detailed } from '@/wasm/field-validator.js'
 import { ValidationDetailedPasswordData, ValidationFieldError, PasswordStrength } from '@/generated/api'
-import { translate_field_validation_error } from '@/wasm/api-translator.js'
+import { translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
   modelValue: string

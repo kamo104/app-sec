@@ -36,19 +36,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
-name = "api-translator"
-version = "0.1.0"
-dependencies = [
- "field-validator",
- "prost",
- "proto-types",
- "rust-i18n",
- "serde",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "ar_archive_writer"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -945,6 +932,19 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "translator"
+version = "0.1.0"
+dependencies = [
+ "field-validator",
+ "prost",
+ "proto-types",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "triomphe"

@@ -80,7 +80,7 @@ onMounted(async () => {
 const fetchServerCounter = async () => {
   loadingCounter.value = true
   try {
-    const counterData = await getCounter()
+    const { counterData } = await getCounter()
     counter.value = Number(counterData.value)
   } catch (e) {
     console.error('Failed to fetch counter from server', e)
@@ -93,8 +93,8 @@ const incrementCounter = async (): Promise<void> => {
   loadingCounter.value = true
   const newValue = counter.value + 1
   try {
-    const result = await setCounter(newValue)
-    counter.value = Number(result.value)
+    const { counterData } = await setCounter(newValue)
+    counter.value = Number(counterData.value)
   } catch (e) {
     console.error('Failed to update counter on server', e)
   } finally {

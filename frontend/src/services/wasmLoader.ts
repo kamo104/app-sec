@@ -1,5 +1,5 @@
 import initFieldValidator from '@/wasm/field-validator.js'
-import initApiTranslator from '@/wasm/api-translator.js'
+import initApiTranslator from '@/wasm/translator.js'
 
 let wasmInitialized = false
 let initializationPromise: Promise<void> | null = null

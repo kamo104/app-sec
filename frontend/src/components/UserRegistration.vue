@@ -67,8 +67,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { registerUser, type ApiError, SuccessCode } from '@/services/api'
-import { translate_success_code, translate_validation_error } from '@/wasm/api-translator.js'
+import { registerUser, type ApiError } from '@/services/api'
+import { translate_response, translate_validation_error } from '@/wasm/translator.js'
 import { FieldType } from '@/generated/api'
 
 // Import reusable components
@@ -165,14 +165,13 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const response = await registerUser({
+    const { bytes } = await registerUser({
       username: formData.username,
       email: formData.email,
       password: formData.password,
     })
 
-    const successCode = response.success ?? SuccessCode.SUCCESS_CODE_UNSPECIFIED
-    const message = translate_success_code(successCode, undefined)
+    const message = translate_response(bytes, undefined)
     showMessage(message, 'success')
   } catch (error) {
     const apiError = error as ApiError

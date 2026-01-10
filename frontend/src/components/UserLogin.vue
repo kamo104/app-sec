@@ -64,8 +64,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginUser, requestPasswordReset, type ApiError, ErrorCode, SuccessCode } from '@/services/api'
-import { translate_error_code, translate_validation_error, translate_success_code } from '@/wasm/api-translator.js'
+import { loginUser, requestPasswordReset, type ApiError, ErrorCode, errorCodeToJSON } from '@/services/api'
+import { translate, translate_response, translate_validation_error } from '@/wasm/translator.js'
 import { FieldType } from '@/generated/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -130,7 +130,7 @@ const handleSubmit = async () => {
 
   // Check if fields are empty before validation
   if (!formData.username.trim() || !formData.password.trim()) {
-    showMessage(translate_error_code(ErrorCode.INVALID_INPUT, 'en'), 'error')
+    showMessage(translate('LOGIN_FIELDS_REQUIRED', 'en'), 'error')
     return
   }
 
@@ -151,18 +151,18 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const loginResponse = await loginUser({
+    const { loginData, bytes } = await loginUser({
       username: formData.username,
       password: formData.password,
     })
 
-    showMessage(translate_success_code(SuccessCode.SUCCESS_LOGGED_IN, 'en'), 'success')
+    showMessage(translate_response(bytes, undefined), 'success')
 
     // Store user in auth store
-    authStore.setUser(loginResponse)
+    authStore.setUser(loginData)
 
     // Redirect to home
-    console.log('Login successful:', loginResponse)
+    console.log('Login successful:', loginData)
     router.push('/')
   } catch (error) {
     const apiError = error as ApiError
@@ -189,14 +189,13 @@ const handleSubmit = async () => {
           passwordField.value.hasError = true
         }
       }
-      showMessage(translate_error_code(ErrorCode.VALIDATION, 'en'), 'error')
+      showMessage(translate(errorCodeToJSON(ErrorCode.VALIDATION), 'en'), 'error')
     } else if (apiError.status === 401) {
-      // Use the actual error message from the backend
-      showMessage(apiError.message || translate_error_code(ErrorCode.INVALID_CREDENTIALS, 'en'), 'error')
+      showMessage(apiError.message || translate(errorCodeToJSON(ErrorCode.INVALID_CREDENTIALS), 'en'), 'error')
     } else if (apiError.status === 0) {
-      showMessage(translate_error_code(ErrorCode.INTERNAL, 'en'), 'error')
+      showMessage(translate(errorCodeToJSON(ErrorCode.INTERNAL), 'en'), 'error')
     } else {
-      showMessage(apiError.message || translate_error_code(ErrorCode.INTERNAL, 'en'), 'error')
+      showMessage(apiError.message || translate(errorCodeToJSON(ErrorCode.INTERNAL), 'en'), 'error')
     }
   } finally {
     loading.value = false

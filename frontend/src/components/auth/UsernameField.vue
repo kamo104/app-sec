@@ -20,7 +20,7 @@
 import { ref } from 'vue'
 import { validate_field } from '@/wasm/field-validator.js'
 import { ValidationFieldError } from '@/generated/api'
-import { translate_field_validation_error } from '@/wasm/api-translator.js'
+import { translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
   modelValue: string

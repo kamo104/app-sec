@@ -87,8 +87,8 @@ print_status "Building libraries..."
 # Build field-validator
 build_wasm_crate "field-validator" "field-validator" "wasm"
 
-# Build api-translator
-build_wasm_crate "api-translator" "api-translator" "wasm"
+# Build translator
+build_wasm_crate "translator" "translator" "wasm"
 
 print_success "Libraries built and bindings generated"
 

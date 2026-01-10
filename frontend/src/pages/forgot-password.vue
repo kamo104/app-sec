@@ -46,8 +46,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { requestPasswordReset } from '@/services/api'
-import { translate_success_code } from '@/wasm/api-translator.js'
-import { SuccessCode } from '@/generated/api'
+import { translate_response } from '@/wasm/translator.js'
 
 // Import reusable components
 import AuthFormLayout from '@/components/auth/AuthFormLayout.vue'
@@ -92,9 +91,8 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const response = await requestPasswordReset(username.value)
-    const successCode = response.success ?? SuccessCode.SUCCESS_CODE_UNSPECIFIED
-    showMessage(translate_success_code(successCode, 'en'), 'success')
+    const { bytes } = await requestPasswordReset(username.value)
+    showMessage(translate_response(bytes, undefined), 'success')
     username.value = ''
   } catch (e: any) {
     console.error('Password reset request failed', e)
