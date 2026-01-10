@@ -1,0 +1,21 @@
+{
+  "id": "f712c7f2-180b-4362-bb76-98a19ea4f55a",
+  "name": "ArXiv Template 2020",
+  "description": "A standard ArXiv template for preprint papers. This template is based on the ArXiv-style NeurIPS template (https://github.com/kourgeorge/arxiv-style). ArXiv template by George Kour is licensed under MIT - Copyright (c) 2020. ",
+  "type": "latex",
+  "docUrl": "yjs:sdgm8gogpn0ozdls9iuxja",
+  "createdAt": 1768072511002,
+  "updatedAt": 1768072522928,
+  "ownerId": "8bbf4b22-ccd7-4948-8c51-e6045cdb6c15",
+  "tags": [
+    "paper",
+    "journal",
+    "preprint",
+    "arxiv",
+    "scientific",
+    "open-access",
+    "template"
+  ],
+  "isFavorite": false,
+  "lastSync": 1768072889441
+}
