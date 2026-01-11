@@ -11,17 +11,17 @@
 \texttt{user\_id} & INTEGER & PRIMARY KEY AUTOINCREMENT & Unique user identifier \\
 \texttt{username} & TEXT & UNIQUE, NOT NULL & Indexed for lookup \\
 \texttt{email} & TEXT & UNIQUE, NOT NULL & Stored normalized (lowercase) \\
-\texttt{password} & TEXT & NULLABLE & Argon2 hash; NULL during password reset \\
+\texttt{password} & TEXT & NOT NULL & Argon2 hash in PHC format \\
 \texttt{email\_verified} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: 0=false, 1=true \\
 \texttt{email\_verified\_at} & INTEGER & NULLABLE & Unix timestamp when verified \\
-\texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
+% Login_4 scope - password reset field
+% \texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
 \bottomrule
 \end{longtable}
 
 Constraints and notes:
 \begin{itemize}[leftmargin=*,nosep]
   \item Unique constraints on \texttt{username} and \texttt{email} prevent duplicates.
-  \item \texttt{password} field is nullable to support password reset flow (Login\_4 scope).
   \item \texttt{email\_verified} must be true before user can log in.
 \end{itemize}
 

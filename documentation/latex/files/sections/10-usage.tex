@@ -1,54 +1,26 @@
 % Usage Examples - Development mode, examples, libraries, version history
 \section{Usage Examples}
 
-\subsection{Development Mode}
+\subsection{Building and Running}
 
-Run the backend and frontend in development mode:
+The project uses \texttt{build.sh} to orchestrate the entire build process:
 
 \begin{verbatim}
-# Full build with client generation (recommended first time)
+# Full build (WASM, backend, OpenAPI client, frontend)
 ./build.sh
 
-# Or for development with hot reload
+# Development mode with hot reload
 ./dev.sh
 \end{verbatim}
 
-The \texttt{build.sh} script performs:
-\begin{enumerate}[leftmargin=*,nosep]
-  \item Builds WASM modules (\texttt{field-validator}, \texttt{translator}).
-  \item Builds and starts the backend in dev mode.
-  \item Fetches OpenAPI spec from \texttt{http://localhost:4000/api/openapi.json}.
-  \item Generates TypeScript client using \texttt{@hey-api/openapi-ts}.
-  \item Builds the frontend.
-\end{enumerate}
+The build script handles: WASM module compilation, backend build, OpenAPI spec generation, TypeScript client generation, and frontend build.
 
 In development mode:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Database is unencrypted (\texttt{data\_dev.db}).
-  \item Emails are sent to MailHog at \texttt{127.0.0.1:1025}.
-  \item View emails at \texttt{http://localhost:8025}.
-  \item Swagger UI available at \texttt{http://localhost:4000/api/docs}.
-  \item OpenAPI spec at \texttt{http://localhost:4000/api/openapi.json}.
+  \item Swagger UI available at \texttt{http://localhost:4000/api/docs}
+  \item Emails sent to MailHog at \texttt{http://localhost:8025}
+  \item Database is unencrypted (\texttt{data\_dev.db})
 \end{itemize}
-
-\subsection{Regenerating the API Client}
-
-When backend API changes, regenerate the frontend client:
-
-\begin{verbatim}
-# Ensure backend is running with --dev flag
-cd backend && cargo run -- --dev &
-
-# Fetch new OpenAPI spec
-curl -s http://localhost:4000/api/openapi.json \
-  > frontend/src/generated/openapi.json
-
-# Regenerate TypeScript client
-cd frontend
-npm run generate:api
-\end{verbatim}
-
-Or simply re-run \texttt{./build.sh} which handles everything automatically.
 
 \subsection{Registration Flow Example}
 

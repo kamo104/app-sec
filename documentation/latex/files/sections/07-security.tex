@@ -1,96 +1,127 @@
-% Security Features Summary - Implemented measures and future enhancements
-\section{Security Features Summary}
+% Security Features Summary - Security assumptions for draft
+\section{Security Assumptions}
 
-\subsection{Implemented Security Measures}
+This section describes the security measures planned for the registration module.
 
-\subsubsection*{Password Hashing}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item Argon2 algorithm (memory-hard, GPU-resistant).
-  \item Random salt generated using \texttt{SaltString::generate(\&mut OsRng)}.
-  \item Password hash stored in PHC string format (includes algorithm, parameters, salt).
-  \item Passwords are never logged, stored in plaintext, or returned to clients.
-\end{itemize}
-
-\subsubsection*{Token Security}
+\subsection{Password Security}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Verification tokens are 32 bytes of cryptographically secure random data.
-  \item Tokens are hex-encoded for transmission (64 characters).
-  \item Only SHA256 hashes of tokens are stored in the database.
-  \item Plaintext tokens are sent only via email and never logged.
-  \item Tokens have configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
-  \item One token per user (primary key constraint).
+  % Implementation details - commented out for Registration_3 draft
+  % \item Argon2 algorithm (memory-hard, GPU-resistant).
+  % \item Random salt generated using \texttt{SaltString::generate(\&mut OsRng)}.
+  % \item Password hash stored in PHC string format (includes algorithm, parameters, salt).
+  % \item Passwords are never logged, stored in plaintext, or returned to clients.
+  \item Passwords hashed using memory-hard algorithm (Argon2).
+  \item Random salt generated per password.
+  \item Passwords never stored in plaintext, logged, or returned to clients.
 \end{itemize}
 
-\subsubsection*{Database Encryption}
+\subsection{Token Security}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item SQLite database encrypted with SQLCipher.
-  \item 32-byte encryption key (256-bit AES).
-  \item Key stored in system keyring or environment variable (\texttt{APPSEC\_DB\_KEY}).
-  \item Development mode uses unencrypted database for convenience.
+  % Implementation details - commented out for Registration_3 draft
+  % \item Verification tokens are 32 bytes of cryptographically secure random data.
+  % \item Tokens are hex-encoded for transmission (64 characters).
+  % \item Only SHA256 hashes of tokens are stored in the database.
+  % \item Plaintext tokens are sent only via email and never logged.
+  % \item Tokens have configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
+  % \item One token per user (primary key constraint).
+  \item Verification tokens generated using cryptographically secure random data.
+  \item Only hashes of tokens stored in database.
+  \item Plaintext tokens sent only via email.
+  \item Tokens have configurable expiry time.
+  \item One active token per user.
 \end{itemize}
 
-\subsubsection*{Input Validation}
+\subsection{Database Security}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Dual validation: frontend (WASM) and backend (native Rust).
-  \item Shared validation logic ensures consistency via \texttt{field-validator} crate.
-  \item Username: 3--20 printable UTF-8 characters.
-  \item Email: Valid format validated with \texttt{lettre::Address}.
-  \item Password: 8--64 characters, requires uppercase, lowercase, digit, special character.
-  \item Backend validation is authoritative; frontend validation improves UX.
+  % Implementation details - commented out for Registration_3 draft
+  % \item SQLite database encrypted with SQLCipher.
+  % \item 32-byte encryption key (256-bit AES).
+  % \item Key stored in system keyring or environment variable (\texttt{APPSEC\_DB\_KEY}).
+  % \item Development mode uses unencrypted database for convenience.
+  \item Database encrypted at rest (SQLCipher).
+  \item Encryption key stored securely (system keyring or environment variable).
+  \item Foreign keys with CASCADE delete ensure data consistency.
 \end{itemize}
 
-\subsubsection*{Error Handling and Enumeration Resistance}
+\subsection{Input Validation}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Typed error codes from \texttt{api-types} crate.
-  \item Specific codes for \texttt{USERNAME\_TAKEN} and \texttt{EMAIL\_TAKEN} (HTTP 409).
-  \item Validation errors include field-specific details for user feedback.
-  \item Internal errors return generic \texttt{INTERNAL} code (HTTP 500).
-  \item All error codes translated to user-friendly messages via \texttt{translator} crate.
+  % Implementation details - commented out for Registration_3 draft
+  % \item Dual validation: frontend (WASM) and backend (native Rust).
+  % \item Shared validation logic ensures consistency via \texttt{field-validator} crate.
+  % \item Username: 3--20 printable UTF-8 characters.
+  % \item Email: Valid format validated with \texttt{lettre::Address}.
+  % \item Password: 8--64 characters, requires uppercase, lowercase, digit, special character.
+  % \item Backend validation is authoritative; frontend validation improves UX.
+  \item Dual validation on frontend and backend.
+  \item Shared validation logic ensures consistency.
+  \item Backend validation is authoritative.
 \end{itemize}
 
-\subsubsection*{Automatic Cleanup}
+\subsection{Transport Security}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Hourly cleanup task runs asynchronously.
-  \item Deletes expired verification tokens.
-  \item Deletes unverified users whose tokens have expired (via CASCADE).
-  \item Prevents database bloat from abandoned registrations.
+  \item HTTPS required in production for all credential transmission.
+  \item Development environment may use HTTP for convenience.
 \end{itemize}
 
-\subsubsection*{Email Delivery}
+% Implementation details - commented out for Registration_3 draft
+% \subsection{Implemented Security Measures}
+%
+% \subsubsection*{Error Handling and Enumeration Resistance}
+%
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item Typed error codes from \texttt{api-types} crate.
+%   \item Specific codes for \texttt{USERNAME\_TAKEN} and \texttt{EMAIL\_TAKEN} (HTTP 409).
+%   \item Validation errors include field-specific details for user feedback.
+%   \item Internal errors return generic \texttt{INTERNAL} code (HTTP 500).
+%   \item All error codes translated to user-friendly messages via \texttt{translator} crate.
+% \end{itemize}
+%
+% \subsubsection*{Automatic Cleanup}
+%
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item Hourly cleanup task runs asynchronously.
+%   \item Deletes expired verification tokens.
+%   \item Deletes unverified users whose tokens have expired (via CASCADE).
+%   \item Prevents database bloat from abandoned registrations.
+% \end{itemize}
+%
+% \subsubsection*{Email Delivery}
+%
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item SMTP-based email sending via \texttt{lettre} crate.
+%   \item Development: MailHog at \texttt{127.0.0.1:1025}.
+%   \item Production: Configurable SMTP server.
+%   \item On email failure, user record is deleted (transactional rollback).
+% \end{itemize}
+%
+% \subsubsection*{Foreign Key Integrity}
+%
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item Foreign keys enabled with \texttt{PRAGMA foreign\_keys = ON}.
+%   \item CASCADE delete on all child tables.
+%   \item Ensures data consistency when users are deleted.
+% \end{itemize}
 
-\begin{itemize}[leftmargin=*,nosep]
-  \item SMTP-based email sending via \texttt{lettre} crate.
-  \item Development: MailHog at \texttt{127.0.0.1:1025}.
-  \item Production: Configurable SMTP server.
-  \item On email failure, user record is deleted (transactional rollback).
-\end{itemize}
+\subsection{Future Enhancements}
 
-\subsubsection*{Foreign Key Integrity}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item Foreign keys enabled with \texttt{PRAGMA foreign\_keys = ON}.
-  \item CASCADE delete on all child tables.
-  \item Ensures data consistency when users are deleted.
-\end{itemize}
-
-\subsection{Future Security Enhancements}
-
-Planned or potential enhancements (Registration\_3 scope):
+Potential security enhancements for Registration\_3 scope:
 
 \begin{itemize}[leftmargin=*,nosep]
   \item Rate limiting on registration endpoint.
   \item CAPTCHA integration for bot mitigation.
   \item Email domain whitelist/blacklist.
   \item Invite token system for controlled registration.
-  % Login_4.md related - commented out for Registration_3.md draft
-  % \item Session management using secure cookies.
-  % \item Password reset flow with secure tokens.
-  % \item Account lockout after repeated failures.
-  % \item Multi-factor authentication (MFA).
 \end{itemize}
+
+% Login_4 scope - commented out for Registration_3 draft
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item Session management using secure cookies.
+%   \item Password reset flow with secure tokens.
+%   \item Account lockout after repeated failures.
+%   \item Multi-factor authentication (MFA).
+% \end{itemize}

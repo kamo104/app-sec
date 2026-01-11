@@ -157,31 +157,11 @@ This section lists the core implementation files for the registration module.
 \subsection{Build and Configuration Files}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{build.sh}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Main build script orchestrating the entire build process.
-    \item Builds WASM modules, backend, fetches OpenAPI spec, generates client, builds frontend.
-    \item Fetches OpenAPI: \texttt{curl -s http://localhost:4000/api/openapi.json > frontend/src/generated/openapi.json}
-    \item Generates client: \texttt{npx @hey-api/openapi-ts --input ... --output ... --client @hey-api/client-fetch}
-  \end{itemize}
-  \item \texttt{dev.sh}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Development script: runs build.sh, then starts MailHog and backend in watch mode.
-  \end{itemize}
-  \item \texttt{frontend/package.json}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item NPM script \texttt{generate:api} for standalone client regeneration.
-  \end{itemize}
-  \item \texttt{backend/.env}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Environment variables for token durations, base URLs.
-  \end{itemize}
-  \item \texttt{backend/build.rs}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Reads \texttt{.env} and generates compile-time constants.
-  \end{itemize}
-  \item \texttt{Cargo.toml} (workspace root)
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Workspace configuration with \texttt{utoipa}, \texttt{utoipa-axum}, \texttt{utoipa-swagger-ui} dependencies.
-  \end{itemize}
+  \item \texttt{build.sh} -- Main build script (WASM, backend, OpenAPI, frontend)
+  \item \texttt{dev.sh} -- Development mode launcher
+  \item \texttt{Dockerfile} -- Container build configuration
+  \item \texttt{backend/.env} -- Environment variables (token durations, base URLs)
+  \item \texttt{backend/build.rs} -- Compile-time constant generation
+  \item \texttt{Cargo.toml} -- Workspace with utoipa dependencies
+  \item \texttt{frontend/package.json} -- NPM scripts including \texttt{generate:api}
 \end{itemize}

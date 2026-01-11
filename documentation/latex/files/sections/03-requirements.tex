@@ -11,12 +11,15 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Registration is exposed via \texttt{POST /api/register} endpoint.
+  % Implementation details - commented out for Registration_3 draft
+  % \item Registration is exposed via \texttt{POST /api/register} endpoint.
   \item The frontend provides a registration form with real-time validation.
   \item Username must be 3--20 characters, printable UTF-8 only.
-  \item Email must be valid format (validated using \texttt{lettre::Address}).
+  % \item Email must be valid format (validated using \texttt{lettre::Address}).
+  \item Email must be valid format.
   \item Password must be 8--64 characters with uppercase, lowercase, digit, and special character.
-  \item Returns specific error codes: \texttt{USERNAME\_TAKEN}, \texttt{EMAIL\_TAKEN}, \texttt{VALIDATION}.
+  % \item Returns specific error codes: \texttt{USERNAME\_TAKEN}, \texttt{EMAIL\_TAKEN}, \texttt{VALIDATION}.
+  \item Returns specific error codes for duplicate username/email and validation failures.
 \end{itemize}
 
 \subsubsection{FR-2: Email Verification}
@@ -27,11 +30,18 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item On successful registration, a 32-byte verification token is generated.
-  \item Token is stored as SHA256 hash in \texttt{email\_verification\_tokens} table.
-  \item Verification email is sent via SMTP with link: \texttt{\{BASE\_URL\}/verify-email?token=\{token\}}.
-  \item Token has configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
-  \item \texttt{POST /api/verify-email} endpoint verifies token and marks user as verified.
+  % Implementation details - commented out for Registration_3 draft
+  % \item On successful registration, a 32-byte verification token is generated.
+  % \item Token is stored as SHA256 hash in \texttt{email\_verification\_tokens} table.
+  % \item Verification email is sent via SMTP with link: \texttt{\{BASE\_URL\}/verify-email?token=\{token\}}.
+  % \item Token has configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
+  % \item \texttt{POST /api/verify-email} endpoint verifies token and marks user as verified.
+  % \item Token is deleted after successful verification.
+  \item On successful registration, a secure verification token is generated.
+  \item Token hash is stored in database (plaintext never stored).
+  \item Verification email sent via SMTP with verification link.
+  \item Token has configurable expiry.
+  \item Verification endpoint validates token and marks user as verified.
   \item Token is deleted after successful verification.
 \end{itemize}
 
@@ -43,12 +53,19 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Shared validation logic in \texttt{field-validator} crate (compiled to WASM for frontend).
+  % Implementation details - commented out for Registration_3 draft
+  % \item Shared validation logic in \texttt{field-validator} crate (compiled to WASM for frontend).
+  % \item Username: 3--20 characters, printable UTF-8.
+  % \item Email: Valid format checked via \texttt{lettre::Address}.
+  % \item Password: 8--64 characters, at least 1 uppercase, 1 lowercase, 1 digit, 1 special character.
+  % \item Password strength score calculated (0--7 scale): Weak ($\leq$3), Medium (4--5), Strong (6), CIA (7).
+  % \item Validation errors are translated to user-friendly messages via \texttt{translator} crate.
+  \item Shared validation logic compiled to WASM for frontend use.
   \item Username: 3--20 characters, printable UTF-8.
-  \item Email: Valid format checked via \texttt{lettre::Address}.
-  \item Password: 8--64 characters, at least 1 uppercase, 1 lowercase, 1 digit, 1 special character.
-  \item Password strength score calculated (0--7 scale): Weak ($\leq$3), Medium (4--5), Strong (6), CIA (7).
-  \item Validation errors are translated to user-friendly messages via \texttt{translator} crate.
+  \item Email: Valid format.
+  \item Password: 8--64 characters with complexity requirements.
+  \item Password strength score calculated with visual indicator.
+  \item Validation errors translated to user-friendly messages.
 \end{itemize}
 
 \subsubsection{FR-4: Error Handling}
@@ -59,10 +76,15 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Error responses use typed error codes from \texttt{api-types} crate.
-  \item Validation errors include field-specific error codes (e.g., \texttt{TOO\_SHORT}, \texttt{INVALID\_FORMAT}).
-  \item All error codes are translated via \texttt{translator} crate with localization support.
-  \item Server errors logged internally; clients receive generic \texttt{INTERNAL} error.
+  % Implementation details - commented out for Registration_3 draft
+  % \item Error responses use typed error codes from \texttt{api-types} crate.
+  % \item Validation errors include field-specific error codes (e.g., \texttt{TOO\_SHORT}, \texttt{INVALID\_FORMAT}).
+  % \item All error codes are translated via \texttt{translator} crate with localization support.
+  % \item Server errors logged internally; clients receive generic \texttt{INTERNAL} error.
+  \item Error responses use typed error codes.
+  \item Validation errors include field-specific error codes.
+  \item All error codes translated with localization support.
+  \item Server errors logged internally; clients receive generic error.
 \end{itemize}
 
 \subsubsection{FR-5: Token Lifecycle}
@@ -73,24 +95,31 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Each user can have only one active verification token (primary key on \texttt{user\_id}).
+  % Implementation details - commented out for Registration_3 draft
+  % \item Each user can have only one active verification token (primary key on \texttt{user\_id}).
+  % \item Tokens expire after configurable duration.
+  % \item Expired tokens are automatically cleaned up by hourly cleanup task.
+  % \item Unverified users with expired tokens are deleted (cascading foreign key).
+  % \item Token is deleted upon successful verification.
+  \item Each user can have only one active verification token.
   \item Tokens expire after configurable duration.
-  \item Expired tokens are automatically cleaned up by hourly cleanup task.
-  \item Unverified users with expired tokens are deleted (cascading foreign key).
+  \item Expired tokens are automatically cleaned up.
+  \item Unverified users with expired tokens are deleted.
   \item Token is deleted upon successful verification.
 \end{itemize}
 
-\subsubsection{FR-6: Health Check}
-
-\textbf{ID}: FR-6
-
-\textbf{Description}: The module must expose a health endpoint for monitoring.
-
-\textbf{Details}:
-\begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{GET /api/health} returns basic health status.
-  \item Does not expose internal state or user data.
-\end{itemize}
+% Implementation details - commented out for Registration_3 draft
+% \subsubsection{FR-6: Health Check}
+%
+% \textbf{ID}: FR-6
+%
+% \textbf{Description}: The module must expose a health endpoint for monitoring.
+%
+% \textbf{Details}:
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item \texttt{GET /api/health} returns basic health status.
+%   \item Does not expose internal state or user data.
+% \end{itemize}
 
 \subsection{Non-Functional Requirements}
 
@@ -102,54 +131,70 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Passwords hashed with Argon2 (memory-hard, GPU-resistant).
-  \item Verification tokens stored as SHA256 hashes only.
-  \item Database encrypted with SQLCipher (32-byte key from keyring or environment).
+  % Implementation details - commented out for Registration_3 draft
+  % \item Passwords hashed with Argon2 (memory-hard, GPU-resistant).
+  % \item Verification tokens stored as SHA256 hashes only.
+  % \item Database encrypted with SQLCipher (32-byte key from keyring or environment).
+  % \item HTTPS enforced in production.
+  % \item Input validated on both frontend and backend.
+  % \item Generic error responses prevent user enumeration.
+  % \item Foreign keys with CASCADE ensure data cleanup on user deletion.
+  \item Passwords hashed with memory-hard algorithm.
+  \item Verification tokens stored as hashes only.
+  \item Database encrypted at rest.
   \item HTTPS enforced in production.
   \item Input validated on both frontend and backend.
-  \item Generic error responses prevent user enumeration.
-  \item Foreign keys with CASCADE ensure data cleanup on user deletion.
 \end{itemize}
 
-\subsubsection{NFR-2: Performance}
+% Implementation details - commented out for Registration_3 draft
+% \subsubsection{NFR-2: Performance}
+%
+% \textbf{ID}: NFR-2
+%
+% \textbf{Description}: The module must handle typical registration loads efficiently.
+%
+% \textbf{Details}:
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item SQLite database with connection pooling.
+%   \item Argon2 parameters balanced for security and latency.
+%   \item Hourly cleanup task runs asynchronously.
+%   \item Frontend validation reduces unnecessary backend requests.
+% \end{itemize}
+
+\subsubsection{NFR-2: Reliability}
 
 \textbf{ID}: NFR-2
-
-\textbf{Description}: The module must handle typical registration loads efficiently.
-
-\textbf{Details}:
-\begin{itemize}[leftmargin=*,nosep]
-  \item SQLite database with connection pooling.
-  \item Argon2 parameters balanced for security and latency.
-  \item Hourly cleanup task runs asynchronously.
-  \item Frontend validation reduces unnecessary backend requests.
-\end{itemize}
-
-\subsubsection{NFR-3: Reliability}
-
-\textbf{ID}: NFR-3
 
 \textbf{Description}: The module must be fault-tolerant.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item On email sending failure, user record is deleted (rollback).
-  \item Foreign keys with CASCADE ensure referential integrity.
-  \item Automatic cleanup of expired tokens prevents database bloat.
-  \item Verification endpoint is idempotent (returns success if already verified).
+  % Implementation details - commented out for Registration_3 draft
+  % \item On email sending failure, user record is deleted (rollback).
+  % \item Foreign keys with CASCADE ensure referential integrity.
+  % \item Automatic cleanup of expired tokens prevents database bloat.
+  % \item Verification endpoint is idempotent (returns success if already verified).
+  \item On email sending failure, user record is rolled back.
+  \item Foreign keys ensure referential integrity.
+  \item Automatic cleanup of expired tokens.
 \end{itemize}
 
-\subsubsection{NFR-4: Usability}
+\subsubsection{NFR-3: Usability}
 
-\textbf{ID}: NFR-4
+\textbf{ID}: NFR-3
 
 \textbf{Description}: The module must provide clear user feedback.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
+  % Implementation details - commented out for Registration_3 draft
+  % \item Real-time field validation on frontend.
+  % \item Password strength indicator with 0--7 score and strength labels.
+  % \item Translated error messages for all validation failures.
+  % \item Success message instructs user to check email for verification.
+  % \item Verification page shows clear success/error states with navigation.
   \item Real-time field validation on frontend.
-  \item Password strength indicator with 0--7 score and strength labels.
+  \item Password strength indicator.
   \item Translated error messages for all validation failures.
-  \item Success message instructs user to check email for verification.
-  \item Verification page shows clear success/error states with navigation.
+  \item Clear success/error states on all pages.
 \end{itemize}
