@@ -1,55 +1,85 @@
 % Database Structure - Tables and constraints
 \section{Database Structure}
 
-\subsection{Users Table}
+\subsection{User Login Table (\texttt{user\_login})}
 
 \begin{longtable}{@{}llll@{}}
 \toprule
 \textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
 \midrule
 \endhead
-\texttt{id} & UUID / INTEGER & Primary key & Unique user identifier \\
-\texttt{username} & TEXT & Unique, NOT NULL & Indexed for lookup \\
-\texttt{email} & TEXT & Unique, NOT NULL & Indexed, stored normalized \\
-\texttt{password\_hash} & TEXT & NOT NULL & Argon2 hash, never plaintext \\
-\texttt{is\_verified} & BOOLEAN & NOT NULL, default \texttt{false} & Becomes \texttt{true} after verification \\
-\texttt{created\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} &  \\
-\texttt{updated\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} & Updated on changes \\
+\texttt{user\_id} & INTEGER & PRIMARY KEY AUTOINCREMENT & Unique user identifier \\
+\texttt{username} & TEXT & UNIQUE, NOT NULL & Indexed for lookup \\
+\texttt{email} & TEXT & UNIQUE, NOT NULL & Stored normalized (lowercase) \\
+\texttt{password} & TEXT & NULLABLE & Argon2 hash; NULL during password reset \\
+\texttt{email\_verified} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: 0=false, 1=true \\
+\texttt{email\_verified\_at} & INTEGER & NULLABLE & Unix timestamp when verified \\
+\texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
 \bottomrule
 \end{longtable}
 
-Typical constraints and checks:
-
+Constraints and notes:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Unique constraint on \texttt{(username)} and \texttt{(email)}.
-  \item Email stored in lowercase to avoid duplicates by case difference.
-  \item Application logic prevents updates that would violate uniqueness.
+  \item Unique constraints on \texttt{username} and \texttt{email} prevent duplicates.
+  \item \texttt{password} field is nullable to support password reset flow (Login\_4 scope).
+  \item \texttt{email\_verified} must be true before user can log in.
 \end{itemize}
 
-\subsection{Verification Tokens Table}
+\subsection{User Data Table (\texttt{user\_data})}
 
 \begin{longtable}{@{}llll@{}}
 \toprule
 \textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
 \midrule
 \endhead
-\texttt{id} & UUID / INTEGER & Primary key & Internal identifier \\
-\texttt{user\_id} & UUID / INTEGER & NOT NULL, FK $\rightarrow$ \texttt{users.id} & Indexed for lookups \\
-\texttt{token\_hash} & TEXT & NOT NULL & Hash of random token, unique \\
-\texttt{expires\_at} & TIMESTAMP & NOT NULL & Tokens invalid after this timestamp \\
-\texttt{consumed\_at} & TIMESTAMP & NULLABLE & Set on successful verification \\
-\texttt{created\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} &  \\
+\texttt{user\_id} & INTEGER & PRIMARY KEY, FK $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
+\texttt{counter} & INTEGER & NOT NULL, DEFAULT 0 & Application-specific data \\
+\bottomrule
+\end{longtable}
+
+Notes:
+\begin{itemize}[leftmargin=*,nosep]
+  \item One-to-one relationship with \texttt{user\_login}.
+  \item Created automatically during registration.
+  \item Cascading delete ensures cleanup when user is removed.
+\end{itemize}
+
+\subsection{Email Verification Tokens Table (\texttt{email\_verification\_tokens})}
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\endhead
+\texttt{user\_id} & INTEGER & PRIMARY KEY, FK $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
+\texttt{token\_hash} & TEXT & NOT NULL & SHA256 hash of verification token \\
+\texttt{expires\_at} & INTEGER & NOT NULL & Unix timestamp for expiry \\
+\texttt{created\_at} & INTEGER & NOT NULL & Unix timestamp when created \\
 \bottomrule
 \end{longtable}
 
 Constraints and guarantees:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Primary key on \texttt{user\_id} ensures one token per user.
+  \item Only SHA256 hash is stored; plaintext token is sent via email only.
+  \item Token is valid only if \texttt{expires\_at > current\_time}.
+  \item Token is deleted after successful verification.
+  \item Cascading delete removes token when user is deleted.
+  \item Hourly cleanup task deletes expired tokens and associated unverified users.
+\end{itemize}
+
+\subsection{Database Configuration}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{token\_hash} is unique to prevent collisions.
-  \item A token is considered valid only if:
+  \item \textbf{Engine}: SQLite with SQLCipher encryption
+  \item \textbf{Development}: Unencrypted \texttt{data\_dev.db}
+  \item \textbf{Production}: Encrypted \texttt{data.db}
+  \item \textbf{Encryption Key}: 32-byte key (64 hex characters)
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item \texttt{now() <= expires\_at}
-    \item \texttt{consumed\_at IS NULL}
+    \item Priority 1: \texttt{APPSEC\_DB\_KEY} environment variable
+    \item Priority 2: System keyring (service: \texttt{APPSEC\_DB\_KEY}, user: \texttt{APPSEC})
+    \item Auto-generated if not found
   \end{itemize}
-  \item Foreign key \texttt{user\_id} enforces referential integrity.
+  \item \textbf{Foreign Keys}: Enabled with \texttt{PRAGMA foreign\_keys = ON}
+  \item \textbf{Cleanup}: Hourly task removes expired tokens and unverified users
 \end{itemize}

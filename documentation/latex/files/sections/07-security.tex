@@ -6,73 +6,91 @@
 \subsubsection*{Password Hashing}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Argon2 is used for password hashing.
-  \item Parameters tuned for modern hardware to resist brute force.
-  \item Passwords are never stored or logged in plaintext.
+  \item Argon2 algorithm (memory-hard, GPU-resistant).
+  \item Random salt generated using \texttt{SaltString::generate(\&mut OsRng)}.
+  \item Password hash stored in PHC string format (includes algorithm, parameters, salt).
+  \item Passwords are never logged, stored in plaintext, or returned to clients.
 \end{itemize}
 
 \subsubsection*{Token Security}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Verification tokens are random, high-entropy values.
-  \item Only token hashes are stored in the database.
-  \item Tokens are single-use and time-limited.
-  \item Tokens are not predictable and cannot be derived from user data.
+  \item Verification tokens are 32 bytes of cryptographically secure random data.
+  \item Tokens are hex-encoded for transmission (64 characters).
+  \item Only SHA256 hashes of tokens are stored in the database.
+  \item Plaintext tokens are sent only via email and never logged.
+  \item Tokens have configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
+  \item One token per user (primary key constraint).
 \end{itemize}
 
-\subsubsection*{Input Validation and Normalization}
+\subsubsection*{Database Encryption}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Backend validates all fields regardless of frontend checks.
-  \item Email is normalized (e.g., lowercased).
-  \item Usernames are restricted to safe characters and reasonable lengths.
-  \item Passwords must meet minimum length and complexity requirements.
+  \item SQLite database encrypted with SQLCipher.
+  \item 32-byte encryption key (256-bit AES).
+  \item Key stored in system keyring or environment variable (\texttt{APPSEC\_DB\_KEY}).
+  \item Development mode uses unencrypted database for convenience.
+\end{itemize}
+
+\subsubsection*{Input Validation}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Dual validation: frontend (WASM) and backend (native Rust).
+  \item Shared validation logic ensures consistency via \texttt{field-validator} crate.
+  \item Username: 3--20 printable UTF-8 characters.
+  \item Email: Valid format validated with \texttt{lettre::Address}.
+  \item Password: 8--64 characters, requires uppercase, lowercase, digit, special character.
+  \item Backend validation is authoritative; frontend validation improves UX.
 \end{itemize}
 
 \subsubsection*{Error Handling and Enumeration Resistance}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Error responses are generic: no difference between invalid credentials and unverified accounts, for example.
-  \item Registration responses do not reveal if an email or username already exists.
-  \item Detailed errors are logged server-side only.
+  \item Typed error codes from \texttt{api-types} crate.
+  \item Specific codes for \texttt{USERNAME\_TAKEN} and \texttt{EMAIL\_TAKEN} (HTTP 409).
+  \item Validation errors include field-specific details for user feedback.
+  \item Internal errors return generic \texttt{INTERNAL} code (HTTP 500).
+  \item All error codes translated to user-friendly messages via \texttt{translator} crate.
 \end{itemize}
 
-\subsubsection*{Transport Security}
+\subsubsection*{Automatic Cleanup}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item HTTPS enforced in production to protect credentials and tokens in transit.
-  \item No sensitive data is transmitted unencrypted over the network.
+  \item Hourly cleanup task runs asynchronously.
+  \item Deletes expired verification tokens.
+  \item Deletes unverified users whose tokens have expired (via CASCADE).
+  \item Prevents database bloat from abandoned registrations.
 \end{itemize}
 
-\subsubsection*{Database Security}
+\subsubsection*{Email Delivery}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Prepared statements are used (via SQLx) to prevent SQL injection.
-  \item Separate database credentials for environments.
-  \item Password and token hashes are not reversible.
-  \item Access to the database is limited to the backend service.
+  \item SMTP-based email sending via \texttt{lettre} crate.
+  \item Development: MailHog at \texttt{127.0.0.1:1025}.
+  \item Production: Configurable SMTP server.
+  \item On email failure, user record is deleted (transactional rollback).
 \end{itemize}
 
-\subsubsection*{Replay and Abuse Protection}
+\subsubsection*{Foreign Key Integrity}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Tokens can be used only once and are marked as consumed.
-  \item Expired tokens are rejected.
-  \item Future enhancements include rate limiting and CAPTCHA.
+  \item Foreign keys enabled with \texttt{PRAGMA foreign\_keys = ON}.
+  \item CASCADE delete on all child tables.
+  \item Ensures data consistency when users are deleted.
 \end{itemize}
 
 \subsection{Future Security Enhancements}
 
-Planned or potential enhancements:
+Planned or potential enhancements (Registration\_3 scope):
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Rate limiting on registration and verification endpoints.
-  \item CAPTCHA integration for bot and script mitigation.
-  \item Production email service integration (SMTP or API-based).
-  \item Scheduled cleanup of expired and consumed tokens.
+  \item Rate limiting on registration endpoint.
+  \item CAPTCHA integration for bot mitigation.
+  \item Email domain whitelist/blacklist.
+  \item Invite token system for controlled registration.
   % Login_4.md related - commented out for Registration_3.md draft
-  % \item Session management using JWT or secure server-side sessions.
-  % \item Optional two-factor or multi-factor authentication.
+  % \item Session management using secure cookies.
   % \item Password reset flow with secure tokens.
-  % \item Account lockout or step-up verification after repeated failures.
+  % \item Account lockout after repeated failures.
+  % \item Multi-factor authentication (MFA).
 \end{itemize}

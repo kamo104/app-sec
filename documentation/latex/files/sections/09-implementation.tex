@@ -1,7 +1,7 @@
 % Implementation Files - Core files listing
 \section{Implementation Files}
 
-This section lists the core implementation files that make up the registration module.
+This section lists the core implementation files for the registration module.
 
 \subsection{Backend Files}
 
@@ -9,34 +9,47 @@ This section lists the core implementation files that make up the registration m
   \item \texttt{backend/src/main.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Application entry point.
-    \item Configures Axum router and mounts registration and verification routes.
-    \item Initializes database connection and shared state.
+    \item Configures Axum router with API routes.
+    \item Initializes database connection and starts cleanup task.
   \end{itemize}
-  \item \texttt{backend/src/api.rs}
+  \item \texttt{backend/src/api/register.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item HTTP handlers for:
-    \begin{itemize}[leftmargin=1.5em,nosep]
-      \item \texttt{POST /api/register}
-      \item \texttt{POST /api/verify-email}
-      \item \texttt{GET /api/health}
-    \end{itemize}
-    \item Parses Protobuf/JSON payloads and returns \texttt{ApiResponse} messages.
+    \item \texttt{POST /api/register} handler.
+    \item Validates input, checks uniqueness, creates user.
+    \item Generates verification token and sends email.
+  \end{itemize}
+  \item \texttt{backend/src/api/verify\_email.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{POST /api/verify-email} handler.
+    \item Verifies token and marks user as verified.
+  \end{itemize}
+  \item \texttt{backend/src/api/utils.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Configuration constants from \texttt{build.rs}.
+    \item Token duration settings, base URLs.
   \end{itemize}
   \item \texttt{backend/src/db/mod.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Database access layer.
-    \item Functions for:
-    \begin{itemize}[leftmargin=1.5em,nosep]
-      \item Creating users.
-      \item Storing and looking up verification tokens.
-      \item Marking users as verified.
-    \end{itemize}
-    \item Encapsulates SQLx queries and transactions.
+    \item \texttt{DBHandle} struct with connection pool.
+    \item Password hashing with Argon2.
+    \item Cleanup task for expired tokens.
   \end{itemize}
-  \item \texttt{backend/src/generated/api.v1.rs}
+  \item \texttt{backend/src/db/user\_login.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Generated Rust types from \texttt{proto/api.proto}.
-    \item Shared message definitions for requests and responses.
+    \item User table operations: create, lookup, verify.
+  \end{itemize}
+  \item \texttt{backend/src/db/user\_data.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item User data table operations.
+  \end{itemize}
+  \item \texttt{backend/src/db/email\_verification\_tokens.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Token table operations: create, lookup, delete.
+  \end{itemize}
+  \item \texttt{backend/src/email.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item SMTP email sending via \texttt{lettre}.
+    \item Verification email template.
   \end{itemize}
 \end{itemize}
 
@@ -45,63 +58,89 @@ This section lists the core implementation files that make up the registration m
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{frontend/src/pages/register.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Registration page.
-    \item Presents username/email/password form.
-    \item Displays validation errors and success messages.
+    \item Registration page with form.
+    \item Real-time validation and error display.
   \end{itemize}
   \item \texttt{frontend/src/pages/verify-email.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Verification landing page.
-    \item Reads token (for example, from query parameters).
-    \item Calls verification API and shows user feedback.
+    \item Email verification page.
+    \item Extracts token from URL and calls API.
   \end{itemize}
-  \item \texttt{frontend/src/components/UserRegistration.vue}
+  \item \texttt{frontend/src/components/auth/UsernameField.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Reusable registration form component.
-    \item Handles field-level validation, user interaction, and emits submission events.
+    \item Username input with WASM validation.
   \end{itemize}
-  \item \texttt{frontend/src/services/api.ts}
+  \item \texttt{frontend/src/components/auth/EmailField.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Frontend API service layer.
-    \item Functions such as \texttt{registerUser} and \texttt{verifyEmail} wrapping HTTP calls.
-    \item Uses generated Protobuf TypeScript definitions.
+    \item Email input with WASM validation.
   \end{itemize}
-  \item \texttt{frontend/src/generated/api.ts}
+  \item \texttt{frontend/src/components/auth/PasswordField.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Generated TypeScript client from \texttt{proto/api.proto}.
-    \item Type-safe request and response interfaces.
+    \item Password input with strength indicator (0--7 score).
+    \item WASM validation with detailed errors.
+  \end{itemize}
+  \item \texttt{frontend/src/components/auth/ConfirmPasswordField.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Password confirmation with match validation.
+  \end{itemize}
+  \item \texttt{frontend/src/components/auth/AuthFormLayout.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Common layout for auth forms.
+  \end{itemize}
+  \item \texttt{frontend/src/components/auth/StatusMessage.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Success/error message display.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api-client/sdk.gen.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Generated API client functions.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api-client/types.gen.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Generated TypeScript types.
+  \end{itemize}
+  \item \texttt{frontend/src/api/client.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item API client configuration (base URL, credentials).
   \end{itemize}
 \end{itemize}
 
-\subsection{Proto Files}
+\subsection{Shared Crates}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{proto/api.proto}
+  \item \texttt{api-types/src/}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Protobuf definitions for:
-    \begin{itemize}[leftmargin=1.5em,nosep]
-      \item \texttt{RegistrationRequest}
-      \item \texttt{VerificationRequest}
-      \item \texttt{ApiResponse}
-      \item Any shared error or metadata types.
-    \end{itemize}
-    \item Single source of truth for backend and frontend API types.
+    \item \texttt{requests.rs}: Request types (\texttt{RegistrationRequest}, etc.)
+    \item \texttt{responses.rs}: Response and error types
+    \item \texttt{validation.rs}: Validation data structures
+    \item \texttt{enums.rs}: \texttt{FieldType}, \texttt{ValidationErrorCode}, \texttt{PasswordStrength}
+  \end{itemize}
+  \item \texttt{field-validator/src/lib.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{validate\_username()}, \texttt{validate\_email()}, \texttt{validate\_password()}
+    \item \texttt{validate\_field()} -- WASM-exported wrapper
+    \item \texttt{validate\_password\_detailed()} -- Returns strength score
+  \end{itemize}
+  \item \texttt{translator/src/lib.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{translate()}, \texttt{translate\_error\_code()}
+    \item \texttt{translate\_field\_validation\_error()}
+  \end{itemize}
+  \item \texttt{translator/locales/en.yml}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item English translations for all error codes and messages.
   \end{itemize}
 \end{itemize}
 
-\subsection{Documentation Files}
+\subsection{Configuration Files}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{documentation/registration-module.md}
+  \item \texttt{backend/.env}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item This document; primary reference for the registration module.
+    \item Environment variables for token durations, base URLs.
   \end{itemize}
-  \item \texttt{documentation/email-verify-feat.md}
+  \item \texttt{backend/build.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Focused description of the email verification feature and its behavior.
-  \end{itemize}
-  \item \texttt{documentation/email-verify-implementation.md}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Implementation details of the verification functionality and integration.
+    \item Reads \texttt{.env} and generates compile-time constants.
   \end{itemize}
 \end{itemize}

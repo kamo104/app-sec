@@ -11,48 +11,58 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Registration is exposed as an HTTP endpoint on the backend.
-  \item The frontend provides a dedicated registration form.
-  \item A success response does not reveal whether the email or username already exists.
+  \item Registration is exposed via \texttt{POST /api/register} endpoint.
+  \item The frontend provides a registration form with real-time validation.
+  \item Username must be 3--20 characters, printable UTF-8 only.
+  \item Email must be valid format (validated using \texttt{lettre::Address}).
+  \item Password must be 8--64 characters with uppercase, lowercase, digit, and special character.
+  \item Returns specific error codes: \texttt{USERNAME\_TAKEN}, \texttt{EMAIL\_TAKEN}, \texttt{VALIDATION}.
 \end{itemize}
 
 \subsubsection{FR-2: Email Verification}
 
 \textbf{ID}: FR-2
 
-\textbf{Description}: The system must require email verification before enabling a full login.
+\textbf{Description}: The system must require email verification before the account is active.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item On successful registration, a verification token is generated and stored in hashed form.
-  \item A verification link containing the token is presented (or logged in dev mode).
-  \item Clicking the link (or calling the verification endpoint) marks the user as verified if the token is valid and unexpired.
+  \item On successful registration, a 32-byte verification token is generated.
+  \item Token is stored as SHA256 hash in \texttt{email\_verification\_tokens} table.
+  \item Verification email is sent via SMTP with link: \texttt{\{BASE\_URL\}/verify-email?token=\{token\}}.
+  \item Token has configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
+  \item \texttt{POST /api/verify-email} endpoint verifies token and marks user as verified.
+  \item Token is deleted after successful verification.
 \end{itemize}
 
 \subsubsection{FR-3: Input Validation}
 
 \textbf{ID}: FR-3
 
-\textbf{Description}: All registration inputs must be strictly validated on backend and frontend.
+\textbf{Description}: All registration inputs must be validated on both frontend and backend.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Username: reasonable length, allowed characters, normalized format.
-  \item Email: checked against a robust email format and normalized (e.g., lowercase).
-  \item Password: minimum length and complexity requirements enforced.
+  \item Shared validation logic in \texttt{field-validator} crate (compiled to WASM for frontend).
+  \item Username: 3--20 characters, printable UTF-8.
+  \item Email: Valid format checked via \texttt{lettre::Address}.
+  \item Password: 8--64 characters, at least 1 uppercase, 1 lowercase, 1 digit, 1 special character.
+  \item Password strength score calculated (0--7 scale): Weak ($\leq$3), Medium (4--5), Strong (6), CIA (7).
+  \item Validation errors are translated to user-friendly messages via \texttt{translator} crate.
 \end{itemize}
 
 \subsubsection{FR-4: Error Handling}
 
 \textbf{ID}: FR-4
 
-\textbf{Description}: The system must provide generic and safe error messages.
+\textbf{Description}: The system must provide clear, translated error messages.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item No distinction between ``email already registered'' and ``user not found'' in responses.
-  \item Server errors are logged on the backend but not exposed to users.
-  \item Client receives short, user-friendly messages.
+  \item Error responses use typed error codes from \texttt{api-types} crate.
+  \item Validation errors include field-specific error codes (e.g., \texttt{TOO\_SHORT}, \texttt{INVALID\_FORMAT}).
+  \item All error codes are translated via \texttt{translator} crate with localization support.
+  \item Server errors logged internally; clients receive generic \texttt{INTERNAL} error.
 \end{itemize}
 
 \subsubsection{FR-5: Token Lifecycle}
@@ -63,21 +73,23 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Each token can be used only once.
-  \item Tokens have an explicit expiration time.
-  \item Expired or consumed tokens are rejected with a generic error.
+  \item Each user can have only one active verification token (primary key on \texttt{user\_id}).
+  \item Tokens expire after configurable duration.
+  \item Expired tokens are automatically cleaned up by hourly cleanup task.
+  \item Unverified users with expired tokens are deleted (cascading foreign key).
+  \item Token is deleted upon successful verification.
 \end{itemize}
 
 \subsubsection{FR-6: Health Check}
 
 \textbf{ID}: FR-6
 
-\textbf{Description}: The module must expose a simple health endpoint for monitoring.
+\textbf{Description}: The module must expose a health endpoint for monitoring.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Allows external systems to check that the backend is running.
-  \item Does not expose internal or user data.
+  \item \texttt{GET /api/health} returns basic health status.
+  \item Does not expose internal state or user data.
 \end{itemize}
 
 \subsection{Non-Functional Requirements}
@@ -90,27 +102,27 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item No plaintext passwords or tokens stored.
-  \item Verification tokens stored only as hashes.
-  \item Generic error messages (prevent user enumeration).
+  \item Passwords hashed with Argon2 (memory-hard, GPU-resistant).
+  \item Verification tokens stored as SHA256 hashes only.
+  \item Database encrypted with SQLCipher (32-byte key from keyring or environment).
   \item HTTPS enforced in production.
-  \item No PII in URLs beyond what is unavoidable (e.g., query token is opaque).
-  \item Planned rate limiting to soften brute force and abuse.
-  \item Input validated both on frontend and backend.
+  \item Input validated on both frontend and backend.
+  \item Generic error responses prevent user enumeration.
+  \item Foreign keys with CASCADE ensure data cleanup on user deletion.
 \end{itemize}
 
 \subsubsection{NFR-2: Performance}
 
 \textbf{ID}: NFR-2
 
-\textbf{Description}: The module must handle typical concurrent registration loads.
+\textbf{Description}: The module must handle typical registration loads efficiently.
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Database operations complete in under 100~ms under normal load.
-  \item Token generation in under 50~ms.
-  \item API responses in under 200~ms for typical requests.
-  \item Argon2 parameters chosen to balance security and latency.
+  \item SQLite database with connection pooling.
+  \item Argon2 parameters balanced for security and latency.
+  \item Hourly cleanup task runs asynchronously.
+  \item Frontend validation reduces unnecessary backend requests.
 \end{itemize}
 
 \subsubsection{NFR-3: Reliability}
@@ -121,10 +133,10 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Database transactions roll back on any failure.
-  \item Partial registrations are cleaned up if processing fails mid-flow.
-  \item Errors are logged and can be correlated across services.
-  \item Verification tokens cannot be reused after consumption.
+  \item On email sending failure, user record is deleted (rollback).
+  \item Foreign keys with CASCADE ensure referential integrity.
+  \item Automatic cleanup of expired tokens prevents database bloat.
+  \item Verification endpoint is idempotent (returns success if already verified).
 \end{itemize}
 
 \subsubsection{NFR-4: Usability}
@@ -135,8 +147,9 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Frontend shows field-level validation errors.
-  \item Password strength indicators and hints are provided where appropriate.
-  \item After registration, user receives clear instructions to check email.
-  \item After verification, user is guided to login.
+  \item Real-time field validation on frontend.
+  \item Password strength indicator with 0--7 score and strength labels.
+  \item Translated error messages for all validation failures.
+  \item Success message instructs user to check email for verification.
+  \item Verification page shows clear success/error states with navigation.
 \end{itemize}

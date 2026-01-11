@@ -7,94 +7,118 @@
 
 \begin{itemize}[leftmargin=*,nosep]
   \item Vue~3 with TypeScript
-  \item Vuetify for UI components and consistent styling
-  \item Axios or fetch-based API service layer
-  \item Protobuf-generated TypeScript client (\texttt{frontend/src/generated/api.ts})
+  \item Vuetify for UI components
+  \item Pinia for state management
+  \item \texttt{@hey-api/client-fetch} for API client generation
+  \item WASM modules for validation (\texttt{field-validator}) and translation (\texttt{translator})
 \end{itemize}
 
 \subsubsection*{Backend}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Rust
-  \item Axum for HTTP routing
+  \item Rust with Axum web framework
   \item SQLx for asynchronous database access
-  \item Argon2 for password hashing
-  \item SHA2 for token hashing
-  \item \texttt{rand\_core} / \texttt{rand} for cryptographically secure random values
-  \item Protobuf-generated Rust types (\texttt{backend/src/generated/api.v1.rs})
+  \item SQLite with SQLCipher encryption
+  \item Argon2 for password hashing (\texttt{argon2} crate)
+  \item SHA256 for token hashing (\texttt{sha2} crate)
+  \item \texttt{rand} for cryptographically secure random values
+  \item \texttt{lettre} for SMTP email sending
+\end{itemize}
+
+\subsubsection*{Shared Crates}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{api-types}: Request/response types, validation enums, error codes
+  \item \texttt{field-validator}: Validation logic (compiled to native and WASM)
+  \item \texttt{translator}: Error message translation with \texttt{rust-i18n}
 \end{itemize}
 
 \subsubsection*{Database}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Relational database (e.g., PostgreSQL or SQLite, configured per environment)
-  \item Tables for users and verification tokens with strong constraints
-\end{itemize}
-
-\subsubsection*{API Format}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item Protocol Buffers for message definitions (\texttt{proto/api.proto})
-  \item HTTP endpoints exchanging Protobuf-backed JSON or binary messages (depending on configuration)
+  \item SQLite database (\texttt{data.db} encrypted, \texttt{data\_dev.db} unencrypted)
+  \item SQLCipher encryption with 32-byte key
+  \item Key stored in system keyring or \texttt{APPSEC\_DB\_KEY} environment variable
+  \item Foreign keys enabled with CASCADE delete
 \end{itemize}
 
 \subsection{High-Level Architecture Diagram}
 
 \begin{verbatim}
 +-------------------------------------------------------------+
-|                     Frontend (Vue)                          |
+|                     Frontend (Vue 3)                        |
 |                                                             |
-|   +-------------+   +--------------+   +----------------+  |
-|   | Register    | ->| API Service  | ->| Validation     |  |
-|   | Page        |   |              |   | Layer          |  |
-|   +-------------+   +--------------+   +----------------+  |
+|   +-------------+   +--------------+   +----------------+   |
+|   | Register    |-->| WASM         |-->| API Client     |   |
+|   | Page        |   | Validators   |   | (fetch)        |   |
+|   +-------------+   +--------------+   +----------------+   |
 +-------------------------------------------------------------+
                              |
-                             | HTTP / Protobuf
+                             | HTTP POST /api/register
+                             | HTTP POST /api/verify-email
                              v
 +-------------------------------------------------------------+
 |                      Backend (Axum)                         |
 |                                                             |
-|   +-------------+   +--------------+   +----------------+  |
-|   | API         | ->| Business     | ->| Database       |  |
-|   | Handlers    |   | Logic        |   | Layer          |  |
-|   +-------------+   +--------------+   +----------------+  |
+|   +-------------+   +--------------+   +----------------+   |
+|   | API         |-->| Validation   |-->| Database       |   |
+|   | Handlers    |   | + Hashing    |   | Layer (SQLx)   |   |
+|   +-------------+   +--------------+   +----------------+   |
+|         |                                      |            |
+|         v                                      v            |
+|   +-------------+                    +----------------+     |
+|   | Email       |                    | Cleanup Task   |     |
+|   | (SMTP)      |                    | (hourly)       |     |
+|   +-------------+                    +----------------+     |
 +-------------------------------------------------------------+
                              |
-                             | SQL
+                             | SQL (SQLCipher)
                              v
 +-------------------------------------------------------------+
-|                          Database                           |
+|                     Database (SQLite)                       |
 |                                                             |
-|   +-------------+        +----------------------+           |
-|   | users       |        | verification_tokens |           |
-|   +-------------+        +----------------------+           |
+|   +-------------+   +----------------------+                |
+|   | user_login  |<--| email_verification   |                |
+|   +-------------+   | _tokens              |                |
+|         |           +----------------------+                |
+|         v                                                   |
+|   +-------------+                                           |
+|   | user_data   |                                           |
+|   +-------------+                                           |
 +-------------------------------------------------------------+
-
 \end{verbatim}
 
 \subsection{Data Flow}
 
+\subsubsection*{Registration Flow}
+
 \begin{enumerate}[leftmargin=*,nosep]
-  \item User opens the registration page on the frontend.
-  \item User fills in username, email, and password.
-  \item Frontend performs client-side validation and sends a registration request to the backend.
-  \item Backend validates the input again and:
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Hashes the password with Argon2.
-    \item Creates a user record in the database.
-    \item Generates a random verification token and stores its hash in \texttt{verification\_tokens}.
-  \end{itemize}
-  \item Backend returns a success response.
-  \item In development mode, an email-like message (with a verification link containing the raw token) is logged or displayed to simulate delivery.
-  \item User follows the verification link.
-  \item Frontend sends the token to the verification endpoint.
-  \item Backend:
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Locates the token by its hash.
-    \item Verifies expiry and that it is unused.
-    \item Marks the token as consumed.
-    \item Marks the associated user as verified.
-  \end{itemize}
-  \item Backend returns a success response; frontend shows a confirmation message.
+  \item User opens \texttt{/register} page in the frontend.
+  \item User fills in username, email, password, and confirm password.
+  \item Frontend validates each field in real-time using WASM \texttt{field-validator}.
+  \item Password strength score (0--7) is displayed with strength label.
+  \item On submit, frontend sends \texttt{POST /api/register} with credentials.
+  \item Backend validates input using native \texttt{field-validator}.
+  \item Backend checks username and email uniqueness in database.
+  \item Backend hashes password with Argon2 (random salt).
+  \item Backend creates \texttt{user\_login} record with \texttt{email\_verified = false}.
+  \item Backend creates associated \texttt{user\_data} record.
+  \item Backend generates 32-byte random token, stores SHA256 hash in \texttt{email\_verification\_tokens}.
+  \item Backend sends verification email via SMTP with link containing plaintext token.
+  \item On SMTP failure, user record is deleted (cleanup).
+  \item Backend returns success response; frontend shows translated success message.
+\end{enumerate}
+
+\subsubsection*{Email Verification Flow}
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item User clicks verification link in email: \texttt{/verify-email?token=\{token\}}.
+  \item Frontend extracts token from URL query parameter.
+  \item Frontend sends \texttt{POST /api/verify-email} with token.
+  \item Backend computes SHA256 hash of received token.
+  \item Backend looks up token hash in \texttt{email\_verification\_tokens}.
+  \item Backend checks token has not expired (\texttt{expires\_at > now}).
+  \item Backend sets \texttt{email\_verified = true} and \texttt{email\_verified\_at = now} on user.
+  \item Backend deletes token from \texttt{email\_verification\_tokens}.
+  \item Backend returns success; frontend shows success message with login button.
 \end{enumerate}

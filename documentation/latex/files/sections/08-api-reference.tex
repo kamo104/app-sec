@@ -1,121 +1,138 @@
 % API Reference - Endpoints documentation
 \section{API Reference}
 
-This section documents the main endpoints implemented by the registration module. Protobuf definitions are provided in \texttt{proto/api.proto} and are compiled into both backend and frontend code.
+This section documents the registration and email verification endpoints. Types are defined in the \texttt{api-types} crate and shared between backend and frontend.
 
 \subsection{Endpoints Overview}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{POST /api/register} -- Create a new user account and issue a verification token.
-  \item \texttt{POST /api/verify-email} -- Verify an email using a token.
-  \item \texttt{GET /api/health} -- Lightweight health check.
+  \item \texttt{POST /api/register} -- Create a new user account and send verification email.
+  \item \texttt{POST /api/verify-email} -- Verify email address using token from email.
+  \item \texttt{GET /api/health} -- Health check endpoint.
 \end{itemize}
 
 \subsection{\texorpdfstring{\texttt{POST /api/register}}{POST /api/register}}
 
-Registers a new user account and issues an email verification token.
+Registers a new user account and sends a verification email.
 
-\subsubsection*{Request (Protobuf)}
+\subsubsection*{Request Body (JSON)}
 
-\begin{lstlisting}[language=protobuf]
-message RegistrationRequest {
-  string username = 1;
-  string email = 2;
-  string password = 3;
+\begin{lstlisting}
+{
+  "username": "string",  // 3-20 chars, printable UTF-8
+  "email": "string",     // valid email format
+  "password": "string"   // 8-64 chars, complexity requirements
 }
 \end{lstlisting}
 
-\subsubsection*{Response (Protobuf)}
+\subsubsection*{Success Response (HTTP 200)}
 
-\begin{lstlisting}[language=protobuf]
-message ApiResponse {
-  bool success = 1;
-  string message = 2;
+Empty response body on success.
+
+\subsubsection*{Error Responses}
+
+\textbf{HTTP 400 Bad Request} -- Validation failed:
+\begin{lstlisting}
+{
+  "error": "VALIDATION",
+  "validation": {
+    "fieldErrors": [
+      {
+        "field": "USERNAME" | "EMAIL" | "PASSWORD",
+        "errors": ["TOO_SHORT", "TOO_LONG", "INVALID_FORMAT", ...]
+      }
+    ]
+  }
 }
 \end{lstlisting}
 
-\subsubsection*{Behavior}
+\textbf{HTTP 409 Conflict} -- Username or email taken:
+\begin{lstlisting}
+{
+  "error": "USERNAME_TAKEN" | "EMAIL_TAKEN"
+}
+\end{lstlisting}
+
+\textbf{HTTP 500 Internal Server Error}:
+\begin{lstlisting}
+{
+  "error": "INTERNAL"
+}
+\end{lstlisting}
+
+\subsubsection*{Validation Error Codes}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Performs full backend validation of all fields.
-  \item If validation fails, returns \texttt{success = false} with a generic message.
-  \item On success:
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Creates a new user with \texttt{is\_verified = false}.
-    \item Hashes and stores the user's password.
-    \item Generates a verification token and stores its hash with expiry.
-    \item In development, logs or displays a mock email including the verification link.
-  \end{itemize}
-\end{itemize}
-
-\subsubsection*{Status Codes}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \textbf{200 OK} -- Request processed;
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item \texttt{success = true} on successful registration.
-    \item \texttt{success = false} if validation failed.
-  \end{itemize}
-  \item \textbf{400 Bad Request} -- Malformed payload or missing fields.
-  \item \textbf{500 Internal Server Error} -- Unexpected server error.
+  \item \texttt{REQUIRED} -- Field is empty
+  \item \texttt{TOO\_SHORT} -- Below minimum length
+  \item \texttt{TOO\_LONG} -- Exceeds maximum length
+  \item \texttt{INVALID\_CHARACTERS} -- Contains invalid characters
+  \item \texttt{INVALID\_FORMAT} -- Invalid format (email)
+  \item \texttt{TOO\_FEW\_UPPERCASE\_LETTERS} -- Password missing uppercase
+  \item \texttt{TOO\_FEW\_LOWERCASE\_LETTERS} -- Password missing lowercase
+  \item \texttt{TOO\_FEW\_DIGITS} -- Password missing digit
+  \item \texttt{TOO\_FEW\_SPECIAL\_CHARACTERS} -- Password missing special char
 \end{itemize}
 
 \subsection{\texorpdfstring{\texttt{POST /api/verify-email}}{POST /api/verify-email}}
 
-Verifies an email address using a token from the verification link.
+Verifies an email address using the token from the verification email.
 
-\subsubsection*{Request (Protobuf)}
+\subsubsection*{Request Body (JSON)}
 
-\begin{lstlisting}[language=protobuf]
-message VerificationRequest {
-  string token = 1;
+\begin{lstlisting}
+{
+  "token": "string"  // 64-char hex token from email link
 }
 \end{lstlisting}
 
-\subsubsection*{Response (Protobuf)}
+\subsubsection*{Success Response (HTTP 200)}
 
-\begin{lstlisting}[language=protobuf]
-message ApiResponse {
-  bool success = 1;
-  string message = 2;
+Empty response body on success. User is now verified and can log in.
+
+\subsubsection*{Error Responses}
+
+\textbf{HTTP 400 Bad Request} -- Token expired or invalid:
+\begin{lstlisting}
+{
+  "error": "TOKEN_EXPIRED"
+}
+\end{lstlisting}
+
+\textbf{HTTP 500 Internal Server Error}:
+\begin{lstlisting}
+{
+  "error": "INTERNAL"
 }
 \end{lstlisting}
 
 \subsubsection*{Behavior}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Hashes the incoming \texttt{token} and attempts to find a matching record.
-  \item Checks token expiry and whether it has already been consumed.
-  \item If valid:
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Marks the associated user as verified.
-    \item Marks the token record as consumed.
-  \end{itemize}
-  \item Responds with \texttt{success = true} on successful verification, or \texttt{success = false} with a generic message otherwise.
-\end{itemize}
-
-\subsubsection*{Status Codes}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \textbf{200 OK} -- Verification processed; \texttt{success} indicates outcome.
-  \item \textbf{400 Bad Request} -- Malformed payload.
-  \item \textbf{404 Not Found} (optional, may still return 200 with \texttt{success = false}) -- No valid token found.
-  \item \textbf{500 Internal Server Error} -- Unexpected server error.
+  \item Computes SHA256 hash of provided token.
+  \item Looks up hash in \texttt{email\_verification\_tokens} table.
+  \item Checks token has not expired (\texttt{expires\_at > now}).
+  \item Sets \texttt{email\_verified = true} on user.
+  \item Sets \texttt{email\_verified\_at} to current timestamp.
+  \item Deletes token from database.
+  \item Idempotent: returns success if user already verified.
 \end{itemize}
 
 \subsection{\texorpdfstring{\texttt{GET /api/health}}{GET /api/health}}
 
 Simple health check endpoint.
 
-\subsubsection*{Behavior}
+\subsubsection*{Response (HTTP 200)}
+
+Returns basic health status indicating backend is running.
+
+\subsection{Type Definitions}
+
+Types are defined in \texttt{api-types/src/}:
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Returns a basic success payload indicating the backend is up.
-  \item Does not access user data or reveal internal state beyond health.
-\end{itemize}
-
-\subsubsection*{Status Codes}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \textbf{200 OK} -- Backend is healthy.
+  \item \texttt{requests.rs}: \texttt{RegistrationRequest}, \texttt{EmailVerificationRequest}
+  \item \texttt{responses.rs}: \texttt{RegisterError}, \texttt{RegisterErrorResponse}, \texttt{VerifyEmailError}
+  \item \texttt{validation.rs}: \texttt{ValidationFieldError}, \texttt{ValidationErrorData}
+  \item \texttt{enums.rs}: \texttt{FieldType}, \texttt{ValidationErrorCode}, \texttt{PasswordStrength}
 \end{itemize}

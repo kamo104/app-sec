@@ -1,29 +1,30 @@
 % Introduction - Student info and exercise description
-\section{Kamil Grzymkowski (151908), Application Security,}
+\section{Kamil Grzymkowski (151908), Application Security}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \textbf{Course}: Application Security
   \item \textbf{Level}: Graduate/Master's
   \item \textbf{Focus Areas}:
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Secure authentication and authorization
-    \item Password security and hashing
-    \item Email verification systems
-    \item Input validation and sanitization
-    \item Cryptographic token generation
-    \item Secure web application architecture
+    \item Secure user registration
+    \item Password security with Argon2 hashing
+    \item Email verification with secure tokens
+    \item Input validation (frontend and backend)
+    \item Cryptographic token generation and storage
+    \item Cross-platform validation via WebAssembly
   \end{itemize}
 \end{itemize}
 
 \subsection{Exercise Description}
 
-This exercise demonstrates a complete registration and email verification system that implements modern web security practices. The registration module is responsible for:
+This exercise demonstrates a secure user registration module with email verification, implementing modern web security practices. The registration module is responsible for:
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Secure user registration with validated input
-  \item Cryptographically secure token generation
-  \item Email verification workflow
-  \item Password security with Argon2 hashing
-  \item Defense against common attacks (replay, enumeration, injection, credential stuffing)
-  \item Clear separation between frontend, backend, and database concerns
+  \item Secure user registration with client-side and server-side validation
+  \item Password strength validation with detailed scoring (0--7 scale)
+  \item Cryptographically secure verification token generation
+  \item Email verification workflow before account activation
+  \item Password hashing using Argon2 algorithm
+  \item Defense against common attacks (enumeration, injection, brute force)
+  \item Shared validation logic between frontend (WASM) and backend (native Rust)
 \end{itemize}

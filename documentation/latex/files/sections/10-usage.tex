@@ -3,84 +3,148 @@
 
 \subsection{Development Mode}
 
-Run backend and frontend in development:
+Run the backend and frontend in development mode:
 
 \begin{verbatim}
-# Backend
+# Start MailHog for email testing (in separate terminal)
+mailhog
+
+# Backend (in separate terminal)
 cd backend
 cargo run -- --dev
 
-# Frontend (separate terminal)
+# Frontend (in separate terminal)
 cd frontend
 npm install
 npm run dev
 \end{verbatim}
 
-In development mode, the email verification link is typically logged to the console or terminal instead of sending a real email. This allows manual testing of the full verification flow without configuring an SMTP server.
+In development mode:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Database is unencrypted (\texttt{data\_dev.db}).
+  \item Emails are sent to MailHog at \texttt{127.0.0.1:1025}.
+  \item View emails at \texttt{http://localhost:8025}.
+  \item Base URL for verification links uses \texttt{BASE\_URL\_DEV}.
+\end{itemize}
 
 \subsection{Registration Flow Example}
 
+Frontend registration call (\texttt{frontend/src/pages/register.vue}):
+
 \begin{lstlisting}[language=Java]
-import { registerUser } from '@/services/api';
+import { registerUser } from '@/generated/api-client';
 
-async function handleRegister(): Promise<void> {
-  const response = await registerUser({
-    username: 'john_doe',
-    email: 'john@example.com',
-    password: 'SecureP@ssw0rd123',
-  });
+const { data, error, response } = await registerUser({
+  body: {
+    username: formData.username,
+    email: formData.email,
+    password: formData.password,
+  }
+});
 
-  if (response.success) {
-    // "Registration successful. Please check your email to verify your account."
-  } else {
-    // "Registration failed. Please check your details and try again."
+if (response.ok) {
+  // Show translated success message
+  statusMessage.value = translate('SUCCESS_REGISTERED', undefined);
+} else if (error) {
+  // Handle specific error codes
+  if (error.error === 'USERNAME_TAKEN') {
+    statusMessage.value = translate_error_code('USERNAME_TAKEN', undefined);
+  } else if (error.error === 'VALIDATION') {
+    // Display field-specific errors
+    error.validation?.fieldErrors.forEach(fieldError => {
+      fieldError.errors.forEach(code => {
+        const msg = translate_field_validation_error(
+          fieldError.field, code, undefined
+        );
+      });
+    });
   }
 }
 \end{lstlisting}
 
-On the backend:
+\subsection{Email Verification Flow Example}
 
-\begin{itemize}[leftmargin=*,nosep]
-  \item A user record is created.
-  \item The password is stored as an Argon2 hash.
-  \item A verification token is generated and stored as a hash.
-  \item A mock email with a link like \texttt{https://example.com/verify-email?token=<token>} is logged.
-\end{itemize}
-
-\subsection{Verification Flow Example}
+Frontend verification (\texttt{frontend/src/pages/verify-email.vue}):
 
 \begin{lstlisting}[language=Java]
-import { verifyEmail } from '@/services/api';
+import { verifyEmail } from '@/generated/api-client';
 
-async function handleVerify(): Promise<void> {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
+// Extract token from URL query parameter
+const route = useRoute();
+const token = route.query.token as string;
 
-  if (!token) {
-    return;
-  }
-
-  const response = await verifyEmail(token);
-
-  if (response.success) {
-    // "Email verified successfully. You can now log in."
-  } else {
-    // "Verification failed or token has expired. Please request a new verification email."
-  }
+if (!token) {
+  // Show warning: no token provided
+  return;
 }
+
+const { data, error, response } = await verifyEmail({
+  body: { token }
+});
+
+if (response.ok) {
+  // Show success, navigate to login
+  statusMessage.value = translate('SUCCESS_EMAIL_VERIFIED', undefined);
+} else {
+  // Show error (TOKEN_EXPIRED or INTERNAL)
+  statusMessage.value = translate_error_code(error.error, undefined);
+}
+\end{lstlisting}
+
+\subsection{Password Strength Validation}
+
+Frontend password field uses detailed validation:
+
+\begin{lstlisting}[language=Java]
+import { validate_password_detailed } from '@/wasm/field-validator';
+
+const result = JSON.parse(validate_password_detailed(password));
+
+// result.score: 0-7 (based on length and character types)
+// result.strength: "weak" | "medium" | "strong" | "cia"
+// result.errors: ["TOO_SHORT", "TOO_FEW_UPPERCASE_LETTERS", ...]
+
+// Score calculation:
+// +1 for length >= 8
+// +1 for length >= 12
+// +1 for length >= 16
+// +1 for uppercase letter
+// +1 for lowercase letter
+// +1 for digit
+// +1 for special character
 \end{lstlisting}
 
 \subsection{Libraries and Tools}
 
+\subsubsection*{Backend}
+
 \begin{itemize}[leftmargin=*,nosep]
-  \item Axum -- Rust web framework
-  \item SQLx -- Asynchronous SQL toolkit
-  \item Argon2 -- Password hashing algorithm
-  \item SHA2 -- Cryptographic hash functions
-  \item \texttt{rand\_core} / \texttt{rand} -- Cryptographically secure RNG
-  \item Protocol Buffers -- API schema and type generation
+  \item Axum -- Rust async web framework
+  \item SQLx -- Async SQL toolkit with compile-time checking
+  \item SQLCipher -- SQLite encryption
+  \item Argon2 -- Password hashing (\texttt{argon2} crate)
+  \item SHA2 -- Token hashing (\texttt{sha2} crate)
+  \item Lettre -- SMTP email sending
+  \item Rand -- Cryptographically secure RNG
+  \item Tokio -- Async runtime
+\end{itemize}
+
+\subsubsection*{Frontend}
+
+\begin{itemize}[leftmargin=*,nosep]
   \item Vue~3 -- Frontend framework
-  \item Vuetify -- Material Design component library
+  \item Vuetify -- Material Design components
+  \item Pinia -- State management
+  \item \texttt{@hey-api/client-fetch} -- API client generation
+  \item WASM -- WebAssembly for shared validation/translation
+\end{itemize}
+
+\subsubsection*{Shared}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item wasm-pack -- WASM build tool
+  \item rust-i18n -- Internationalization for translator
+  \item Serde -- Serialization/deserialization
 \end{itemize}
 
 \section{Version History}
@@ -90,7 +154,8 @@ async function handleVerify(): Promise<void> {
 \textbf{Version} & \textbf{Date} & \textbf{Changes} \\
 \midrule
 \endhead
-1.0 & 2025-12-23 & Initial single-file registration module documentation \\
+1.0 & 2025-12-23 & Initial registration module documentation \\
+1.1 & 2026-01-11 & Aligned documentation with implementation (draft) \\
 \bottomrule
 \end{longtable}
 
@@ -98,6 +163,6 @@ async function handleVerify(): Promise<void> {
 
 \noindent
 \textbf{Document Generated}: 2025-12-23\\
-\textbf{Last Updated}: 2025-12-23\\
-\textbf{Status}: Complete\\
-\textbf{Review Status}: Ready for review
+\textbf{Last Updated}: 2026-01-11\\
+\textbf{Status}: Draft\\
+\textbf{Review Status}: Pending review
