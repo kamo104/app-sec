@@ -138,7 +138,9 @@ async fn main() {
 
     let args = Args::parse();
 
-    let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./dist");
+    let assets_dir = std::env::var("ASSETS_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./dist"));
 
     // get the db handle
     let handle = if args.dev {

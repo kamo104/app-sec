@@ -68,4 +68,5 @@ USER appuser
 
 EXPOSE 4000
 ENV RUST_LOG=info
+ENV ASSETS_DIR=/app/dist
 CMD ["./appsec-server", "--web-bind-addr", "0.0.0.0", "--web-port", "4000"]

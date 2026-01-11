@@ -1,0 +1,888 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx} 
+
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.5em}{}
+
+\lstdefinelanguage{protobuf}{
+  morekeywords={message,oneof,string,bool},
+  sensitive=true,
+  morecomment=[l]{//},
+  morestring=[b]"
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{gray},
+  showstringspaces=false,
+  columns=fullflexible,
+  frame=single,
+  breaklines=true
+}
+
+\title{Registration Module Documentation}
+\author{Kamil Grzymkowski (151908)}
+\date{2025-12-23}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\newpage
+
+\section{Kamil Grzymkowski (151908), Application Security,}
+
+% \subsection{Student Group Information}
+
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item \textbf{Group Name}: Application Security Project Team
+%   \item \textbf{Project Focus}: Web Security Best Practices Demonstration
+%   \item \textbf{Academic Context}: Master's Degree Program, Semester II
+% \end{itemize}
+% \subsection{Course Details}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{Course}: Application Security
+  \item \textbf{Level}: Graduate/Master's
+  \item \textbf{Focus Areas}:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Secure authentication and authorization
+    \item Password security and hashing
+    \item Email verification systems
+    \item Input validation and sanitization
+    \item Cryptographic token generation
+    \item Secure web application architecture
+  \end{itemize}
+\end{itemize}
+
+\subsection{Exercise Description}
+
+This exercise demonstrates a complete registration and email verification system that implements modern web security practices. The registration module is responsible for:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Secure user registration with validated input
+  \item Cryptographically secure token generation
+  \item Email verification workflow
+  \item Password security with Argon2 hashing
+  \item Defense against common attacks (replay, enumeration, injection, credential stuffing)
+  \item Clear separation between frontend, backend, and database concerns
+\end{itemize}
+
+\section{Component Description}
+
+\subsection{Purpose}
+
+The registration module provides a secure mechanism for creating user accounts and verifying ownership of email addresses before granting full access to the application.
+
+Its main goals are:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item Ensure only valid, well-formed data is accepted.
+  \item Prevent user enumeration and information leakage.
+  \item Protect passwords and verification tokens using modern cryptography.
+  \item Enforce email verification before login succeeds.
+  \item Provide a structure that can be audited for security.
+\end{enumerate}
+
+\subsection{Responsibilities}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Accept registration requests from the frontend.
+  \item Validate and normalize user input (username, email, password).
+  \item Hash passwords using Argon2.
+  \item Generate and store cryptographically secure verification tokens.
+  \item Expose verification endpoints for email link handling.
+  \item Protect against replay and token brute forcing.
+  \item Provide clear, generic responses to the frontend (no leaking of internal state).
+\end{itemize}
+
+\subsection{Data Collected}
+
+The registration module stores only the minimal data required for account creation and email verification.
+
+\subsubsection*{User Table}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{id}: UUID or integer, primary key.
+  \item \texttt{username}
+  \item \texttt{email}
+  \item \texttt{password\_hash}
+  \item \texttt{is\_verified} (boolean)
+  \item \texttt{created\_at}, \texttt{updated\_at}
+\end{itemize}
+
+\subsubsection*{Email Verification Token Table}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{id}: primary key.
+  \item \texttt{user\_id}: foreign key.
+  \item \texttt{token\_hash}: hash of the token, never the raw token.
+  \item \texttt{expires\_at}
+  \item \texttt{consumed\_at} (nullable)
+  \item \texttt{created\_at}
+\end{itemize}
+Standard technical metadata may be logged for operational and security purposes:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Timestamp of registration attempts.
+  \item Source IP (for rate limiting and incident analysis).
+  \item Generic success/failure markers (without sensitive details).
+\end{itemize}
+\subsection{Security Assumptions}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item All traffic is served over HTTPS in production.
+  \item Secrets such as database credentials and key material are not stored in source code.
+  \item The database is not directly exposed to the internet (only the backend service can access it).
+  \item Email delivery is handled by a trusted provider or simulated in development (e.g., logs instead of real emails).
+  \item Clients do not bypass the frontend and always call public API endpoints (the backend still validates all input).
+  \item User passwords are never logged, stored in plaintext, or returned to the client.
+\end{itemize}
+
+\section{Component Requirements}
+
+\subsection{Functional Requirements}
+
+\subsubsection{FR-1: User Registration}
+
+\textbf{ID}: FR-1
+
+\textbf{Description}: The system must allow a new user to register with username, email, and password.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Registration is exposed as an HTTP endpoint on the backend.
+  \item The frontend provides a dedicated registration form.
+  \item A success response does not reveal whether the email or username already exists.
+\end{itemize}
+
+\subsubsectin{FR-2: Email Verification}
+
+\textbf{ID}: FR-2
+
+\textbf{Description}: The system must require email verification before enabling a full login.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item On successful registration, a verification token is generated and stored in hashed form.
+  \item A verification link containing the token is presented (or logged in dev mode).
+  \item Clicking the link (or calling the verification endpoint) marks the user as verified if the token is valid and unexpired.
+\end{itemize}
+
+\subsubsection{FR-3: Input Validation}
+
+\textbf{ID}: FR-3
+
+\textbf{Description}: All registration inputs must be strictly validated on backend and frontend.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Username: reasonable length, allowed characters, normalized format.
+  \item Email: checked against a robust email format and normalized (e.g., lowercase).
+  \item Password: minimum length and complexity requirements enforced.
+\end{itemize}
+
+\subsubsection{FR-4: Error Handling}
+
+\textbf{ID}: FR-4
+
+\textbf{Description}: The system must provide generic and safe error messages.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item No distinction between ``email already registered'' and ``user not found'' in responses.
+  \item Server errors are logged on the backend but not exposed to users.
+  \item Client receives short, user-friendly messages.
+\end{itemize}
+
+\subsubsection{FR-5: Token Lifecycle}
+
+\textbf{ID}: FR-5
+
+\textbf{Description}: Verification tokens must be single-use and time-limited.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Each token can be used only once.
+  \item Tokens have an explicit expiration time.
+  \item Expired or consumed tokens are rejected with a generic error.
+\end{itemize}
+
+\subsubsection{FR-6: Health Check}
+
+\textbf{ID}: FR-6
+
+\textbf{Description}: The module must expose a simple health endpoint for monitoring.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Allows external systems to check that the backend is running.
+  \item Does not expose internal or user data.
+\end{itemize}
+
+\subsection{Non-Functional Requirements}
+
+\subsubsection{NFR-1: Security}
+
+\textbf{ID}: NFR-1
+
+\textbf{Description}: All security best practices must be followed.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item No plaintext passwords or tokens stored.
+  \item Verification tokens stored only as hashes.
+  \item Generic error messages (prevent user enumeration).
+  \item HTTPS enforced in production.
+  \item No PII in URLs beyond what is unavoidable (e.g., query token is opaque).
+  \item Planned rate limiting to soften brute force and abuse.
+  \item Input validated both on frontend and backend.
+\end{itemize}
+
+\subsubsection{NFR-2: Performance}
+
+\textbf{ID}: NFR-2
+
+\textbf{Description}: The module must handle typical concurrent registration loads.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Database operations complete in under 100~ms under normal load.
+  \item Token generation in under 50~ms.
+  \item API responses in under 200~ms for typical requests.
+  \item Argon2 parameters chosen to balance security and latency.
+\end{itemize}
+
+\subsubsection{NFR-3: Reliability}
+
+\textbf{ID}: NFR-3
+
+\textbf{Description}: The module must be fault-tolerant.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Database transactions roll back on any failure.
+  \item Partial registrations are cleaned up if processing fails mid-flow.
+  \item Errors are logged and can be correlated across services.
+  \item Verification tokens cannot be reused after consumption.
+\end{itemize}
+
+\subsubsection{NFR-4: Usability}
+
+\textbf{ID}: NFR-4
+
+\textbf{Description}: The module must provide clear user feedback.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Frontend shows field-level validation errors.
+  \item Password strength indicators and hints are provided where appropriate.
+  \item After registration, user receives clear instructions to check email.
+  \item After verification, user is guided to login.
+\end{itemize}
+
+\section{Component Architecture}
+
+\subsection{Technology Stack}
+
+\subsubsection*{Frontend}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Vue~3 with TypeScript
+  \item Vuetify for UI components and consistent styling
+  \item Axios or fetch-based API service layer
+  \item Protobuf-generated TypeScript client (\texttt{frontend/src/generated/api.ts})
+\end{itemize}
+
+\subsubsection*{Backend}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Rust
+  \item Axum for HTTP routing
+  \item SQLx for asynchronous database access
+  \item Argon2 for password hashing
+  \item SHA2 for token hashing
+  \item \texttt{rand\_core} / \texttt{rand} for cryptographically secure random values
+  \item Protobuf-generated Rust types (\texttt{backend/src/generated/api.v1.rs})
+\end{itemize}
+
+\subsubsection*{Database}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Relational database (e.g., PostgreSQL or SQLite, configured per environment)
+  \item Tables for users and verification tokens with strong constraints
+\end{itemize}
+
+\subsubsection*{API Format}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Protocol Buffers for message definitions (\texttt{proto/api.proto})
+  \item HTTP endpoints exchanging Protobuf-backed JSON or binary messages (depending on configuration)
+\end{itemize}
+
+\subsection{High-Level Architecture Diagram}
+
+\begin{verbatim}
++-------------------------------------------------------------+
+|                     Frontend (Vue)                          |
+|                                                             |
+|   +-------------+   +--------------+   +----------------+  |
+|   | Register    | ->| API Service  | ->| Validation     |  |
+|   | Page        |   |              |   | Layer          |  |
+|   +-------------+   +--------------+   +----------------+  |
++-------------------------------------------------------------+
+                             |
+                             | HTTP / Protobuf
+                             v
++-------------------------------------------------------------+
+|                      Backend (Axum)                         |
+|                                                             |
+|   +-------------+   +--------------+   +----------------+  |
+|   | API         | ->| Business     | ->| Database       |  |
+|   | Handlers    |   | Logic        |   | Layer          |  |
+|   +-------------+   +--------------+   +----------------+  |
++-------------------------------------------------------------+
+                             |
+                             | SQL
+                             v
++-------------------------------------------------------------+
+|                          Database                           |
+|                                                             |
+|   +-------------+        +----------------------+           |
+|   | users       |        | verification_tokens |           |
+|   +-------------+        +----------------------+           |
++-------------------------------------------------------------+
+
+\end{verbatim}
+
+\subsection{Data Flow}
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item User opens the registration page on the frontend.
+  \item User fills in username, email, and password.
+  \item Frontend performs client-side validation and sends a registration request to the backend.
+  \item Backend validates the input again and:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Hashes the password with Argon2.
+    \item Creates a user record in the database.
+    \item Generates a random verification token and stores its hash in \texttt{verification\_tokens}.
+  \end{itemize}
+  \item Backend returns a success response.
+  \item In development mode, an email-like message (with a verification link containing the raw token) is logged or displayed to simulate delivery.
+  \item User follows the verification link.
+  \item Frontend sends the token to the verification endpoint.
+  \item Backend:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Locates the token by its hash.
+    \item Verifies expiry and that it is unused.
+    \item Marks the token as consumed.
+    \item Marks the associated user as verified.
+  \end{itemize}
+  \item Backend returns a success response; frontend shows a confirmation message.
+\end{enumerate}
+
+\section{Database Structure}
+
+\subsection{Users Table}
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\endhead
+\texttt{id} & UUID / INTEGER & Primary key & Unique user identifier \\
+\texttt{username} & TEXT & Unique, NOT NULL & Indexed for lookup \\
+\texttt{email} & TEXT & Unique, NOT NULL & Indexed, stored normalized \\
+\texttt{password\_hash} & TEXT & NOT NULL & Argon2 hash, never plaintext \\
+\texttt{is\_verified} & BOOLEAN & NOT NULL, default \texttt{false} & Becomes \texttt{true} after verification \\
+\texttt{created\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} &  \\
+\texttt{updated\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} & Updated on changes \\
+\bottomrule
+\end{longtable}
+
+Typical constraints and checks:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Unique constraint on \texttt{(username)} and \texttt{(email)}.
+  \item Email stored in lowercase to avoid duplicates by case difference.
+  \item Application logic prevents updates that would violate uniqueness.
+\end{itemize}
+
+\subsection{Verification Tokens Table}
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\endhead
+\texttt{id} & UUID / INTEGER & Primary key & Internal identifier \\
+\texttt{user\_id} & UUID / INTEGER & NOT NULL, FK $\rightarrow$ \texttt{users.id} & Indexed for lookups \\
+\texttt{token\_hash} & TEXT & NOT NULL & Hash of random token, unique \\
+\texttt{expires\_at} & TIMESTAMP & NOT NULL & Tokens invalid after this timestamp \\
+\texttt{consumed\_at} & TIMESTAMP & NULLABLE & Set on successful verification \\
+\texttt{created\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} &  \\
+\bottomrule
+\end{longtable}
+
+Constraints and guarantees:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{token\_hash} is unique to prevent collisions.
+  \item A token is considered valid only if:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{now() <= expires\_at}
+    \item \texttt{consumed\_at IS NULL}
+  \end{itemize}
+  \item Foreign key \texttt{user\_id} enforces referential integrity.
+\end{itemize}
+
+\section{UML Sequence Diagrams}
+
+\subsection{Registration Flow Sequence Diagram}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{registration-sequence.png}
+    \caption{Registration Flow Sequence Diagram}
+    \label{fig:example}
+\end{figure}
+
+\subsection{Verification / Activation Flow Sequence Diagram}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{verification-sequence.png}
+    \caption{Verification Flow Sequence Diagram}
+    \label{fig:example}
+\end{figure}
+
+\pagebreak
+
+\section{Security Features Summary}
+
+\subsection{Implemented Security Measures}
+
+\subsubsection*{Password Hashing}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Argon2 is used for password hashing.
+  \item Parameters tuned for modern hardware to resist brute force.
+  \item Passwords are never stored or logged in plaintext.
+\end{itemize}
+
+\subsubsection*{Token Security}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Verification tokens are random, high-entropy values.
+  \item Only token hashes are stored in the database.
+  \item Tokens are single-use and time-limited.
+  \item Tokens are not predictable and cannot be derived from user data.
+\end{itemize}
+
+\subsubsection*{Input Validation and Normalization}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Backend validates all fields regardless of frontend checks.
+  \item Email is normalized (e.g., lowercased).
+  \item Usernames are restricted to safe characters and reasonable lengths.
+  \item Passwords must meet minimum length and complexity requirements.
+\end{itemize}
+
+\subsubsection*{Error Handling and Enumeration Resistance}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Error responses are generic: no difference between invalid credentials and unverified accounts, for example.
+  \item Registration responses do not reveal if an email or username already exists.
+  \item Detailed errors are logged server-side only.
+\end{itemize}
+
+\subsubsection*{Transport Security}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item HTTPS enforced in production to protect credentials and tokens in transit.
+  \item No sensitive data is transmitted unencrypted over the network.
+\end{itemize}
+
+\subsubsection*{Database Security}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Prepared statements are used (via SQLx) to prevent SQL injection.
+  \item Separate database credentials for environments.
+  \item Password and token hashes are not reversible.
+  \item Access to the database is limited to the backend service.
+\end{itemize}
+
+\subsubsection*{Replay and Abuse Protection}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Tokens can be used only once and are marked as consumed.
+  \item Expired tokens are rejected.
+  \item Future enhancements include rate limiting and CAPTCHA.
+\end{itemize}
+
+\subsection{Future Security Enhancements}
+
+Planned or potential enhancements:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Rate limiting on registration and verification endpoints.
+  \item CAPTCHA integration for bot and script mitigation.
+  \item Production email service integration (SMTP or API-based).
+  \item Scheduled cleanup of expired and consumed tokens.
+  \item Session management using JWT or secure server-side sessions.
+  \item Optional two-factor or multi-factor authentication.
+  \item Password reset flow with secure tokens.
+  \item Account lockout or step-up verification after repeated failures.
+\end{itemize}
+
+\section{API Reference}
+
+This section documents the main endpoints implemented by the registration module. Protobuf definitions are provided in \texttt{proto/api.proto} and are compiled into both backend and frontend code.
+
+\subsection{Endpoints Overview}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{POST /api/register} -- Create a new user account and issue a verification token.
+  \item \texttt{POST /api/verify-email} -- Verify an email using a token.
+  \item \texttt{GET /api/health} -- Lightweight health check.
+\end{itemize}
+
+\subsection{\texorpdfstring{\texttt{POST /api/register}}{POST /api/register}}
+
+Registers a new user account and issues an email verification token.
+
+\subsubsection*{Request (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message RegistrationRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+\end{lstlisting}
+
+\subsubsection*{Response (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message ApiResponse {
+  bool success = 1;
+  string message = 2;
+}
+\end{lstlisting}
+
+\subsubsection*{Behavior}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Performs full backend validation of all fields.
+  \item If validation fails, returns \texttt{success = false} with a generic message.
+  \item On success:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Creates a new user with \texttt{is\_verified = false}.
+    \item Hashes and stores the user's password.
+    \item Generates a verification token and stores its hash with expiry.
+    \item In development, logs or displays a mock email including the verification link.
+  \end{itemize}
+\end{itemize}
+
+\subsubsection*{Status Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{200 OK} -- Request processed;
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{success = true} on successful registration.
+    \item \texttt{success = false} if validation failed.
+  \end{itemize}
+  \item \textbf{400 Bad Request} -- Malformed payload or missing fields.
+  \item \textbf{500 Internal Server Error} -- Unexpected server error.
+\end{itemize}
+
+\subsection{\texorpdfstring{\texttt{POST /api/verify-email}}{POST /api/verify-email}}
+
+Verifies an email address using a token from the verification link.
+
+\subsubsection*{Request (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message VerificationRequest {
+  string token = 1;
+}
+\end{lstlisting}
+
+\subsubsection*{Response (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message ApiResponse {
+  bool success = 1;
+  string message = 2;
+}
+\end{lstlisting}
+
+\subsubsection*{Behavior}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Hashes the incoming \texttt{token} and attempts to find a matching record.
+  \item Checks token expiry and whether it has already been consumed.
+  \item If valid:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Marks the associated user as verified.
+    \item Marks the token record as consumed.
+  \end{itemize}
+  \item Responds with \texttt{success = true} on successful verification, or \texttt{success = false} with a generic message otherwise.
+\end{itemize}
+
+\subsubsection*{Status Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{200 OK} -- Verification processed; \texttt{success} indicates outcome.
+  \item \textbf{400 Bad Request} -- Malformed payload.
+  \item \textbf{404 Not Found} (optional, may still return 200 with \texttt{success = false}) -- No valid token found.
+  \item \textbf{500 Internal Server Error} -- Unexpected server error.
+\end{itemize}
+
+\subsection{\texorpdfstring{\texttt{GET /api/health}}{GET /api/health}}
+
+Simple health check endpoint.
+
+\subsubsection*{Behavior}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Returns a basic success payload indicating the backend is up.
+  \item Does not access user data or reveal internal state beyond health.
+\end{itemize}
+
+\subsubsection*{Status Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{200 OK} -- Backend is healthy.
+\end{itemize}
+
+\section{Implementation Files}
+
+This section lists the core implementation files that make up the registration module.
+
+\subsection{Backend Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{backend/src/main.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Application entry point.
+    \item Configures Axum router and mounts registration and verification routes.
+    \item Initializes database connection and shared state.
+  \end{itemize}
+  \item \texttt{backend/src/api.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item HTTP handlers for:
+    \begin{itemize}[leftmargin=1.5em,nosep]
+      \item \texttt{POST /api/register}
+      \item \texttt{POST /api/verify-email}
+      \item \texttt{GET /api/health}
+    \end{itemize}
+    \item Parses Protobuf/JSON payloads and returns \texttt{ApiResponse} messages.
+  \end{itemize}
+  \item \texttt{backend/src/db/mod.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Database access layer.
+    \item Functions for:
+    \begin{itemize}[leftmargin=1.5em,nosep]
+      \item Creating users.
+      \item Storing and looking up verification tokens.
+      \item Marking users as verified.
+    \end{itemize}
+    \item Encapsulates SQLx queries and transactions.
+  \end{itemize}
+  \item \texttt{backend/src/generated/api.v1.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Generated Rust types from \texttt{proto/api.proto}.
+    \item Shared message definitions for requests and responses.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Frontend Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{frontend/src/pages/register.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Registration page.
+    \item Presents username/email/password form.
+    \item Displays validation errors and success messages.
+  \end{itemize}
+  \item \texttt{frontend/src/pages/verify-email.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Verification landing page.
+    \item Reads token (for example, from query parameters).
+    \item Calls verification API and shows user feedback.
+  \end{itemize}
+  \item \texttt{frontend/src/components/UserRegistration.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Reusable registration form component.
+    \item Handles field-level validation, user interaction, and emits submission events.
+  \end{itemize}
+  \item \texttt{frontend/src/services/api.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Frontend API service layer.
+    \item Functions such as \texttt{registerUser} and \texttt{verifyEmail} wrapping HTTP calls.
+    \item Uses generated Protobuf TypeScript definitions.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Generated TypeScript client from \texttt{proto/api.proto}.
+    \item Type-safe request and response interfaces.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Proto Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{proto/api.proto}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Protobuf definitions for:
+    \begin{itemize}[leftmargin=1.5em,nosep]
+      \item \texttt{RegistrationRequest}
+      \item \texttt{VerificationRequest}
+      \item \texttt{ApiResponse}
+      \item Any shared error or metadata types.
+    \end{itemize}
+    \item Single source of truth for backend and frontend API types.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Documentation Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{documentation/registration-module.md}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item This document; primary reference for the registration module.
+  \end{itemize}
+  \item \texttt{documentation/email-verify-feat.md}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Focused description of the email verification feature and its behavior.
+  \end{itemize}
+  \item \texttt{documentation/email-verify-implementation.md}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Implementation details of the verification functionality and integration.
+  \end{itemize}
+\end{itemize}
+
+\section{Usage Examples}
+
+\subsection{Development Mode}
+
+Run backend and frontend in development:
+
+\begin{verbatim}
+# Backend
+cd backend
+cargo run -- --dev
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+\end{verbatim}
+
+In development mode, the email verification link is typically logged to the console or terminal instead of sending a real email. This allows manual testing of the full verification flow without configuring an SMTP server.
+
+\subsection{Registration Flow Example}
+
+\begin{lstlisting}[language=Java]
+import { registerUser } from '@/services/api';
+
+async function handleRegister(): Promise<void> {
+  const response = await registerUser({
+    username: 'john_doe',
+    email: 'john@example.com',
+    password: 'SecureP@ssw0rd123',
+  });
+
+  if (response.success) {
+    // "Registration successful. Please check your email to verify your account."
+  } else {
+    // "Registration failed. Please check your details and try again."
+  }
+}
+\end{lstlisting}
+
+On the backend:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item A user record is created.
+  \item The password is stored as an Argon2 hash.
+  \item A verification token is generated and stored as a hash.
+  \item A mock email with a link like \texttt{https://example.com/verify-email?token=<token>} is logged.
+\end{itemize}
+
+\subsection{Verification Flow Example}
+
+\begin{lstlisting}[language=Java]
+import { verifyEmail } from '@/services/api';
+
+async function handleVerify(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (!token) {
+    return;
+  }
+
+  const response = await verifyEmail(token);
+
+  if (response.success) {
+    // "Email verified successfully. You can now log in."
+  } else {
+    // "Verification failed or token has expired. Please request a new verification email."
+  }
+}
+\end{lstlisting}
+
+\subsection{Libraries and Tools}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Axum -- Rust web framework
+  \item SQLx -- Asynchronous SQL toolkit
+  \item Argon2 -- Password hashing algorithm
+  \item SHA2 -- Cryptographic hash functions
+  \item \texttt{rand\_core} / \texttt{rand} -- Cryptographically secure RNG
+  \item Protocol Buffers -- API schema and type generation
+  \item Vue~3 -- Frontend framework
+  \item Vuetify -- Material Design component library
+\end{itemize}
+
+\section{Version History}
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Version} & \textbf{Date} & \textbf{Changes} \\
+\midrule
+\endhead
+1.0 & 2025-12-23 & Initial single-file registration module documentation \\
+\bottomrule
+\end{longtable}
+
+\vspace{1em}
+
+\noindent
+\textbf{Document Generated}: 2025-12-23\\
+\textbf{Last Updated}: 2025-12-23\\
+\textbf{Status}: Complete\\
+\textbf{Review Status}: Ready for review
+
+\end{document}

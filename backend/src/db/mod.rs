@@ -109,23 +109,34 @@ impl DBHandle {
     ) -> Result<Arc<Self>> {
         let mut secret_key = String::with_capacity(KEYRING_DB_KEY_LEN);
         if opts_override.is_none() {
-            secret_key = tokio::task::spawn_blocking(|| -> Result<String> {
-                let keyring_entry = Entry::new(KEYRING_SERVICE_NAME, KEYRING_USERNAME)?;
-                let keyring_secret = keyring_entry.get_secret()?;
-                let secret = if keyring_secret.len() != KEYRING_DB_KEY_LEN {
-                    let mut key = vec![0u8; KEYRING_DB_KEY_LEN];
-                    OsRng.try_fill_bytes(&mut key).unwrap();
-                    keyring_entry.set_secret(&key)?;
-                    key
-                } else {
-                    keyring_secret
-                };
-                let mut key_str = String::with_capacity(KEYRING_DB_KEY_LEN * 2);
-                for byte in secret {
-                    write!(key_str, "{:02X}", byte)?;
+            // Try environment variable first (for Docker/container deployments)
+            // Fall back to system keyring if not set
+            secret_key = match std::env::var(DB_KEY_ENV_VAR) {
+                Ok(key) if key.len() == KEYRING_DB_KEY_LEN * 2 => {
+                    // Key from env var should be hex-encoded (64 chars for 32 bytes)
+                    format!("\"x'{}'\"", key.to_uppercase())
                 }
-                Ok(format!("\"x'{}'\"", key_str))
-            }).await??;
+                _ => {
+                    // Fall back to keyring
+                    tokio::task::spawn_blocking(|| -> Result<String> {
+                        let keyring_entry = Entry::new(KEYRING_SERVICE_NAME, KEYRING_USERNAME)?;
+                        let keyring_secret = keyring_entry.get_secret()?;
+                        let secret = if keyring_secret.len() != KEYRING_DB_KEY_LEN {
+                            let mut key = vec![0u8; KEYRING_DB_KEY_LEN];
+                            OsRng.try_fill_bytes(&mut key).unwrap();
+                            keyring_entry.set_secret(&key)?;
+                            key
+                        } else {
+                            keyring_secret
+                        };
+                        let mut key_str = String::with_capacity(KEYRING_DB_KEY_LEN * 2);
+                        for byte in secret {
+                            write!(key_str, "{:02X}", byte)?;
+                        }
+                        Ok(format!("\"x'{}'\"", key_str))
+                    }).await??
+                }
+            };
         }
         let opts = match opts_override {
             Some(opts) => opts,

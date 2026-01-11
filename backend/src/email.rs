@@ -2,6 +2,10 @@ use lettre::message::header::ContentType;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use tracing::{debug, error};
 
+const DEFAULT_SMTP_HOST: &str = "127.0.0.1";
+const SMTP_PORT: u16 = 1025;
+const SMTP_HOST_ENV_VAR: &str = "SMTP_HOST";
+
 pub struct EmailSender {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     from_email: String,
@@ -9,9 +13,10 @@ pub struct EmailSender {
 
 impl EmailSender {
     pub fn new_mailhog() -> Self {
-        let transport = AsyncSmtpTransport::<Tokio1Executor>::relay("127.0.0.1")
+        let smtp_host = std::env::var(SMTP_HOST_ENV_VAR).unwrap_or_else(|_| DEFAULT_SMTP_HOST.to_string());
+        let transport = AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_host)
             .unwrap()
-            .port(1025)
+            .port(SMTP_PORT)
             .tls(lettre::transport::smtp::client::Tls::None)
             .build();
 
