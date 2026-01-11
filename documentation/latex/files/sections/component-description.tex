@@ -1,0 +1,70 @@
+% Component Description - Purpose, responsibilities, data collected, security assumptions
+\section{Component Description}
+
+\subsection{Purpose}
+
+The registration module provides a secure mechanism for creating user accounts and verifying ownership of email addresses before granting full access to the application.
+
+Its main goals are:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item Ensure only valid, well-formed data is accepted.
+  \item Prevent user enumeration and information leakage.
+  \item Protect passwords and verification tokens using modern cryptography.
+  \item Enforce email verification before login succeeds.
+  \item Provide a structure that can be audited for security.
+\end{enumerate}
+
+\subsection{Responsibilities}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Accept registration requests from the frontend.
+  \item Validate and normalize user input (username, email, password).
+  \item Hash passwords using Argon2.
+  \item Generate and store cryptographically secure verification tokens.
+  \item Expose verification endpoints for email link handling.
+  \item Protect against replay and token brute forcing.
+  \item Provide clear, generic responses to the frontend (no leaking of internal state).
+\end{itemize}
+
+\subsection{Data Collected}
+
+The registration module stores only the minimal data required for account creation and email verification.
+
+\subsubsection*{User Table}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{id}: UUID or integer, primary key.
+  \item \texttt{username}
+  \item \texttt{email}
+  \item \texttt{password\_hash}
+  \item \texttt{is\_verified} (boolean)
+  \item \texttt{created\_at}, \texttt{updated\_at}
+\end{itemize}
+
+\subsubsection*{Email Verification Token Table}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{id}: primary key.
+  \item \texttt{user\_id}: foreign key.
+  \item \texttt{token\_hash}: hash of the token, never the raw token.
+  \item \texttt{expires\_at}
+  \item \texttt{consumed\_at} (nullable)
+  \item \texttt{created\_at}
+\end{itemize}
+Standard technical metadata may be logged for operational and security purposes:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Timestamp of registration attempts.
+  \item Source IP (for rate limiting and incident analysis).
+  \item Generic success/failure markers (without sensitive details).
+\end{itemize}
+\subsection{Security Assumptions}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item All traffic is served over HTTPS in production.
+  \item Secrets such as database credentials and key material are not stored in source code.
+  \item The database is not directly exposed to the internet (only the backend service can access it).
+  \item Email delivery is handled by a trusted provider or simulated in development (e.g., logs instead of real emails).
+  \item Clients do not bypass the frontend and always call public API endpoints (the backend still validates all input).
+  \item User passwords are never logged, stored in plaintext, or returned to the client.
+\end{itemize}

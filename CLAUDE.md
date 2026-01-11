@@ -22,6 +22,7 @@ A web app demonstration focused on using good web security practices.
 - `translator/` - rust crate compiled natively to the backend as well as the frontend using wasm-pack that is used for translating user facing errors from codes to text,
 - `field-validator/` - rust crate compiled to backend and frontend that is responsible for validating all data,
 - `api-types/` - rust crate shared across the project for defining api response types as precisely as possible.
+- `documentation/` - latex documentation along with high level markdown tasks for this project.
 
 ## Standards
 

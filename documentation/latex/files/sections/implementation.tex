@@ -1,0 +1,107 @@
+% Implementation Files - Core files listing
+\section{Implementation Files}
+
+This section lists the core implementation files that make up the registration module.
+
+\subsection{Backend Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{backend/src/main.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Application entry point.
+    \item Configures Axum router and mounts registration and verification routes.
+    \item Initializes database connection and shared state.
+  \end{itemize}
+  \item \texttt{backend/src/api.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item HTTP handlers for:
+    \begin{itemize}[leftmargin=1.5em,nosep]
+      \item \texttt{POST /api/register}
+      \item \texttt{POST /api/verify-email}
+      \item \texttt{GET /api/health}
+    \end{itemize}
+    \item Parses Protobuf/JSON payloads and returns \texttt{ApiResponse} messages.
+  \end{itemize}
+  \item \texttt{backend/src/db/mod.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Database access layer.
+    \item Functions for:
+    \begin{itemize}[leftmargin=1.5em,nosep]
+      \item Creating users.
+      \item Storing and looking up verification tokens.
+      \item Marking users as verified.
+    \end{itemize}
+    \item Encapsulates SQLx queries and transactions.
+  \end{itemize}
+  \item \texttt{backend/src/generated/api.v1.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Generated Rust types from \texttt{proto/api.proto}.
+    \item Shared message definitions for requests and responses.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Frontend Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{frontend/src/pages/register.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Registration page.
+    \item Presents username/email/password form.
+    \item Displays validation errors and success messages.
+  \end{itemize}
+  \item \texttt{frontend/src/pages/verify-email.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Verification landing page.
+    \item Reads token (for example, from query parameters).
+    \item Calls verification API and shows user feedback.
+  \end{itemize}
+  \item \texttt{frontend/src/components/UserRegistration.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Reusable registration form component.
+    \item Handles field-level validation, user interaction, and emits submission events.
+  \end{itemize}
+  \item \texttt{frontend/src/services/api.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Frontend API service layer.
+    \item Functions such as \texttt{registerUser} and \texttt{verifyEmail} wrapping HTTP calls.
+    \item Uses generated Protobuf TypeScript definitions.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Generated TypeScript client from \texttt{proto/api.proto}.
+    \item Type-safe request and response interfaces.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Proto Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{proto/api.proto}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Protobuf definitions for:
+    \begin{itemize}[leftmargin=1.5em,nosep]
+      \item \texttt{RegistrationRequest}
+      \item \texttt{VerificationRequest}
+      \item \texttt{ApiResponse}
+      \item Any shared error or metadata types.
+    \end{itemize}
+    \item Single source of truth for backend and frontend API types.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Documentation Files}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{documentation/registration-module.md}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item This document; primary reference for the registration module.
+  \end{itemize}
+  \item \texttt{documentation/email-verify-feat.md}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Focused description of the email verification feature and its behavior.
+  \end{itemize}
+  \item \texttt{documentation/email-verify-implementation.md}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Implementation details of the verification functionality and integration.
+  \end{itemize}
+\end{itemize}

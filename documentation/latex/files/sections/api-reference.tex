@@ -1,0 +1,121 @@
+% API Reference - Endpoints documentation
+\section{API Reference}
+
+This section documents the main endpoints implemented by the registration module. Protobuf definitions are provided in \texttt{proto/api.proto} and are compiled into both backend and frontend code.
+
+\subsection{Endpoints Overview}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{POST /api/register} -- Create a new user account and issue a verification token.
+  \item \texttt{POST /api/verify-email} -- Verify an email using a token.
+  \item \texttt{GET /api/health} -- Lightweight health check.
+\end{itemize}
+
+\subsection{\texorpdfstring{\texttt{POST /api/register}}{POST /api/register}}
+
+Registers a new user account and issues an email verification token.
+
+\subsubsection*{Request (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message RegistrationRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+\end{lstlisting}
+
+\subsubsection*{Response (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message ApiResponse {
+  bool success = 1;
+  string message = 2;
+}
+\end{lstlisting}
+
+\subsubsection*{Behavior}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Performs full backend validation of all fields.
+  \item If validation fails, returns \texttt{success = false} with a generic message.
+  \item On success:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Creates a new user with \texttt{is\_verified = false}.
+    \item Hashes and stores the user's password.
+    \item Generates a verification token and stores its hash with expiry.
+    \item In development, logs or displays a mock email including the verification link.
+  \end{itemize}
+\end{itemize}
+
+\subsubsection*{Status Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{200 OK} -- Request processed;
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{success = true} on successful registration.
+    \item \texttt{success = false} if validation failed.
+  \end{itemize}
+  \item \textbf{400 Bad Request} -- Malformed payload or missing fields.
+  \item \textbf{500 Internal Server Error} -- Unexpected server error.
+\end{itemize}
+
+\subsection{\texorpdfstring{\texttt{POST /api/verify-email}}{POST /api/verify-email}}
+
+Verifies an email address using a token from the verification link.
+
+\subsubsection*{Request (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message VerificationRequest {
+  string token = 1;
+}
+\end{lstlisting}
+
+\subsubsection*{Response (Protobuf)}
+
+\begin{lstlisting}[language=protobuf]
+message ApiResponse {
+  bool success = 1;
+  string message = 2;
+}
+\end{lstlisting}
+
+\subsubsection*{Behavior}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Hashes the incoming \texttt{token} and attempts to find a matching record.
+  \item Checks token expiry and whether it has already been consumed.
+  \item If valid:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Marks the associated user as verified.
+    \item Marks the token record as consumed.
+  \end{itemize}
+  \item Responds with \texttt{success = true} on successful verification, or \texttt{success = false} with a generic message otherwise.
+\end{itemize}
+
+\subsubsection*{Status Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{200 OK} -- Verification processed; \texttt{success} indicates outcome.
+  \item \textbf{400 Bad Request} -- Malformed payload.
+  \item \textbf{404 Not Found} (optional, may still return 200 with \texttt{success = false}) -- No valid token found.
+  \item \textbf{500 Internal Server Error} -- Unexpected server error.
+\end{itemize}
+
+\subsection{\texorpdfstring{\texttt{GET /api/health}}{GET /api/health}}
+
+Simple health check endpoint.
+
+\subsubsection*{Behavior}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Returns a basic success payload indicating the backend is up.
+  \item Does not access user data or reveal internal state beyond health.
+\end{itemize}
+
+\subsubsection*{Status Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{200 OK} -- Backend is healthy.
+\end{itemize}

@@ -1,0 +1,103 @@
+% Usage Examples - Development mode, examples, libraries, version history
+\section{Usage Examples}
+
+\subsection{Development Mode}
+
+Run backend and frontend in development:
+
+\begin{verbatim}
+# Backend
+cd backend
+cargo run -- --dev
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+\end{verbatim}
+
+In development mode, the email verification link is typically logged to the console or terminal instead of sending a real email. This allows manual testing of the full verification flow without configuring an SMTP server.
+
+\subsection{Registration Flow Example}
+
+\begin{lstlisting}[language=Java]
+import { registerUser } from '@/services/api';
+
+async function handleRegister(): Promise<void> {
+  const response = await registerUser({
+    username: 'john_doe',
+    email: 'john@example.com',
+    password: 'SecureP@ssw0rd123',
+  });
+
+  if (response.success) {
+    // "Registration successful. Please check your email to verify your account."
+  } else {
+    // "Registration failed. Please check your details and try again."
+  }
+}
+\end{lstlisting}
+
+On the backend:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item A user record is created.
+  \item The password is stored as an Argon2 hash.
+  \item A verification token is generated and stored as a hash.
+  \item A mock email with a link like \texttt{https://example.com/verify-email?token=<token>} is logged.
+\end{itemize}
+
+\subsection{Verification Flow Example}
+
+\begin{lstlisting}[language=Java]
+import { verifyEmail } from '@/services/api';
+
+async function handleVerify(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (!token) {
+    return;
+  }
+
+  const response = await verifyEmail(token);
+
+  if (response.success) {
+    // "Email verified successfully. You can now log in."
+  } else {
+    // "Verification failed or token has expired. Please request a new verification email."
+  }
+}
+\end{lstlisting}
+
+\subsection{Libraries and Tools}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Axum -- Rust web framework
+  \item SQLx -- Asynchronous SQL toolkit
+  \item Argon2 -- Password hashing algorithm
+  \item SHA2 -- Cryptographic hash functions
+  \item \texttt{rand\_core} / \texttt{rand} -- Cryptographically secure RNG
+  \item Protocol Buffers -- API schema and type generation
+  \item Vue~3 -- Frontend framework
+  \item Vuetify -- Material Design component library
+\end{itemize}
+
+\section{Version History}
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Version} & \textbf{Date} & \textbf{Changes} \\
+\midrule
+\endhead
+1.0 & 2025-12-23 & Initial single-file registration module documentation \\
+\bottomrule
+\end{longtable}
+
+\vspace{1em}
+
+\noindent
+\textbf{Document Generated}: 2025-12-23\\
+\textbf{Last Updated}: 2025-12-23\\
+\textbf{Status}: Complete\\
+\textbf{Review Status}: Ready for review

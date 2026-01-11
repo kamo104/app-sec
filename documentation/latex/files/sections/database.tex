@@ -1,0 +1,55 @@
+% Database Structure - Tables and constraints
+\section{Database Structure}
+
+\subsection{Users Table}
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\endhead
+\texttt{id} & UUID / INTEGER & Primary key & Unique user identifier \\
+\texttt{username} & TEXT & Unique, NOT NULL & Indexed for lookup \\
+\texttt{email} & TEXT & Unique, NOT NULL & Indexed, stored normalized \\
+\texttt{password\_hash} & TEXT & NOT NULL & Argon2 hash, never plaintext \\
+\texttt{is\_verified} & BOOLEAN & NOT NULL, default \texttt{false} & Becomes \texttt{true} after verification \\
+\texttt{created\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} &  \\
+\texttt{updated\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} & Updated on changes \\
+\bottomrule
+\end{longtable}
+
+Typical constraints and checks:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Unique constraint on \texttt{(username)} and \texttt{(email)}.
+  \item Email stored in lowercase to avoid duplicates by case difference.
+  \item Application logic prevents updates that would violate uniqueness.
+\end{itemize}
+
+\subsection{Verification Tokens Table}
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\endhead
+\texttt{id} & UUID / INTEGER & Primary key & Internal identifier \\
+\texttt{user\_id} & UUID / INTEGER & NOT NULL, FK $\rightarrow$ \texttt{users.id} & Indexed for lookups \\
+\texttt{token\_hash} & TEXT & NOT NULL & Hash of random token, unique \\
+\texttt{expires\_at} & TIMESTAMP & NOT NULL & Tokens invalid after this timestamp \\
+\texttt{consumed\_at} & TIMESTAMP & NULLABLE & Set on successful verification \\
+\texttt{created\_at} & TIMESTAMP & NOT NULL, default \texttt{now()} &  \\
+\bottomrule
+\end{longtable}
+
+Constraints and guarantees:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{token\_hash} is unique to prevent collisions.
+  \item A token is considered valid only if:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{now() <= expires\_at}
+    \item \texttt{consumed\_at IS NULL}
+  \end{itemize}
+  \item Foreign key \texttt{user\_id} enforces referential integrity.
+\end{itemize}

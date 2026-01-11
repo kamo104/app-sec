@@ -1,0 +1,100 @@
+% Component Architecture - Technology stack, high-level diagram, data flow
+\section{Component Architecture}
+
+\subsection{Technology Stack}
+
+\subsubsection*{Frontend}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Vue~3 with TypeScript
+  \item Vuetify for UI components and consistent styling
+  \item Axios or fetch-based API service layer
+  \item Protobuf-generated TypeScript client (\texttt{frontend/src/generated/api.ts})
+\end{itemize}
+
+\subsubsection*{Backend}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Rust
+  \item Axum for HTTP routing
+  \item SQLx for asynchronous database access
+  \item Argon2 for password hashing
+  \item SHA2 for token hashing
+  \item \texttt{rand\_core} / \texttt{rand} for cryptographically secure random values
+  \item Protobuf-generated Rust types (\texttt{backend/src/generated/api.v1.rs})
+\end{itemize}
+
+\subsubsection*{Database}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Relational database (e.g., PostgreSQL or SQLite, configured per environment)
+  \item Tables for users and verification tokens with strong constraints
+\end{itemize}
+
+\subsubsection*{API Format}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Protocol Buffers for message definitions (\texttt{proto/api.proto})
+  \item HTTP endpoints exchanging Protobuf-backed JSON or binary messages (depending on configuration)
+\end{itemize}
+
+\subsection{High-Level Architecture Diagram}
+
+\begin{verbatim}
++-------------------------------------------------------------+
+|                     Frontend (Vue)                          |
+|                                                             |
+|   +-------------+   +--------------+   +----------------+  |
+|   | Register    | ->| API Service  | ->| Validation     |  |
+|   | Page        |   |              |   | Layer          |  |
+|   +-------------+   +--------------+   +----------------+  |
++-------------------------------------------------------------+
+                             |
+                             | HTTP / Protobuf
+                             v
++-------------------------------------------------------------+
+|                      Backend (Axum)                         |
+|                                                             |
+|   +-------------+   +--------------+   +----------------+  |
+|   | API         | ->| Business     | ->| Database       |  |
+|   | Handlers    |   | Logic        |   | Layer          |  |
+|   +-------------+   +--------------+   +----------------+  |
++-------------------------------------------------------------+
+                             |
+                             | SQL
+                             v
++-------------------------------------------------------------+
+|                          Database                           |
+|                                                             |
+|   +-------------+        +----------------------+           |
+|   | users       |        | verification_tokens |           |
+|   +-------------+        +----------------------+           |
++-------------------------------------------------------------+
+
+\end{verbatim}
+
+\subsection{Data Flow}
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item User opens the registration page on the frontend.
+  \item User fills in username, email, and password.
+  \item Frontend performs client-side validation and sends a registration request to the backend.
+  \item Backend validates the input again and:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Hashes the password with Argon2.
+    \item Creates a user record in the database.
+    \item Generates a random verification token and stores its hash in \texttt{verification\_tokens}.
+  \end{itemize}
+  \item Backend returns a success response.
+  \item In development mode, an email-like message (with a verification link containing the raw token) is logged or displayed to simulate delivery.
+  \item User follows the verification link.
+  \item Frontend sends the token to the verification endpoint.
+  \item Backend:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Locates the token by its hash.
+    \item Verifies expiry and that it is unused.
+    \item Marks the token as consumed.
+    \item Marks the associated user as verified.
+  \end{itemize}
+  \item Backend returns a success response; frontend shows a confirmation message.
+\end{enumerate}
