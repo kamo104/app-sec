@@ -1,7 +1,7 @@
 % API Reference - Endpoints documentation
 \section{API Reference}
 
-This section documents the registration and email verification endpoints. Types are defined in the \texttt{api-types} crate and shared between backend and frontend.
+This section documents the registration and email verification endpoints. All endpoints are documented using \texttt{utoipa} annotations and the OpenAPI specification is automatically generated. Types are defined in the \texttt{api-types} crate with conditional \texttt{ToSchema} derivation for OpenAPI support.
 
 \subsection{Endpoints Overview}
 
@@ -9,6 +9,12 @@ This section documents the registration and email verification endpoints. Types 
   \item \texttt{POST /api/register} -- Create a new user account and send verification email.
   \item \texttt{POST /api/verify-email} -- Verify email address using token from email.
   \item \texttt{GET /api/health} -- Health check endpoint.
+\end{itemize}
+
+In development mode, interactive documentation is available:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{GET /api/openapi.json} -- OpenAPI 3.1 specification (JSON)
+  \item \texttt{GET /api/docs} -- Swagger UI for interactive API exploration
 \end{itemize}
 
 \subsection{\texorpdfstring{\texttt{POST /api/register}}{POST /api/register}}
@@ -128,7 +134,7 @@ Returns basic health status indicating backend is running.
 
 \subsection{Type Definitions}
 
-Types are defined in \texttt{api-types/src/}:
+Types are defined in \texttt{api-types/src/} with OpenAPI schema support:
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{requests.rs}: \texttt{RegistrationRequest}, \texttt{EmailVerificationRequest}
@@ -136,3 +142,17 @@ Types are defined in \texttt{api-types/src/}:
   \item \texttt{validation.rs}: \texttt{ValidationFieldError}, \texttt{ValidationErrorData}
   \item \texttt{enums.rs}: \texttt{FieldType}, \texttt{ValidationErrorCode}, \texttt{PasswordStrength}
 \end{itemize}
+
+All types use conditional compilation for OpenAPI support:
+\begin{verbatim}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationRequest {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+}
+\end{verbatim}
+
+The \texttt{openapi} feature is enabled in the backend but disabled for WASM builds, keeping the WASM binary size minimal while providing full OpenAPI documentation in the backend.

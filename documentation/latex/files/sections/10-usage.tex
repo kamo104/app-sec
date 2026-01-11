@@ -6,26 +6,49 @@
 Run the backend and frontend in development mode:
 
 \begin{verbatim}
-# Start MailHog for email testing (in separate terminal)
-mailhog
+# Full build with client generation (recommended first time)
+./build.sh
 
-# Backend (in separate terminal)
-cd backend
-cargo run -- --dev
-
-# Frontend (in separate terminal)
-cd frontend
-npm install
-npm run dev
+# Or for development with hot reload
+./dev.sh
 \end{verbatim}
+
+The \texttt{build.sh} script performs:
+\begin{enumerate}[leftmargin=*,nosep]
+  \item Builds WASM modules (\texttt{field-validator}, \texttt{translator}).
+  \item Builds and starts the backend in dev mode.
+  \item Fetches OpenAPI spec from \texttt{http://localhost:4000/api/openapi.json}.
+  \item Generates TypeScript client using \texttt{@hey-api/openapi-ts}.
+  \item Builds the frontend.
+\end{enumerate}
 
 In development mode:
 \begin{itemize}[leftmargin=*,nosep]
   \item Database is unencrypted (\texttt{data\_dev.db}).
   \item Emails are sent to MailHog at \texttt{127.0.0.1:1025}.
   \item View emails at \texttt{http://localhost:8025}.
-  \item Base URL for verification links uses \texttt{BASE\_URL\_DEV}.
+  \item Swagger UI available at \texttt{http://localhost:4000/api/docs}.
+  \item OpenAPI spec at \texttt{http://localhost:4000/api/openapi.json}.
 \end{itemize}
+
+\subsection{Regenerating the API Client}
+
+When backend API changes, regenerate the frontend client:
+
+\begin{verbatim}
+# Ensure backend is running with --dev flag
+cd backend && cargo run -- --dev &
+
+# Fetch new OpenAPI spec
+curl -s http://localhost:4000/api/openapi.json \
+  > frontend/src/generated/openapi.json
+
+# Regenerate TypeScript client
+cd frontend
+npm run generate:api
+\end{verbatim}
+
+Or simply re-run \texttt{./build.sh} which handles everything automatically.
 
 \subsection{Registration Flow Example}
 
@@ -120,6 +143,9 @@ const result = JSON.parse(validate_password_detailed(password));
 
 \begin{itemize}[leftmargin=*,nosep]
   \item Axum -- Rust async web framework
+  \item utoipa -- OpenAPI 3.1 specification generation
+  \item utoipa-axum -- Automatic route documentation
+  \item utoipa-swagger-ui -- Interactive API documentation
   \item SQLx -- Async SQL toolkit with compile-time checking
   \item SQLCipher -- SQLite encryption
   \item Argon2 -- Password hashing (\texttt{argon2} crate)
@@ -135,7 +161,8 @@ const result = JSON.parse(validate_password_detailed(password));
   \item Vue~3 -- Frontend framework
   \item Vuetify -- Material Design components
   \item Pinia -- State management
-  \item \texttt{@hey-api/client-fetch} -- API client generation
+  \item \texttt{@hey-api/openapi-ts} -- TypeScript client generator from OpenAPI spec
+  \item \texttt{@hey-api/client-fetch} -- HTTP client for generated API functions
   \item WASM -- WebAssembly for shared validation/translation
 \end{itemize}
 

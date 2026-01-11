@@ -9,18 +9,20 @@ This section lists the core implementation files for the registration module.
   \item \texttt{backend/src/main.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Application entry point.
-    \item Configures Axum router with API routes.
+    \item Configures Axum router with API routes using \texttt{utoipa-axum}.
+    \item Builds OpenAPI spec at runtime with \texttt{OpenApiRouter::with\_openapi()}.
+    \item Mounts Swagger UI at \texttt{/api/docs} in dev mode.
     \item Initializes database connection and starts cleanup task.
   \end{itemize}
   \item \texttt{backend/src/api/register.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item \texttt{POST /api/register} handler.
+    \item \texttt{POST /api/register} handler with \texttt{\#[utoipa::path()]} annotation.
     \item Validates input, checks uniqueness, creates user.
     \item Generates verification token and sends email.
   \end{itemize}
   \item \texttt{backend/src/api/verify\_email.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item \texttt{POST /api/verify-email} handler.
+    \item \texttt{POST /api/verify-email} handler with \texttt{\#[utoipa::path()]} annotation.
     \item Verifies token and marks user as verified.
   \end{itemize}
   \item \texttt{backend/src/api/utils.rs}
@@ -59,11 +61,13 @@ This section lists the core implementation files for the registration module.
   \item \texttt{frontend/src/pages/register.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Registration page with form.
+    \item Uses generated \texttt{registerUser()} from API client.
     \item Real-time validation and error display.
   \end{itemize}
   \item \texttt{frontend/src/pages/verify-email.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Email verification page.
+    \item Uses generated \texttt{verifyEmail()} from API client.
     \item Extracts token from URL and calls API.
   \end{itemize}
   \item \texttt{frontend/src/components/auth/UsernameField.vue}
@@ -91,17 +95,34 @@ This section lists the core implementation files for the registration module.
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Success/error message display.
   \end{itemize}
-  \item \texttt{frontend/src/generated/api-client/sdk.gen.ts}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Generated API client functions.
-  \end{itemize}
-  \item \texttt{frontend/src/generated/api-client/types.gen.ts}
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Generated TypeScript types.
-  \end{itemize}
   \item \texttt{frontend/src/api/client.ts}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item API client configuration (base URL, credentials).
+    \item Re-exports generated API client for convenient imports.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Generated Files (Auto-Generated)}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{frontend/src/generated/openapi.json}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item OpenAPI 3.1 specification fetched from backend.
+    \item Source of truth for client generation.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api-client/types.gen.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Auto-generated TypeScript interfaces from OpenAPI spec.
+    \item Includes \texttt{RegistrationRequest}, \texttt{RegisterErrorResponse}, etc.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api-client/sdk.gen.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Auto-generated typed API functions.
+    \item Includes \texttt{registerUser()}, \texttt{verifyEmail()}, \texttt{healthCheck()}.
+  \end{itemize}
+  \item \texttt{frontend/src/generated/api-client/index.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Re-exports all generated types and functions.
   \end{itemize}
 \end{itemize}
 
@@ -110,10 +131,11 @@ This section lists the core implementation files for the registration module.
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{api-types/src/}
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item \texttt{requests.rs}: Request types (\texttt{RegistrationRequest}, etc.)
-    \item \texttt{responses.rs}: Response and error types
-    \item \texttt{validation.rs}: Validation data structures
-    \item \texttt{enums.rs}: \texttt{FieldType}, \texttt{ValidationErrorCode}, \texttt{PasswordStrength}
+    \item \texttt{requests.rs}: Request types with \texttt{ToSchema} derivation.
+    \item \texttt{responses.rs}: Response and error types with \texttt{ToSchema} derivation.
+    \item \texttt{validation.rs}: Validation data structures.
+    \item \texttt{enums.rs}: \texttt{FieldType}, \texttt{ValidationErrorCode}, \texttt{PasswordStrength}.
+    \item \texttt{Cargo.toml}: \texttt{openapi} feature flag for conditional \texttt{utoipa} support.
   \end{itemize}
   \item \texttt{field-validator/src/lib.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
@@ -132,9 +154,24 @@ This section lists the core implementation files for the registration module.
   \end{itemize}
 \end{itemize}
 
-\subsection{Configuration Files}
+\subsection{Build and Configuration Files}
 
 \begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{build.sh}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Main build script orchestrating the entire build process.
+    \item Builds WASM modules, backend, fetches OpenAPI spec, generates client, builds frontend.
+    \item Fetches OpenAPI: \texttt{curl -s http://localhost:4000/api/openapi.json > frontend/src/generated/openapi.json}
+    \item Generates client: \texttt{npx @hey-api/openapi-ts --input ... --output ... --client @hey-api/client-fetch}
+  \end{itemize}
+  \item \texttt{dev.sh}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Development script: runs build.sh, then starts MailHog and backend in watch mode.
+  \end{itemize}
+  \item \texttt{frontend/package.json}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item NPM script \texttt{generate:api} for standalone client regeneration.
+  \end{itemize}
   \item \texttt{backend/.env}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Environment variables for token durations, base URLs.
@@ -142,5 +179,9 @@ This section lists the core implementation files for the registration module.
   \item \texttt{backend/build.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Reads \texttt{.env} and generates compile-time constants.
+  \end{itemize}
+  \item \texttt{Cargo.toml} (workspace root)
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Workspace configuration with \texttt{utoipa}, \texttt{utoipa-axum}, \texttt{utoipa-swagger-ui} dependencies.
   \end{itemize}
 \end{itemize}
