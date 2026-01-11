@@ -87,40 +87,41 @@ print_success "Libraries built and bindings generated"
 
 # Build backend
 print_status "Building backend server..."
-cd backend
-cargo build --release --quiet
+cargo build --release -p appsec-server --quiet
 if [ $? -eq 0 ]; then
     print_success "Backend build completed"
 else
     print_error "Backend build failed"
     exit 1
 fi
-cd ..
 
 # Fetch fresh OpenAPI spec from backend
 print_status "Fetching OpenAPI spec from backend..."
-./backend/target/release/appsec-server --dev > /tmp/backend.log 2>&1 &
+./target/release/appsec-server --dev > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
-disown $BACKEND_PID
+disown $BACKEND_PID 2>/dev/null || true
 
 sleep 3
 
-if curl -s --max-time 5 http://localhost:4000/api/openapi.json > frontend/src/generated/openapi.json 2>/dev/null; then
+if curl -s --max-time 5 http://localhost:4000/api/openapi.json > /tmp/openapi.json 2>/dev/null && [ -s /tmp/openapi.json ]; then
+    mv /tmp/openapi.json frontend/src/generated/openapi.json
     print_success "OpenAPI spec fetched successfully"
 else
     print_warning "Could not fetch OpenAPI spec from backend. Using existing spec if available."
 fi
 
 # Kill the backend process
-kill $BACKEND_PID 2>/dev/null
+kill $BACKEND_PID 2>/dev/null || true
 sleep 1
 kill -9 $BACKEND_PID 2>/dev/null || true
 
 # Generate OpenAPI TypeScript client
 print_status "Generating OpenAPI TypeScript client..."
 cd frontend
+deno install
+export PATH="$PWD/node_modules/.bin:$PATH"
 if [ -f "src/generated/openapi.json" ]; then
-    npx @hey-api/openapi-ts --input src/generated/openapi.json --output src/generated/api-client --client @hey-api/client-fetch 2>/dev/null
+    deno run -A npm:@hey-api/openapi-ts --input src/generated/openapi.json --output src/generated/api-client --client @hey-api/client-fetch
     print_success "TypeScript API client generated"
 else
     print_error "OpenAPI spec not found. Cannot generate TypeScript client."

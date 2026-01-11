@@ -9,19 +9,16 @@ RUN apt-get update && apt-get install -y \
     curl \
     pkg-config \
     libssl-dev \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install wasm-pack
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-# Install wasm-opt (binaryen)
-RUN curl -L https://github.com/WebAssembly/binaryen/releases/download/version_121/binaryen-version_121-x86_64-linux.tar.gz | tar xzf - \
-    && mv binaryen-version_121/bin/wasm-opt /usr/local/bin/ \
-    && rm -rf binaryen-version_121
-
-# Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs
+# Install Deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV DENO_INSTALL="/root/.deno"
+ENV PATH="${DENO_INSTALL}/bin:${PATH}"
 
 # Add wasm32 target
 RUN rustup target add wasm32-unknown-unknown
@@ -31,25 +28,8 @@ WORKDIR /app
 # Copy source
 COPY . .
 
-# Build WASM libraries
-RUN wasm-pack build field-validator --target web --out-dir ../frontend/src/wasm --out-name field-validator --release -- --features wasm
-RUN wasm-pack build translator --target web --out-dir ../frontend/src/wasm --out-name translator --release -- --features wasm
-RUN rm -f frontend/src/wasm/package.json frontend/src/wasm/.gitignore frontend/src/wasm/README.md
-
-# Build backend
-RUN cargo build --release -p appsec-server
-
-# Fetch OpenAPI spec
-RUN ./target/release/appsec-server --dev & \
-    sleep 3 && \
-    curl -s --max-time 5 http://localhost:4000/api/openapi.json > frontend/src/generated/openapi.json && \
-    pkill -f appsec-server || true
-
-# Build frontend
-WORKDIR /app/frontend
-RUN npm ci
-RUN npm run generate:api
-RUN npm run build
+# Build using build.sh
+RUN ./build.sh
 
 # =============================================================================
 # Stage 2: Runtime
