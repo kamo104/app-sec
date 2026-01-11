@@ -2,3 +2,6 @@
 **/node_modules
 **/build
 **/target
+
+**/data_dev.db
+**/data.db
