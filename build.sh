@@ -5,6 +5,17 @@
 
 set -e  # Exit on error
 
+# Parse arguments
+SKIP_DOCS=false
+for arg in "$@"; do
+    case $arg in
+        --skip-docs)
+            SKIP_DOCS=true
+            shift
+            ;;
+    esac
+done
+
 echo "Starting unified build process..."
 
 # Colors for output
@@ -141,21 +152,25 @@ else
 fi
 cd ..
 
-# Build the documentation (optional - skipped if LaTeX not available)
-cd documentation/latex
-DOC_OUTPUT=$(./generate.sh 2>&1)
-DOC_EXIT=$?
-cd ../..
-
-if [ $DOC_EXIT -eq 0 ]; then
-    if echo "$DOC_OUTPUT" | grep -q "skipping documentation build"; then
-        print_warning "Documentation build skipped (LaTeX not available)"
-    else
-        print_success "Documentation build completed"
-    fi
+# Build the documentation (optional - skipped if LaTeX not available or --skip-docs flag)
+if [ "$SKIP_DOCS" = true ]; then
+    print_warning "Documentation build skipped (--skip-docs flag)"
 else
-    print_error "Documentation build failed"
-    exit 1
+    cd documentation/latex
+    DOC_OUTPUT=$(./generate.sh 2>&1)
+    DOC_EXIT=$?
+    cd ../..
+
+    if [ $DOC_EXIT -eq 0 ]; then
+        if echo "$DOC_OUTPUT" | grep -q "skipping documentation build"; then
+            print_warning "Documentation build skipped (LaTeX not available)"
+        else
+            print_success "Documentation build completed"
+        fi
+    else
+        print_error "Documentation build failed"
+        exit 1
+    fi
 fi
 
 print_success "All builds completed successfully!"

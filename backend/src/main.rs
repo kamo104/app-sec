@@ -164,23 +164,25 @@ async fn main() {
                 utoipa::openapi::InfoBuilder::new()
                     .title("AppSec Demo API")
                     .version("1.0.0")
-                    .description(Some("Web app demonstration focused on using good web security practices"))
-                    .build()
+                    .description(Some(
+                        "Web app demonstration focused on using good web security practices",
+                    ))
+                    .build(),
             )
-            .build()
+            .build(),
     )
-        .routes(routes!(api::health::health_check))
-        .routes(routes!(api::register::register_user))
-        .routes(routes!(api::login::login_user))
-        .routes(routes!(api::auth::auth_check))
-        .routes(routes!(api::auth::refresh_session))
-        .routes(routes!(api::logout::logout_user))
-        .routes(routes!(api::verify_email::verify_email))
-        .routes(routes!(api::password_reset::request_password_reset))
-        .routes(routes!(api::password_reset::complete_password_reset))
-        .routes(routes!(api::counter::get_counter))
-        .routes(routes!(api::counter::set_counter))
-        .split_for_parts();
+    .routes(routes!(api::health::health_check))
+    .routes(routes!(api::register::register_user))
+    .routes(routes!(api::login::login_user))
+    .routes(routes!(api::auth::auth_check))
+    .routes(routes!(api::auth::refresh_session))
+    .routes(routes!(api::logout::logout_user))
+    .routes(routes!(api::verify_email::verify_email))
+    .routes(routes!(api::password_reset::request_password_reset))
+    .routes(routes!(api::password_reset::complete_password_reset))
+    .routes(routes!(api::counter::get_counter))
+    .routes(routes!(api::counter::set_counter))
+    .split_for_parts();
 
     // Build the main application router
     let mut app = Router::new()
