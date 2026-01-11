@@ -30,38 +30,6 @@ Its main goals are:
   \item Provide translated error messages via the translator crate.
 \end{itemize}
 
-\subsection{Data Collected}
-
-The registration module stores the minimal data required for account creation and email verification.
-
-\subsubsection*{User Login Table (\texttt{user\_login})}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{user\_id}: INTEGER, primary key, auto-increment
-  \item \texttt{username}: TEXT, unique, not null
-  \item \texttt{email}: TEXT, unique, not null
-  \item \texttt{password}: TEXT (Argon2 hash, nullable for password reset state)
-  \item \texttt{email\_verified}: INTEGER (boolean), default 0
-  \item \texttt{email\_verified\_at}: INTEGER (timestamp), nullable
-  \item \texttt{password\_reset}: INTEGER (boolean), default 0
-\end{itemize}
-
-\subsubsection*{User Data Table (\texttt{user\_data})}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{user\_id}: INTEGER, primary key, foreign key to \texttt{user\_login} with CASCADE
-  \item \texttt{counter}: INTEGER, default 0 (application-specific data)
-\end{itemize}
-
-\subsubsection*{Email Verification Tokens Table (\texttt{email\_verification\_tokens})}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{user\_id}: INTEGER, primary key, foreign key to \texttt{user\_login} with CASCADE
-  \item \texttt{token\_hash}: TEXT (SHA256 hash of the token)
-  \item \texttt{expires\_at}: INTEGER (Unix timestamp)
-  \item \texttt{created\_at}: INTEGER (Unix timestamp)
-\end{itemize}
-
 \subsection{Security Assumptions}
 
 \begin{itemize}[leftmargin=*,nosep]

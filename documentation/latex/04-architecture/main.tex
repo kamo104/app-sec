@@ -115,38 +115,3 @@ The project uses a type-safe API contract approach where the backend serves as t
 |   +-------------+                                           |
 +-------------------------------------------------------------+
 \end{verbatim}
-
-\subsection{Data Flow}
-
-\subsubsection*{Registration Flow}
-
-\begin{enumerate}[leftmargin=*,nosep]
-  \item User opens \texttt{/register} page in the frontend.
-  \item User fills in username, email, password, and confirm password.
-  \item Frontend validates each field in real-time using WASM \texttt{field-validator}.
-  \item Password strength score (0--7) is displayed with strength label.
-  \item On submit, frontend calls generated \texttt{registerUser()} function with typed request.
-  \item Backend validates input using native \texttt{field-validator}.
-  \item Backend checks username and email uniqueness in database.
-  \item Backend hashes password with Argon2 (random salt).
-  \item Backend creates \texttt{user\_login} record with \texttt{email\_verified = false}.
-  \item Backend creates associated \texttt{user\_data} record.
-  \item Backend generates 32-byte random token, stores SHA256 hash in \texttt{email\_verification\_tokens}.
-  \item Backend sends verification email via SMTP with link containing plaintext token.
-  \item On SMTP failure, user record is deleted (cleanup).
-  \item Backend returns typed response; frontend handles with full type safety.
-\end{enumerate}
-
-\subsubsection*{Email Verification Flow}
-
-\begin{enumerate}[leftmargin=*,nosep]
-  \item User clicks verification link in email: \texttt{/verify-email?token=\{token\}}.
-  \item Frontend extracts token from URL query parameter.
-  \item Frontend calls generated \texttt{verifyEmail()} function with typed request.
-  \item Backend computes SHA256 hash of received token.
-  \item Backend looks up token hash in \texttt{email\_verification\_tokens}.
-  \item Backend checks token has not expired (\texttt{expires\_at > now}).
-  \item Backend sets \texttt{email\_verified = true} and \texttt{email\_verified\_at = now} on user.
-  \item Backend deletes token from \texttt{email\_verification\_tokens}.
-  \item Backend returns typed response; frontend shows success message with login button.
-\end{enumerate}
