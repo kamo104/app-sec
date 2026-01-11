@@ -1,13 +1,14 @@
 % Database Structure - Tables and constraints
 \section{Database Structure}
 
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
 \subsection{User Login Table (\texttt{user\_login})}
 
-\begin{longtable}{@{}llll@{}}
+\begin{tabularx}{\textwidth}{@{}L{2.8cm} L{1.5cm} L{4cm} X@{}}
 \toprule
 \textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
 \midrule
-\endhead
 \texttt{user\_id} & INTEGER & PRIMARY KEY AUTOINCREMENT & Unique user identifier \\
 \texttt{username} & TEXT & UNIQUE, NOT NULL & Indexed for lookup \\
 \texttt{email} & TEXT & UNIQUE, NOT NULL & Stored normalized (lowercase) \\
@@ -17,8 +18,9 @@
 % Login_4 scope - password reset field
 % \texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
 \bottomrule
-\end{longtable}
+\end{tabularx}
 
+\vspace{0.5em}
 Constraints and notes:
 \begin{itemize}[leftmargin=*,nosep]
   \item Unique constraints on \texttt{username} and \texttt{email} prevent duplicates.
@@ -27,16 +29,16 @@ Constraints and notes:
 
 \subsection{User Data Table (\texttt{user\_data})}
 
-\begin{longtable}{@{}llll@{}}
+\begin{tabularx}{\textwidth}{@{}L{2.8cm} L{1.5cm} L{4cm} X@{}}
 \toprule
 \textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
 \midrule
-\endhead
-\texttt{user\_id} & INTEGER & PRIMARY KEY, FK $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
+\texttt{user\_id} & INTEGER & PRIMARY KEY, FOREIGN KEY $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
 \texttt{counter} & INTEGER & NOT NULL, DEFAULT 0 & Application-specific data \\
 \bottomrule
-\end{longtable}
+\end{tabularx}
 
+\vspace{0.5em}
 Notes:
 \begin{itemize}[leftmargin=*,nosep]
   \item One-to-one relationship with \texttt{user\_login}.
@@ -46,18 +48,18 @@ Notes:
 
 \subsection{Email Verification Tokens Table (\texttt{email\_verification\_tokens})}
 
-\begin{longtable}{@{}llll@{}}
+\begin{tabularx}{\textwidth}{@{}L{2.8cm} L{1.5cm} L{4cm} X@{}}
 \toprule
 \textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
 \midrule
-\endhead
-\texttt{user\_id} & INTEGER & PRIMARY KEY, FK $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
+\texttt{user\_id} & INTEGER & PRIMARY KEY, FOREIGN KEY $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
 \texttt{token\_hash} & TEXT & NOT NULL & SHA256 hash of verification token \\
 \texttt{expires\_at} & INTEGER & NOT NULL & Unix timestamp for expiry \\
 \texttt{created\_at} & INTEGER & NOT NULL & Unix timestamp when created \\
 \bottomrule
-\end{longtable}
+\end{tabularx}
 
+\vspace{0.5em}
 Constraints and guarantees:
 \begin{itemize}[leftmargin=*,nosep]
   \item Primary key on \texttt{user\_id} ensures one token per user.
@@ -65,21 +67,23 @@ Constraints and guarantees:
   \item Token is valid only if \texttt{expires\_at > current\_time}.
   \item Token is deleted after successful verification.
   \item Cascading delete removes token when user is deleted.
-  \item Hourly cleanup task deletes expired tokens and associated unverified users.
+  % Implementation detail - commented out for Registration_3 draft
+  % \item Hourly cleanup task deletes expired tokens and associated unverified users.
 \end{itemize}
 
-\subsection{Database Configuration}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \textbf{Engine}: SQLite with SQLCipher encryption
-  \item \textbf{Development}: Unencrypted \texttt{data\_dev.db}
-  \item \textbf{Production}: Encrypted \texttt{data.db}
-  \item \textbf{Encryption Key}: 32-byte key (64 hex characters)
-  \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Priority 1: \texttt{APPSEC\_DB\_KEY} environment variable
-    \item Priority 2: System keyring (service: \texttt{APPSEC\_DB\_KEY}, user: \texttt{APPSEC})
-    \item Auto-generated if not found
-  \end{itemize}
-  \item \textbf{Foreign Keys}: Enabled with \texttt{PRAGMA foreign\_keys = ON}
-  \item \textbf{Cleanup}: Hourly task removes expired tokens and unverified users
-\end{itemize}
+% Implementation details - commented out for Registration_3 draft
+% \subsection{Database Configuration}
+%
+% \begin{itemize}[leftmargin=*,nosep]
+%   \item \textbf{Engine}: SQLite with SQLCipher encryption
+%   \item \textbf{Development}: Unencrypted \texttt{data\_dev.db}
+%   \item \textbf{Production}: Encrypted \texttt{data.db}
+%   \item \textbf{Encryption Key}: 32-byte key (64 hex characters)
+%   \begin{itemize}[leftmargin=1.5em,nosep]
+%     \item Priority 1: \texttt{APPSEC\_DB\_KEY} environment variable
+%     \item Priority 2: System keyring (service: \texttt{APPSEC\_DB\_KEY}, user: \texttt{APPSEC})
+%     \item Auto-generated if not found
+%   \end{itemize}
+%   \item \textbf{Foreign Keys}: Enabled with \texttt{PRAGMA foreign\_keys = ON}
+%   \item \textbf{Cleanup}: Hourly task removes expired tokens and unverified users
+% \end{itemize}
