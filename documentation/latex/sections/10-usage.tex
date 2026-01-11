@@ -1,7 +1,7 @@
-% Usage Examples - Development mode, examples, libraries, version history
-\section{Usage Examples}
+% Building and Running
+\section{Building and Running}
 
-\subsection{Building and Running}
+\subsection{Build Process}
 
 The project uses \texttt{build.sh} to orchestrate the entire build process:
 
@@ -13,7 +13,15 @@ The project uses \texttt{build.sh} to orchestrate the entire build process:
 ./dev.sh
 \end{verbatim}
 
-The build script handles: WASM module compilation, backend build, OpenAPI spec generation, TypeScript client generation, and frontend build.
+The build script handles:
+\begin{itemize}[leftmargin=*,nosep]
+  \item WASM module compilation (\texttt{field-validator}, \texttt{translator})
+  \item Backend build with OpenAPI generation
+  \item TypeScript client generation from OpenAPI spec
+  \item Frontend build
+\end{itemize}
+
+\subsection{Development Mode}
 
 In development mode:
 \begin{itemize}[leftmargin=*,nosep]
@@ -22,146 +30,11 @@ In development mode:
   \item Database is unencrypted (\texttt{data\_dev.db})
 \end{itemize}
 
-\subsection{Registration Flow Example}
+\subsection{Production Mode}
 
-Frontend registration call (\texttt{frontend/src/pages/register.vue}):
-
-\begin{lstlisting}[language=Java]
-import { registerUser } from '@/generated/api-client';
-
-const { data, error, response } = await registerUser({
-  body: {
-    username: formData.username,
-    email: formData.email,
-    password: formData.password,
-  }
-});
-
-if (response.ok) {
-  // Show translated success message
-  statusMessage.value = translate('SUCCESS_REGISTERED', undefined);
-} else if (error) {
-  // Handle specific error codes
-  if (error.error === 'USERNAME_TAKEN') {
-    statusMessage.value = translate_error_code('USERNAME_TAKEN', undefined);
-  } else if (error.error === 'VALIDATION') {
-    // Display field-specific errors
-    error.validation?.fieldErrors.forEach(fieldError => {
-      fieldError.errors.forEach(code => {
-        const msg = translate_field_validation_error(
-          fieldError.field, code, undefined
-        );
-      });
-    });
-  }
-}
-\end{lstlisting}
-
-\subsection{Email Verification Flow Example}
-
-Frontend verification (\texttt{frontend/src/pages/verify-email.vue}):
-
-\begin{lstlisting}[language=Java]
-import { verifyEmail } from '@/generated/api-client';
-
-// Extract token from URL query parameter
-const route = useRoute();
-const token = route.query.token as string;
-
-if (!token) {
-  // Show warning: no token provided
-  return;
-}
-
-const { data, error, response } = await verifyEmail({
-  body: { token }
-});
-
-if (response.ok) {
-  // Show success, navigate to login
-  statusMessage.value = translate('SUCCESS_EMAIL_VERIFIED', undefined);
-} else {
-  // Show error (TOKEN_EXPIRED or INTERNAL)
-  statusMessage.value = translate_error_code(error.error, undefined);
-}
-\end{lstlisting}
-
-\subsection{Password Strength Validation}
-
-Frontend password field uses detailed validation:
-
-\begin{lstlisting}[language=Java]
-import { validate_password_detailed } from '@/wasm/field-validator';
-
-const result = JSON.parse(validate_password_detailed(password));
-
-// result.score: 0-7 (based on length and character types)
-// result.strength: "weak" | "medium" | "strong" | "cia"
-// result.errors: ["TOO_SHORT", "TOO_FEW_UPPERCASE_LETTERS", ...]
-
-// Score calculation:
-// +1 for length >= 8
-// +1 for length >= 12
-// +1 for length >= 16
-// +1 for uppercase letter
-// +1 for lowercase letter
-// +1 for digit
-// +1 for special character
-\end{lstlisting}
-
-\subsection{Libraries and Tools}
-
-\subsubsection*{Backend}
-
+In production mode:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Axum -- Rust async web framework
-  \item utoipa -- OpenAPI 3.1 specification generation
-  \item utoipa-axum -- Automatic route documentation
-  \item utoipa-swagger-ui -- Interactive API documentation
-  \item SQLx -- Async SQL toolkit with compile-time checking
-  \item SQLCipher -- SQLite encryption
-  \item Argon2 -- Password hashing (\texttt{argon2} crate)
-  \item SHA2 -- Token hashing (\texttt{sha2} crate)
-  \item Lettre -- SMTP email sending
-  \item Rand -- Cryptographically secure RNG
-  \item Tokio -- Async runtime
+  \item Database encrypted with SQLCipher (\texttt{data.db})
+  \item OpenAPI endpoints disabled
+  \item HTTPS required for all traffic
 \end{itemize}
-
-\subsubsection*{Frontend}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item Vue~3 -- Frontend framework
-  \item Vuetify -- Material Design components
-  \item Pinia -- State management
-  \item \texttt{@hey-api/openapi-ts} -- TypeScript client generator from OpenAPI spec
-  \item \texttt{@hey-api/client-fetch} -- HTTP client for generated API functions
-  \item WASM -- WebAssembly for shared validation/translation
-\end{itemize}
-
-\subsubsection*{Shared}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item wasm-pack -- WASM build tool
-  \item rust-i18n -- Internationalization for translator
-  \item Serde -- Serialization/deserialization
-\end{itemize}
-
-\section{Version History}
-
-\begin{longtable}{@{}lll@{}}
-\toprule
-\textbf{Version} & \textbf{Date} & \textbf{Changes} \\
-\midrule
-\endhead
-1.0 & 2025-12-23 & Initial registration module documentation \\
-1.1 & 2026-01-11 & Aligned documentation with implementation (draft) \\
-\bottomrule
-\end{longtable}
-
-\vspace{1em}
-
-\noindent
-\textbf{Document Generated}: 2025-12-23\\
-\textbf{Last Updated}: 2026-01-11\\
-\textbf{Status}: Draft\\
-\textbf{Review Status}: Pending review

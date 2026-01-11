@@ -67,23 +67,21 @@ Constraints and guarantees:
   \item Token is valid only if \texttt{expires\_at > current\_time}.
   \item Token is deleted after successful verification.
   \item Cascading delete removes token when user is deleted.
-  % Implementation detail - commented out for Registration_3 draft
-  % \item Hourly cleanup task deletes expired tokens and associated unverified users.
+  \item Hourly cleanup task deletes expired tokens and associated unverified users.
 \end{itemize}
 
-% Implementation details - commented out for Registration_3 draft
-% \subsection{Database Configuration}
-%
-% \begin{itemize}[leftmargin=*,nosep]
-%   \item \textbf{Engine}: SQLite with SQLCipher encryption
-%   \item \textbf{Development}: Unencrypted \texttt{data\_dev.db}
-%   \item \textbf{Production}: Encrypted \texttt{data.db}
-%   \item \textbf{Encryption Key}: 32-byte key (64 hex characters)
-%   \begin{itemize}[leftmargin=1.5em,nosep]
-%     \item Priority 1: \texttt{APPSEC\_DB\_KEY} environment variable
-%     \item Priority 2: System keyring (service: \texttt{APPSEC\_DB\_KEY}, user: \texttt{APPSEC})
-%     \item Auto-generated if not found
-%   \end{itemize}
-%   \item \textbf{Foreign Keys}: Enabled with \texttt{PRAGMA foreign\_keys = ON}
-%   \item \textbf{Cleanup}: Hourly task removes expired tokens and unverified users
-% \end{itemize}
+\subsection{Database Configuration}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{Engine}: SQLite with SQLCipher encryption
+  \item \textbf{Development}: Unencrypted \texttt{data\_dev.db}
+  \item \textbf{Production}: Encrypted \texttt{data.db}
+  \item \textbf{Encryption Key}: 32-byte key (64 hex characters)
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Priority 1: \texttt{APPSEC\_DB\_KEY} environment variable
+    \item Priority 2: System keyring (service: \texttt{APPSEC\_DB\_KEY}, user: \texttt{APPSEC})
+    \item Auto-generated if not found
+  \end{itemize}
+  \item \textbf{Foreign Keys}: Enabled with \texttt{PRAGMA foreign\_keys = ON}
+  \item \textbf{Cleanup}: Hourly task removes expired tokens and unverified users
+\end{itemize}

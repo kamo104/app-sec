@@ -9,107 +9,73 @@
   \item Vue~3 with TypeScript
   \item Vuetify for UI components
   \item Pinia for state management
-  % Implementation details - commented out for Registration_3 draft
-  % \item \texttt{@hey-api/openapi-ts} for automatic TypeScript client generation from OpenAPI spec
-  % \item \texttt{@hey-api/client-fetch} as the generated client's HTTP layer
-  % \item WASM modules for validation (\texttt{field-validator}) and translation (\texttt{translator})
-  \item WASM modules for validation and translation (shared with backend)
+  \item \texttt{@hey-api/openapi-ts} for automatic TypeScript client generation from OpenAPI spec
+  \item \texttt{@hey-api/client-fetch} as the generated client's HTTP layer
+  \item WASM modules for validation (\texttt{field-validator}) and translation (\texttt{translator})
 \end{itemize}
 
 \subsubsection*{Backend}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item Rust with Axum web framework
-  % Implementation details - commented out for Registration_3 draft
-  % \item \texttt{utoipa} for OpenAPI 3.1 specification generation
-  % \item \texttt{utoipa-axum} for automatic route documentation
-  % \item \texttt{utoipa-swagger-ui} for interactive API documentation (dev mode)
-  % \item SQLx for asynchronous database access
+  \item Tokio async runtime
+  \item \texttt{utoipa} for OpenAPI 3.1 specification generation
+  \item \texttt{utoipa-axum} for automatic route documentation
+  \item \texttt{utoipa-swagger-ui} for interactive API documentation (dev mode)
+  \item SQLx for asynchronous database access
   \item SQLite with SQLCipher encryption
-  % \item Argon2 for password hashing (\texttt{argon2} crate)
-  % \item SHA256 for token hashing (\texttt{sha2} crate)
-  % \item \texttt{rand} for cryptographically secure random values
-  % \item \texttt{lettre} for SMTP email sending
-  \item Argon2 for password hashing
-  \item SMTP for email sending
+  \item Argon2 for password hashing (\texttt{argon2} crate)
+  \item SHA256 for token hashing (\texttt{sha2} crate)
+  \item \texttt{rand} for cryptographically secure random values
+  \item \texttt{lettre} for SMTP email sending
 \end{itemize}
 
 \subsubsection*{Shared Components}
 
 \begin{itemize}[leftmargin=*,nosep]
-  % Implementation details - commented out for Registration_3 draft
-  % \item \texttt{api-types}: Request/response types with conditional \texttt{ToSchema} derivation for OpenAPI
-  % \item \texttt{field-validator}: Validation logic (compiled to native and WASM)
-  % \item \texttt{translator}: Error message translation with \texttt{rust-i18n}
-  \item \texttt{api-types}: Request/response type definitions
-  \item \texttt{field-validator}: Input validation logic (compiled to native and WASM)
-  \item \texttt{translator}: Error message translation
+  \item \texttt{api-types}: Request/response types with conditional \texttt{ToSchema} derivation for OpenAPI
+  \item \texttt{field-validator}: Validation logic (compiled to native and WASM)
+  \item \texttt{translator}: Error message translation with \texttt{rust-i18n}
+  \item Serde for serialization/deserialization
+  \item wasm-pack for WASM module compilation
 \end{itemize}
 
 \subsubsection*{Database}
 
 \begin{itemize}[leftmargin=*,nosep]
-  % Implementation details - commented out for Registration_3 draft
-  % \item SQLite database (\texttt{data.db} encrypted, \texttt{data\_dev.db} unencrypted)
-  % \item SQLCipher encryption with 32-byte key
-  % \item Key stored in system keyring or \texttt{APPSEC\_DB\_KEY} environment variable
-  % \item Foreign keys enabled with CASCADE delete
-  \item SQLite with SQLCipher encryption
-  \item Foreign keys with CASCADE delete
+  \item SQLite database (\texttt{data.db} encrypted, \texttt{data\_dev.db} unencrypted)
+  \item SQLCipher encryption with 32-byte key
+  \item Key stored in system keyring or \texttt{APPSEC\_DB\_KEY} environment variable
+  \item Foreign keys enabled with CASCADE delete
 \end{itemize}
 
-% Implementation details - commented out for Registration_3 draft
-% \subsection{OpenAPI and Client Generation}
-%
-% The project uses a type-safe API contract approach where the backend serves as the single source of truth for API definitions.
-%
-% \subsubsection*{Backend OpenAPI Generation (utoipa)}
-%
-% \begin{itemize}[leftmargin=*,nosep]
-%   \item All API endpoints are documented using \texttt{\#[utoipa::path()]} proc macro.
-%   \item Request/response types derive \texttt{ToSchema} via feature flag: \texttt{\#[cfg\_attr(feature = "openapi", derive(ToSchema))]}.
-%   \item OpenAPI spec is generated at runtime using \texttt{OpenApiRouter::with\_openapi()}.
-%   \item In development mode (\texttt{--dev} flag):
-%   \begin{itemize}[leftmargin=1.5em,nosep]
-%     \item OpenAPI JSON available at \texttt{/api/openapi.json}
-%     \item Swagger UI available at \texttt{/api/docs}
-%   \end{itemize}
-%   \item Endpoints are organized into tags: \texttt{health}, \texttt{auth}, \texttt{counter}.
-% \end{itemize}
-%
-% \subsubsection*{Frontend Client Generation}
-%
-% \begin{itemize}[leftmargin=*,nosep]
-%   \item Build script (\texttt{build.sh}) fetches OpenAPI spec from running backend:
-%   \begin{verbatim}
-%   curl -s http://localhost:4000/api/openapi.json \
-%     > frontend/src/generated/openapi.json
-%   \end{verbatim}
-%   \item TypeScript client generated using \texttt{@hey-api/openapi-ts}:
-%   \begin{verbatim}
-%   npx @hey-api/openapi-ts \
-%     --input src/generated/openapi.json \
-%     --output src/generated/api-client \
-%     --client @hey-api/client-fetch
-%   \end{verbatim}
-%   \item Generated files in \texttt{frontend/src/generated/api-client/}:
-%   \begin{itemize}[leftmargin=1.5em,nosep]
-%     \item \texttt{types.gen.ts}: All TypeScript interfaces (\texttt{RegistrationRequest}, \texttt{LoginResponse}, etc.)
-%     \item \texttt{sdk.gen.ts}: Typed API functions (\texttt{registerUser()}, \texttt{verifyEmail()}, etc.)
-%     \item \texttt{index.ts}: Re-exports for convenient imports
-%   \end{itemize}
-%   \item Client configured in \texttt{frontend/src/api/client.ts} with base URL and credentials.
-% \end{itemize}
-%
-% \subsubsection*{Benefits of This Approach}
-%
-% \begin{itemize}[leftmargin=*,nosep]
-%   \item \textbf{Single source of truth}: API contract defined once in Rust, consumed everywhere.
-%   \item \textbf{Type safety}: TypeScript types auto-generated, compile-time API contract validation.
-%   \item \textbf{No manual synchronization}: Changes to backend API automatically propagate to frontend types.
-%   \item \textbf{Interactive documentation}: Swagger UI for API exploration and testing.
-%   \item \textbf{Reduced boilerplate}: No manual API client code or type definitions needed.
-% \end{itemize}
+\subsection{OpenAPI and Client Generation}
+
+The project uses a type-safe API contract approach where the backend serves as the single source of truth for API definitions.
+
+\subsubsection*{Backend OpenAPI Generation (utoipa)}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item All API endpoints are documented using \texttt{\#[utoipa::path()]} proc macro.
+  \item Request/response types derive \texttt{ToSchema} via feature flag: \texttt{\#[cfg\_attr(feature = "openapi", derive(ToSchema))]}.
+  \item OpenAPI spec is generated at runtime using \texttt{OpenApiRouter::with\_openapi()}.
+  \item In development mode (\texttt{--dev} flag):
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item OpenAPI JSON available at \texttt{/api/openapi.json}
+    \item Swagger UI available at \texttt{/api/docs}
+  \end{itemize}
+  \item Endpoints are organized into tags: \texttt{health}, \texttt{auth}, \texttt{counter}.
+\end{itemize}
+
+\subsubsection*{Benefits of This Approach}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{Single source of truth}: API contract defined once in Rust, consumed everywhere.
+  \item \textbf{Type safety}: TypeScript types auto-generated, compile-time API contract validation.
+  \item \textbf{No manual synchronization}: Changes to backend API automatically propagate to frontend types.
+  \item \textbf{Interactive documentation}: Swagger UI for API exploration and testing.
+  \item \textbf{Reduced boilerplate}: No manual API client code or type definitions needed.
+\end{itemize}
 
 \subsection{High-Level Architecture Diagram}
 
@@ -150,38 +116,37 @@
 +-------------------------------------------------------------+
 \end{verbatim}
 
-% Implementation details - commented out for Registration_3 draft
-% \subsection{Data Flow}
-%
-% \subsubsection*{Registration Flow}
-%
-% \begin{enumerate}[leftmargin=*,nosep]
-%   \item User opens \texttt{/register} page in the frontend.
-%   \item User fills in username, email, password, and confirm password.
-%   \item Frontend validates each field in real-time using WASM \texttt{field-validator}.
-%   \item Password strength score (0--7) is displayed with strength label.
-%   \item On submit, frontend calls generated \texttt{registerUser()} function with typed request.
-%   \item Backend validates input using native \texttt{field-validator}.
-%   \item Backend checks username and email uniqueness in database.
-%   \item Backend hashes password with Argon2 (random salt).
-%   \item Backend creates \texttt{user\_login} record with \texttt{email\_verified = false}.
-%   \item Backend creates associated \texttt{user\_data} record.
-%   \item Backend generates 32-byte random token, stores SHA256 hash in \texttt{email\_verification\_tokens}.
-%   \item Backend sends verification email via SMTP with link containing plaintext token.
-%   \item On SMTP failure, user record is deleted (cleanup).
-%   \item Backend returns typed response; frontend handles with full type safety.
-% \end{enumerate}
-%
-% \subsubsection*{Email Verification Flow}
-%
-% \begin{enumerate}[leftmargin=*,nosep]
-%   \item User clicks verification link in email: \texttt{/verify-email?token=\{token\}}.
-%   \item Frontend extracts token from URL query parameter.
-%   \item Frontend calls generated \texttt{verifyEmail()} function with typed request.
-%   \item Backend computes SHA256 hash of received token.
-%   \item Backend looks up token hash in \texttt{email\_verification\_tokens}.
-%   \item Backend checks token has not expired (\texttt{expires\_at > now}).
-%   \item Backend sets \texttt{email\_verified = true} and \texttt{email\_verified\_at = now} on user.
-%   \item Backend deletes token from \texttt{email\_verification\_tokens}.
-%   \item Backend returns typed response; frontend shows success message with login button.
-% \end{enumerate}
+\subsection{Data Flow}
+
+\subsubsection*{Registration Flow}
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item User opens \texttt{/register} page in the frontend.
+  \item User fills in username, email, password, and confirm password.
+  \item Frontend validates each field in real-time using WASM \texttt{field-validator}.
+  \item Password strength score (0--7) is displayed with strength label.
+  \item On submit, frontend calls generated \texttt{registerUser()} function with typed request.
+  \item Backend validates input using native \texttt{field-validator}.
+  \item Backend checks username and email uniqueness in database.
+  \item Backend hashes password with Argon2 (random salt).
+  \item Backend creates \texttt{user\_login} record with \texttt{email\_verified = false}.
+  \item Backend creates associated \texttt{user\_data} record.
+  \item Backend generates 32-byte random token, stores SHA256 hash in \texttt{email\_verification\_tokens}.
+  \item Backend sends verification email via SMTP with link containing plaintext token.
+  \item On SMTP failure, user record is deleted (cleanup).
+  \item Backend returns typed response; frontend handles with full type safety.
+\end{enumerate}
+
+\subsubsection*{Email Verification Flow}
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item User clicks verification link in email: \texttt{/verify-email?token=\{token\}}.
+  \item Frontend extracts token from URL query parameter.
+  \item Frontend calls generated \texttt{verifyEmail()} function with typed request.
+  \item Backend computes SHA256 hash of received token.
+  \item Backend looks up token hash in \texttt{email\_verification\_tokens}.
+  \item Backend checks token has not expired (\texttt{expires\_at > now}).
+  \item Backend sets \texttt{email\_verified = true} and \texttt{email\_verified\_at = now} on user.
+  \item Backend deletes token from \texttt{email\_verification\_tokens}.
+  \item Backend returns typed response; frontend shows success message with login button.
+\end{enumerate}

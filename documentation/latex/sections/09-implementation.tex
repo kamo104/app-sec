@@ -1,9 +1,125 @@
-% Implementation Files - Core files listing
-\section{Implementation Files}
+% Implementation Details - Code examples and implementation specifics
+\section{Implementation Details}
 
-This section lists the core implementation files for the registration module.
+This section provides implementation details including code examples and the client generation process.
 
-\subsection{Backend Files}
+\subsection{Frontend Client Generation}
+
+The build script (\texttt{build.sh}) fetches the OpenAPI spec from the running backend:
+
+\begin{verbatim}
+curl -s http://localhost:4000/api/openapi.json \
+  > frontend/src/generated/openapi.json
+\end{verbatim}
+
+TypeScript client is generated using \texttt{@hey-api/openapi-ts}:
+
+\begin{verbatim}
+npx @hey-api/openapi-ts \
+  --input src/generated/openapi.json \
+  --output src/generated/api-client \
+  --client @hey-api/client-fetch
+\end{verbatim}
+
+Generated files in \texttt{frontend/src/generated/api-client/}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{types.gen.ts}: All TypeScript interfaces (\texttt{RegistrationRequest}, \texttt{LoginResponse}, etc.)
+  \item \texttt{sdk.gen.ts}: Typed API functions (\texttt{registerUser()}, \texttt{verifyEmail()}, etc.)
+  \item \texttt{index.ts}: Re-exports for convenient imports
+\end{itemize}
+
+Client configured in \texttt{frontend/src/api/client.ts} with base URL and credentials.
+
+\subsection{Registration Flow Implementation}
+
+Frontend registration call (\texttt{frontend/src/pages/register.vue}):
+
+\begin{lstlisting}[language=Java]
+import { registerUser } from '@/generated/api-client';
+
+const { data, error, response } = await registerUser({
+  body: {
+    username: formData.username,
+    email: formData.email,
+    password: formData.password,
+  }
+});
+
+if (response.ok) {
+  // Show translated success message
+  statusMessage.value = translate('SUCCESS_REGISTERED', undefined);
+} else if (error) {
+  // Handle specific error codes
+  if (error.error === 'USERNAME_TAKEN') {
+    statusMessage.value = translate_error_code('USERNAME_TAKEN', undefined);
+  } else if (error.error === 'VALIDATION') {
+    // Display field-specific errors
+    error.validation?.fieldErrors.forEach(fieldError => {
+      fieldError.errors.forEach(code => {
+        const msg = translate_field_validation_error(
+          fieldError.field, code, undefined
+        );
+      });
+    });
+  }
+}
+\end{lstlisting}
+
+\subsection{Email Verification Implementation}
+
+Frontend verification (\texttt{frontend/src/pages/verify-email.vue}):
+
+\begin{lstlisting}[language=Java]
+import { verifyEmail } from '@/generated/api-client';
+
+// Extract token from URL query parameter
+const route = useRoute();
+const token = route.query.token as string;
+
+if (!token) {
+  // Show warning: no token provided
+  return;
+}
+
+const { data, error, response } = await verifyEmail({
+  body: { token }
+});
+
+if (response.ok) {
+  // Show success, navigate to login
+  statusMessage.value = translate('SUCCESS_EMAIL_VERIFIED', undefined);
+} else {
+  // Show error (TOKEN_EXPIRED or INTERNAL)
+  statusMessage.value = translate_error_code(error.error, undefined);
+}
+\end{lstlisting}
+
+\subsection{Password Strength Validation}
+
+Frontend password field uses detailed validation (\texttt{frontend/src/components/auth/PasswordField.vue}):
+
+\begin{lstlisting}[language=Java]
+import { validate_password_detailed } from '@/wasm/field-validator';
+
+const result = JSON.parse(validate_password_detailed(password));
+
+// result.score: 0-7 (based on length and character types)
+// result.strength: "weak" | "medium" | "strong" | "cia"
+// result.errors: ["TOO_SHORT", "TOO_FEW_UPPERCASE_LETTERS", ...]
+
+// Score calculation:
+// +1 for length >= 8
+// +1 for length >= 12
+// +1 for length >= 16
+// +1 for uppercase letter
+// +1 for lowercase letter
+// +1 for digit
+// +1 for special character
+\end{lstlisting}
+
+\subsection{Implementation Files}
+
+\subsubsection{Backend Files}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{backend/src/main.rs}
@@ -55,7 +171,7 @@ This section lists the core implementation files for the registration module.
   \end{itemize}
 \end{itemize}
 
-\subsection{Frontend Files}
+\subsubsection{Frontend Files}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{frontend/src/pages/register.vue}
@@ -102,7 +218,7 @@ This section lists the core implementation files for the registration module.
   \end{itemize}
 \end{itemize}
 
-\subsection{Generated Files (Auto-Generated)}
+\subsubsection{Generated Files (Auto-Generated)}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{frontend/src/generated/openapi.json}
@@ -126,7 +242,7 @@ This section lists the core implementation files for the registration module.
   \end{itemize}
 \end{itemize}
 
-\subsection{Shared Crates}
+\subsubsection{Shared Crates}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{api-types/src/}
@@ -154,7 +270,7 @@ This section lists the core implementation files for the registration module.
   \end{itemize}
 \end{itemize}
 
-\subsection{Build and Configuration Files}
+\subsubsection{Build and Configuration Files}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{build.sh} -- Main build script (WASM, backend, OpenAPI, frontend)

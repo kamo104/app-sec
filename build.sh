@@ -141,6 +141,23 @@ else
 fi
 cd ..
 
+# Build the documentation (optional - skipped if LaTeX not available)
+cd documentation/latex
+DOC_OUTPUT=$(./generate.sh 2>&1)
+DOC_EXIT=$?
+cd ../..
+
+if [ $DOC_EXIT -eq 0 ]; then
+    if echo "$DOC_OUTPUT" | grep -q "skipping documentation build"; then
+        print_warning "Documentation build skipped (LaTeX not available)"
+    else
+        print_success "Documentation build completed"
+    fi
+else
+    print_error "Documentation build failed"
+    exit 1
+fi
+
 print_success "All builds completed successfully!"
 echo ""
 echo "To run the application:"
