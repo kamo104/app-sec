@@ -79,6 +79,86 @@
   \item Token is deleted upon successful verification.
 \end{itemize}
 
+\begin{newcontent}
+\subsubsection{FR-6: User Login}
+
+\textbf{ID}: FR-6
+
+\textbf{Description}: The system must allow verified users to log in with username and password.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Login form accepts username and password.
+  \item System validates username format before database lookup.
+  \item Password is verified against Argon2 hash in database.
+  \item Login is rejected if email is not verified.
+  \item On success, a session token is generated and stored as HTTP-only cookie.
+  \item Login response includes session expiry and user info.
+\end{itemize}
+
+\subsubsection{FR-7: Session Management}
+
+\textbf{ID}: FR-7
+
+\textbf{Description}: The system must manage user sessions securely.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Sessions are stored server-side with token hash as primary key.
+  \item Session tokens are 32 bytes of cryptographically secure random data.
+  \item Cookies are HTTP-only, Secure (in production), SameSite=Lax.
+  \item Session duration is configurable (default: 7 days).
+  \item Frontend can check session validity via \texttt{GET /api/auth/check}.
+  \item Frontend can refresh session via \texttt{POST /api/auth/refresh}.
+  \item Expired sessions are automatically cleaned up hourly.
+\end{itemize}
+
+\subsubsection{FR-8: User Logout}
+
+\textbf{ID}: FR-8
+
+\textbf{Description}: The system must allow users to log out and destroy their session.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Logout endpoint deletes session from database.
+  \item Session cookie is cleared by setting expired cookie.
+  \item Logout always returns success (idempotent).
+\end{itemize}
+
+\subsubsection{FR-9: Password Reset Request}
+
+\textbf{ID}: FR-9
+
+\textbf{Description}: The system must allow users to request a password reset via email.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item User provides email address to request password reset.
+  \item System always returns success to prevent email enumeration.
+  \item If email exists, a reset token is generated and emailed.
+  \item Reset token hash is stored in database.
+  \item Password reset flag is set on user account.
+  \item Reset tokens have configurable expiry.
+\end{itemize}
+
+\subsubsection{FR-10: Password Reset Completion}
+
+\textbf{ID}: FR-10
+
+\textbf{Description}: The system must allow users to set a new password using a valid reset token.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item User provides reset token and new password.
+  \item System validates token exists and is not expired.
+  \item New password is validated against password policy.
+  \item Password is hashed and stored.
+  \item Reset token is deleted after successful reset.
+  \item Password reset flag is cleared on user account.
+\end{itemize}
+\end{newcontent}
+
 \subsection{Non-Functional Requirements}
 
 \subsubsection{NFR-1: Security}
@@ -89,11 +169,13 @@
 
 \textbf{Details}:
 \begin{itemize}[leftmargin=*,nosep]
-  \item Passwords hashed with memory-hard algorithm.
-  \item Verification tokens stored as hashes only.
-  \item Database encrypted at rest.
+  \item Passwords hashed with memory-hard Argon2 algorithm.
+  \item All tokens (verification, session, reset) stored as SHA256 hashes only.
+  \item Database encrypted at rest with SQLCipher.
   \item HTTPS enforced in production.
+  \item Session cookies are HTTP-only and Secure.
   \item Input validated on both frontend and backend.
+  \item Password reset prevents email enumeration.
 \end{itemize}
 
 \subsubsection{NFR-2: Reliability}
@@ -106,7 +188,8 @@
 \begin{itemize}[leftmargin=*,nosep]
   \item On email sending failure, user record is rolled back.
   \item Foreign keys ensure referential integrity.
-  \item Automatic cleanup of expired tokens.
+  \item Automatic cleanup of expired tokens and sessions.
+  \item Session refresh extends validity without requiring re-login.
 \end{itemize}
 
 \subsubsection{NFR-3: Usability}
@@ -121,4 +204,19 @@
   \item Password strength indicator.
   \item Translated error messages for all validation failures.
   \item Clear success/error states on all pages.
+  \item Automatic session refresh in background.
+\end{itemize}
+
+\subsubsection{NFR-4: Performance}
+
+\textbf{ID}: NFR-4
+
+\textbf{Description}: The module must perform efficiently.
+
+\textbf{Details}:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Session lookup by token hash is O(1) via primary key.
+  \item Cleanup tasks run hourly to prevent table bloat.
+  \item WASM validation runs client-side to reduce server load.
+  \item Session refresh uses existing token (no new token generation).
 \end{itemize}

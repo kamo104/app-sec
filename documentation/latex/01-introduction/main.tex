@@ -6,25 +6,33 @@
   \item \textbf{Level}: Graduate/Master's
   \item \textbf{Focus Areas}:
   \begin{itemize}[leftmargin=1.5em,nosep]
-    \item Secure user registration
+    \item Secure user registration and email verification
+    \item User login with cookie-based session management
+    \item Secure password reset workflow
     \item Password security with Argon2 hashing
-    \item Email verification with secure tokens
-    \item Input validation (frontend and backend)
     \item Cryptographic token generation and storage
+    \item Input validation (frontend and backend)
     \item Cross-platform validation via WebAssembly
   \end{itemize}
 \end{itemize}
 
+\subsection{Document Version Notice}
+
+\begin{newcontent}
+\textbf{Version 2.0 Update}: This document has been updated to include login, session management, and password reset functionality. New content is indicated by a blue sidebar on the left margin, making it easy to identify additions since version 1.x (registration module only).
+\end{newcontent}
+
 \subsection{Exercise Description}
 
-This exercise demonstrates a secure user registration module with email verification, implementing modern web security practices. The registration module is responsible for:
+This exercise demonstrates a complete secure authentication module implementing modern web security practices. The module provides:
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Secure user registration with client-side and server-side validation
-  \item Password strength validation with detailed scoring (0--7 scale)
-  \item Cryptographically secure verification token generation
-  \item Email verification workflow before account activation
-  \item Password hashing using Argon2 algorithm
-  \item Defense against common attacks (enumeration, injection, brute force)
-  \item Shared validation logic between frontend (WASM) and backend (native Rust)
+  \item \textbf{User Registration}: Secure registration with client-side and server-side validation, password strength scoring (0--7 scale), and email verification workflow
+  \begin{newcontent}
+  \item \textbf{User Login}: Authentication with username/password, cookie-based session tokens, and email verification enforcement
+  \item \textbf{Session Management}: Secure HTTP-only cookies, configurable session duration, automatic session refresh, and server-side session storage
+  \item \textbf{Password Reset}: Secure token-based password reset via email with automatic token expiry
+  \end{newcontent}
+  \item \textbf{Security Features}: Argon2 password hashing, SHA256 token hashing, defense against enumeration attacks, and automatic cleanup of expired data
+  \item \textbf{Shared Validation}: Cross-platform validation logic compiled to WebAssembly for frontend and native Rust for backend
 \end{itemize}

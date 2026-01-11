@@ -14,8 +14,28 @@
 \usepackage{caption}
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage{graphicx}
+\usepackage[draft]{graphicx}
 \usepackage{float}
+\usepackage{mdframed}
+
+% Define color for new content sidebar
+\definecolor{newcontentblue}{RGB}{0, 102, 204}
+
+% Environment for new content with blue sidebar
+\newmdenv[
+  topline=false,
+  bottomline=false,
+  rightline=false,
+  leftline=true,
+  linewidth=3pt,
+  linecolor=newcontentblue,
+  innerleftmargin=10pt,
+  innerrightmargin=0pt,
+  innertopmargin=0pt,
+  innerbottommargin=0pt,
+  skipabove=\parskip,
+  skipbelow=\parskip
+]{newcontent}
 
 \setlength{\parskip}{0.5em}
 \setlength{\parindent}{0pt}

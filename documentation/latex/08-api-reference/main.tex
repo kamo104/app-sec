@@ -1,14 +1,20 @@
 % API Reference - Endpoints documentation
 \section{API Reference}
 
-This section documents the registration and email verification endpoints. All endpoints are documented using \texttt{utoipa} annotations and the OpenAPI specification is automatically generated. Types are defined in the \texttt{api-types} crate with conditional \texttt{ToSchema} derivation for OpenAPI support.
+This section documents all authentication endpoints. All endpoints are documented using \texttt{utoipa} annotations and the OpenAPI specification is automatically generated. Types are defined in the \texttt{api-types} crate with conditional \texttt{ToSchema} derivation for OpenAPI support.
 
 \subsection{Endpoints Overview}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{POST /api/register} -- Create a new user account and send verification email.
-  \item \texttt{POST /api/verify-email} -- Verify email address using token from email.
-  \item \texttt{GET /api/health} -- Health check endpoint.
+  \item \texttt{POST /api/register} -- Create a new user account
+  \item \texttt{POST /api/verify-email} -- Verify email address
+  \item \texttt{POST /api/login} -- Authenticate and create session
+  \item \texttt{POST /api/logout} -- Destroy session
+  \item \texttt{GET /api/auth/check} -- Validate current session
+  \item \texttt{POST /api/auth/refresh} -- Extend session lifetime
+  \item \texttt{POST /api/request-password-reset} -- Request password reset
+  \item \texttt{POST /api/complete-password-reset} -- Complete password reset
+  \item \texttt{GET /api/health} -- Health check endpoint
 \end{itemize}
 
 In development mode, interactive documentation is available:
@@ -59,27 +65,6 @@ Empty response body on success.
 }
 \end{lstlisting}
 
-\textbf{HTTP 500 Internal Server Error}:
-\begin{lstlisting}
-{
-  "error": "INTERNAL"
-}
-\end{lstlisting}
-
-\subsubsection*{Validation Error Codes}
-
-\begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{REQUIRED} -- Field is empty
-  \item \texttt{TOO\_SHORT} -- Below minimum length
-  \item \texttt{TOO\_LONG} -- Exceeds maximum length
-  \item \texttt{INVALID\_CHARACTERS} -- Contains invalid characters
-  \item \texttt{INVALID\_FORMAT} -- Invalid format (email)
-  \item \texttt{TOO\_FEW\_UPPERCASE\_LETTERS} -- Password missing uppercase
-  \item \texttt{TOO\_FEW\_LOWERCASE\_LETTERS} -- Password missing lowercase
-  \item \texttt{TOO\_FEW\_DIGITS} -- Password missing digit
-  \item \texttt{TOO\_FEW\_SPECIAL\_CHARACTERS} -- Password missing special char
-\end{itemize}
-
 \subsection{\texorpdfstring{\texttt{POST /api/verify-email}}{POST /api/verify-email}}
 
 Verifies an email address using the token from the verification email.
@@ -94,7 +79,7 @@ Verifies an email address using the token from the verification email.
 
 \subsubsection*{Success Response (HTTP 200)}
 
-Empty response body on success. User is now verified and can log in.
+Empty response body on success.
 
 \subsubsection*{Error Responses}
 
@@ -102,13 +87,6 @@ Empty response body on success. User is now verified and can log in.
 \begin{lstlisting}
 {
   "error": "TOKEN_EXPIRED"
-}
-\end{lstlisting}
-
-\textbf{HTTP 500 Internal Server Error}:
-\begin{lstlisting}
-{
-  "error": "INTERNAL"
 }
 \end{lstlisting}
 
@@ -124,6 +102,168 @@ Empty response body on success. User is now verified and can log in.
   \item Idempotent: returns success if user already verified.
 \end{itemize}
 
+\begin{newcontent}
+\subsection{\texorpdfstring{\texttt{POST /api/login}}{POST /api/login}}
+
+Authenticates a user and creates a session.
+
+\subsubsection*{Request Body (JSON)}
+
+\begin{lstlisting}
+{
+  "username": "string",
+  "password": "string"
+}
+\end{lstlisting}
+
+\subsubsection*{Success Response (HTTP 200)}
+
+\begin{lstlisting}
+{
+  "username": "string",
+  "email": "string",
+  "sessionExpiresAt": 1234567890,  // Unix timestamp
+  "sessionCreatedAt": 1234567890   // Unix timestamp
+}
+\end{lstlisting}
+
+Also sets \texttt{session\_token} HTTP-only cookie.
+
+\subsubsection*{Error Responses}
+
+\textbf{HTTP 400 Bad Request} -- Validation failed:
+\begin{lstlisting}
+{
+  "error": "VALIDATION",
+  "validation": { ... }
+}
+\end{lstlisting}
+
+\textbf{HTTP 401 Unauthorized}:
+\begin{lstlisting}
+{
+  "error": "INVALID_CREDENTIALS" | "EMAIL_NOT_VERIFIED"
+}
+\end{lstlisting}
+
+\subsection{\texorpdfstring{\texttt{POST /api/logout}}{POST /api/logout}}
+
+Logs out the user by destroying their session.
+
+\subsubsection*{Request}
+
+No body required. Uses \texttt{session\_token} cookie for identification.
+
+\subsubsection*{Success Response (HTTP 200)}
+
+Empty response body. Clears \texttt{session\_token} cookie.
+
+\subsection{\texorpdfstring{\texttt{GET /api/auth/check}}{GET /api/auth/check}}
+
+Validates the current session and returns user info.
+
+\subsubsection*{Request}
+
+No body required. Uses \texttt{session\_token} cookie.
+
+\subsubsection*{Success Response (HTTP 200)}
+
+\begin{lstlisting}
+{
+  "username": "string",
+  "email": "string",
+  "sessionExpiresAt": 1234567890,
+  "sessionCreatedAt": 1234567890
+}
+\end{lstlisting}
+
+\subsubsection*{Error Response}
+
+\textbf{HTTP 401 Unauthorized}:
+\begin{lstlisting}
+{
+  "error": "INVALID_CREDENTIALS"
+}
+\end{lstlisting}
+
+\subsection{\texorpdfstring{\texttt{POST /api/auth/refresh}}{POST /api/auth/refresh}}
+
+Extends the current session's lifetime.
+
+\subsubsection*{Request}
+
+No body required. Uses \texttt{session\_token} cookie.
+
+\subsubsection*{Success Response (HTTP 200)}
+
+\begin{lstlisting}
+{
+  "username": "string",
+  "email": "string",
+  "sessionExpiresAt": 1234567890,  // Updated expiry
+  "sessionCreatedAt": 1234567890
+}
+\end{lstlisting}
+
+Also updates \texttt{session\_token} cookie expiry.
+
+\subsubsection*{Error Response}
+
+\textbf{HTTP 401 Unauthorized}:
+\begin{lstlisting}
+{
+  "error": "INVALID_CREDENTIALS"
+}
+\end{lstlisting}
+
+\subsection{\texorpdfstring{\texttt{POST /api/request-password-reset}}{POST /api/request-password-reset}}
+
+Requests a password reset email. Always returns success for security.
+
+\subsubsection*{Request Body (JSON)}
+
+\begin{lstlisting}
+{
+  "email": "string"
+}
+\end{lstlisting}
+
+\subsubsection*{Success Response (HTTP 200)}
+
+Empty response body. If email exists, reset email is sent.
+
+\subsubsection*{Note}
+
+Always returns 200 OK to prevent email enumeration attacks.
+
+\subsection{\texorpdfstring{\texttt{POST /api/complete-password-reset}}{POST /api/complete-password-reset}}
+
+Completes a password reset using the token from email.
+
+\subsubsection*{Request Body (JSON)}
+
+\begin{lstlisting}
+{
+  "token": "string",      // 64-char hex token from email link
+  "newPassword": "string" // Must meet password requirements
+}
+\end{lstlisting}
+
+\subsubsection*{Success Response (HTTP 200)}
+
+Empty response body.
+
+\subsubsection*{Error Responses}
+
+\textbf{HTTP 400 Bad Request}:
+\begin{lstlisting}
+{
+  "error": "INVALID_TOKEN" | "VALIDATION",
+  "validation": { ... }  // Only present for VALIDATION
+}
+\end{lstlisting}
+\end{newcontent}
+
 \subsection{\texorpdfstring{\texttt{GET /api/health}}{GET /api/health}}
 
 Simple health check endpoint.
@@ -132,13 +272,40 @@ Simple health check endpoint.
 
 Returns basic health status indicating backend is running.
 
+\subsection{Common Error Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{VALIDATION} -- Input validation failed
+  \item \texttt{INTERNAL} -- Internal server error
+  \item \texttt{INVALID\_CREDENTIALS} -- Authentication failed
+  \item \texttt{EMAIL\_NOT\_VERIFIED} -- Email verification required
+  \item \texttt{TOKEN\_EXPIRED} -- Verification token expired
+  \item \texttt{INVALID\_TOKEN} -- Reset token invalid or expired
+  \item \texttt{USERNAME\_TAKEN} -- Username already registered
+  \item \texttt{EMAIL\_TAKEN} -- Email already registered
+\end{itemize}
+
+\subsection{Validation Error Codes}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{REQUIRED} -- Field is empty
+  \item \texttt{TOO\_SHORT} -- Below minimum length
+  \item \texttt{TOO\_LONG} -- Exceeds maximum length
+  \item \texttt{INVALID\_CHARACTERS} -- Contains invalid characters
+  \item \texttt{INVALID\_FORMAT} -- Invalid format (email)
+  \item \texttt{TOO\_FEW\_UPPERCASE\_LETTERS} -- Password missing uppercase
+  \item \texttt{TOO\_FEW\_LOWERCASE\_LETTERS} -- Password missing lowercase
+  \item \texttt{TOO\_FEW\_DIGITS} -- Password missing digit
+  \item \texttt{TOO\_FEW\_SPECIAL\_CHARACTERS} -- Password missing special char
+\end{itemize}
+
 \subsection{Type Definitions}
 
 Types are defined in \texttt{api-types/src/} with OpenAPI schema support:
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item \texttt{requests.rs}: \texttt{RegistrationRequest}, \texttt{EmailVerificationRequest}
-  \item \texttt{responses.rs}: \texttt{RegisterError}, \texttt{RegisterErrorResponse}, \texttt{VerifyEmailError}
+  \item \texttt{requests.rs}: \texttt{RegistrationRequest}, \texttt{EmailVerificationRequest}, \texttt{LoginRequest}, \texttt{PasswordResetRequest}, \texttt{PasswordResetCompleteRequest}
+  \item \texttt{responses.rs}: \texttt{RegisterError}, \texttt{RegisterErrorResponse}, \texttt{VerifyEmailError}, \texttt{LoginResponse}, \texttt{LoginError}, \texttt{AuthSessionResponse}
   \item \texttt{validation.rs}: \texttt{ValidationFieldError}, \texttt{ValidationErrorData}
   \item \texttt{enums.rs}: \texttt{FieldType}, \texttt{ValidationErrorCode}, \texttt{PasswordStrength}
 \end{itemize}

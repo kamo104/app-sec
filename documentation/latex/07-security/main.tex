@@ -1,7 +1,7 @@
 % Security Mechanisms
 \section{Security Mechanisms}
 
-This section describes the security measures implemented in the registration module.
+This section describes the security measures implemented in the authentication module.
 
 \subsection{Password Security}
 
@@ -10,43 +10,112 @@ This section describes the security measures implemented in the registration mod
   \item Random salt generated using \texttt{SaltString::generate(\&mut OsRng)}.
   \item Password hash stored in PHC string format (includes algorithm, parameters, salt).
   \item Passwords are never logged, stored in plaintext, or returned to clients.
+  \item Password complexity requirements: 8--64 characters, uppercase, lowercase, digit, special character.
+  \item Password strength scoring (0--7) provides user feedback.
 \end{itemize}
 
 \subsection{Token Security}
 
+\subsubsection{Email Verification Tokens}
 \begin{itemize}[leftmargin=*,nosep]
-  \item Verification tokens are 32 bytes of cryptographically secure random data.
-  \item Tokens are hex-encoded for transmission (64 characters).
-  \item Only SHA256 hashes of tokens are stored in the database.
-  \item Plaintext tokens are sent only via email and never logged.
-  \item Tokens have configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
+  \item 32 bytes of cryptographically secure random data (\texttt{OsRng}).
+  \item Hex-encoded for transmission (64 characters).
+  \item Only SHA256 hashes stored in database.
+  \item Plaintext tokens sent only via email, never logged.
+  \item Configurable expiry (\texttt{EMAIL\_VERIFICATION\_TOKEN\_DURATION\_HOURS}).
   \item One token per user (primary key constraint).
+  \item Deleted after successful verification.
 \end{itemize}
+
+\begin{newcontent}
+\subsubsection{Session Tokens}
+\begin{itemize}[leftmargin=*,nosep]
+  \item 32 bytes of cryptographically secure random data.
+  \item Stored in HTTP-only cookies (inaccessible to JavaScript).
+  \item Only SHA256 hashes stored in database.
+  \item Cookies set with \texttt{Secure} flag in production (HTTPS only).
+  \item \texttt{SameSite=Lax} prevents CSRF on state-changing requests.
+  \item Configurable duration (\texttt{SESSION\_DURATION\_DAYS}, default 7).
+  \item Users can have multiple active sessions (multi-device).
+  \item Session refresh extends expiry without generating new token.
+\end{itemize}
+
+\subsubsection{Password Reset Tokens}
+\begin{itemize}[leftmargin=*,nosep]
+  \item 32 bytes of cryptographically secure random data.
+  \item Only SHA256 hashes stored in database.
+  \item Configurable expiry (\texttt{PASSWORD\_RESET\_TOKEN\_DURATION\_HOURS}).
+  \item One token per user (new request overwrites existing via UPSERT).
+  \item Deleted after successful password reset.
+  \item Password reset flag tracks active reset process.
+\end{itemize}
+
+\subsection{Session Management Security}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Server-side session storage (no sensitive data in cookie).
+  \item Session lookup by token hash is O(1) via primary key.
+  \item Cookie attributes:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{HttpOnly}: Prevents XSS attacks from accessing token.
+    \item \texttt{Secure}: Cookie only sent over HTTPS (production).
+    \item \texttt{SameSite=Lax}: Prevents CSRF on POST/PUT/DELETE.
+    \item \texttt{Path=/}: Cookie sent with all requests to origin.
+  \end{itemize}
+  \item Logout invalidates session server-side and clears cookie.
+  \item Expired sessions cannot be used (server validates expiry).
+\end{itemize}
+
+\subsection{Anti-Enumeration Measures}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Password reset always returns 200 OK regardless of email existence.
+  \item Login returns generic ``invalid credentials'' for both wrong username and wrong password.
+  \item Registration returns specific errors for taken username/email (trade-off for UX).
+\end{itemize}
+\end{newcontent}
 
 \subsection{Error Handling}
 
 \begin{itemize}[leftmargin=*,nosep]
   \item Typed error codes from \texttt{api-types} crate.
-  \item Specific codes for \texttt{USERNAME\_TAKEN} and \texttt{EMAIL\_TAKEN} (HTTP 409).
+  \item Specific codes for authentication failures.
   \item Validation errors include field-specific details for user feedback.
-  \item Internal errors return generic \texttt{INTERNAL} code (HTTP 500).
+  \item Internal errors return generic code (HTTP 500).
   \item All error codes translated to user-friendly messages via \texttt{translator} crate.
+  \item Stack traces and internal details never exposed to clients.
 \end{itemize}
 
 \subsection{Automatic Cleanup}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Hourly cleanup task runs asynchronously.
-  \item Deletes expired verification tokens.
-  \item Deletes unverified users whose tokens have expired (via CASCADE).
+  \item Cleanup task runs asynchronously every hour.
+  \item Deletes expired email verification tokens.
+  \item Deletes expired password reset tokens.
+  \item Deletes expired sessions.
+  \item Unverified users with expired tokens deleted via CASCADE.
   \item On email sending failure, user record is rolled back immediately.
+\end{itemize}
+
+\subsection{Input Validation}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Dual validation: frontend (WASM) and backend (native Rust).
+  \item Same validation logic compiled for both platforms.
+  \item Frontend validation for UX; backend is authoritative.
+  \item Username: 3--20 characters, printable UTF-8.
+  \item Email: Valid format validation.
+  \item Password: 8--64 characters, complexity requirements.
 \end{itemize}
 
 \subsection{Future Enhancements}
 
 \begin{itemize}[leftmargin=*,nosep]
-  \item Rate limiting on registration endpoint.
+  \item Rate limiting on login endpoint.
+  \item Account lockout after failed attempts.
   \item CAPTCHA integration for bot mitigation.
-  \item Email domain whitelist/blacklist.
-  \item Invite token system for controlled registration.
+  \item Device/session management (view and revoke sessions).
+  \item Security event logging (failed logins, password resets).
+  \item Multi-factor authentication (MFA/2FA).
+  \item HSTS header for transport security.
 \end{itemize}

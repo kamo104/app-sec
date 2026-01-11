@@ -1,9 +1,9 @@
 % Implementation Details - Code examples and implementation specifics
 \section{Implementation Details}
 
-This section provides implementation details including code examples and the client generation process.
+This section provides implementation details including code examples, screenshots, and the client generation process.
 
-\subsection{User Interface}
+\subsection{User Interface - Registration}
 
 \begin{figure}[H]
     \centering
@@ -40,6 +40,56 @@ This section provides implementation details including code examples and the cli
     \label{fig:validation-errors}
 \end{figure}
 
+% BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
+% \begin{newcontent}
+% \subsection{User Interface - Login}
+%
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1\textwidth]{09-implementation/login-form.png}
+%     \caption{Login form with username and password fields. Includes ``Remember me'' checkbox and link to forgot password page.}
+%     \label{fig:login-form}
+% \end{figure}
+%
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1\textwidth]{09-implementation/login-success.png}
+%     \caption{Successful login showing redirect to home page with user session information displayed.}
+%     \label{fig:login-success}
+% \end{figure}
+%
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1\textwidth]{09-implementation/login-error.png}
+%     \caption{Login error displaying translated error message for invalid credentials or unverified email.}
+%     \label{fig:login-error}
+% \end{figure}
+%
+% \subsection{User Interface - Password Reset}
+%
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1\textwidth]{09-implementation/forgot-password.png}
+%     \caption{Forgot password page where users enter their email address to request a password reset link.}
+%     \label{fig:forgot-password}
+% \end{figure}
+%
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1\textwidth]{09-implementation/reset-password.png}
+%     \caption{Password reset form where users enter their new password after clicking the reset link from email.}
+%     \label{fig:reset-password}
+% \end{figure}
+%
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1\textwidth]{09-implementation/reset-success.png}
+%     \caption{Successful password reset confirmation with link to login page.}
+%     \label{fig:reset-success}
+% \end{figure}
+% \end{newcontent}
+% END COMMENTED OUT FOR DRAFT
+
 \subsection{Frontend Client Generation}
 
 The build script (\texttt{build.sh}) fetches the OpenAPI spec from the running backend:
@@ -61,7 +111,7 @@ npx @hey-api/openapi-ts \
 Generated files in \texttt{frontend/src/generated/api-client/}:
 \begin{itemize}[leftmargin=*,nosep]
   \item \texttt{types.gen.ts}: All TypeScript interfaces (\texttt{RegistrationRequest}, \texttt{LoginResponse}, etc.)
-  \item \texttt{sdk.gen.ts}: Typed API functions (\texttt{registerUser()}, \texttt{verifyEmail()}, etc.)
+  \item \texttt{sdk.gen.ts}: Typed API functions (\texttt{registerUser()}, \texttt{verifyEmail()}, \texttt{login()}, etc.)
   \item \texttt{index.ts}: Re-exports for convenient imports
 \end{itemize}
 
@@ -154,6 +204,27 @@ const result = JSON.parse(validate_password_detailed(password));
 // +1 for special character
 \end{lstlisting}
 
+% BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
+% \begin{newcontent}
+% \subsection{Session Management Implementation}
+%
+% Frontend session handling (\texttt{frontend/src/stores/auth.ts}):
+%
+% \begin{lstlisting}[language=Java]
+% // On login success
+% authStore.setUser(data)  // Stores user in state and localStorage
+%
+% // Session refresh scheduling
+% const sessionLifetime = sessionExpiresAt - sessionCreatedAt
+% const refreshAt = sessionCreatedAt + (sessionLifetime / 2)
+% // Timer calls POST /api/auth/refresh at 50% of session lifetime
+%
+% // On logout
+% authStore.clearUser()  // Clears state and localStorage
+% \end{lstlisting}
+% \end{newcontent}
+% END COMMENTED OUT FOR DRAFT
+
 \subsection{Implementation Files}
 
 \subsubsection{Backend Files}
@@ -178,16 +249,57 @@ const result = JSON.parse(validate_password_detailed(password));
     \item \texttt{POST /api/verify-email} handler with \texttt{\#[utoipa::path()]} annotation.
     \item Verifies token and marks user as verified.
   \end{itemize}
+  % BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
+  % \begin{newcontent}
+  % \item \texttt{backend/src/api/login.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item \texttt{POST /api/login} handler.
+  %   \item Validates credentials, checks email verification.
+  %   \item Creates session and sets HTTP-only cookie.
+  % \end{itemize}
+  % \item \texttt{backend/src/api/logout.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item \texttt{POST /api/logout} handler.
+  %   \item Deletes session from database.
+  %   \item Clears session cookie.
+  % \end{itemize}
+  % \item \texttt{backend/src/api/auth.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item \texttt{GET /api/auth/check} -- Validates session and returns user info.
+  %   \item \texttt{POST /api/auth/refresh} -- Extends session lifetime.
+  % \end{itemize}
+  % \item \texttt{backend/src/api/auth\_extractor.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Axum extractor for session validation.
+  %   \item Reads session token from cookie.
+  %   \item Validates against database.
+  % \end{itemize}
+  % \item \texttt{backend/src/api/password\_reset.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item \texttt{POST /api/request-password-reset} -- Generates reset token.
+  %   \item \texttt{POST /api/complete-password-reset} -- Validates token and updates password.
+  % \end{itemize}
+  % \item \texttt{backend/src/db/user\_sessions.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Session table operations: create, lookup, delete, refresh.
+  % \end{itemize}
+  % \item \texttt{backend/src/db/password\_reset\_tokens.rs}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Reset token table operations: create (UPSERT), lookup, delete.
+  % \end{itemize}
+  % \end{newcontent}
+  % END COMMENTED OUT FOR DRAFT
   \item \texttt{backend/src/api/utils.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Configuration constants from \texttt{build.rs}.
     \item Token duration settings, base URLs.
+    \item Cookie creation helper functions.
   \end{itemize}
   \item \texttt{backend/src/db/mod.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item \texttt{DBHandle} struct with connection pool.
     \item Password hashing with Argon2.
-    \item Cleanup task for expired tokens.
+    \item Cleanup task for expired tokens and sessions.
   \end{itemize}
   \item \texttt{backend/src/db/user\_login.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
@@ -204,7 +316,7 @@ const result = JSON.parse(validate_password_detailed(password));
   \item \texttt{backend/src/email.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item SMTP email sending via \texttt{lettre}.
-    \item Verification email template.
+    \item Verification and password reset email templates.
   \end{itemize}
 \end{itemize}
 
@@ -223,6 +335,34 @@ const result = JSON.parse(validate_password_detailed(password));
     \item Uses generated \texttt{verifyEmail()} from API client.
     \item Extracts token from URL and calls API.
   \end{itemize}
+  % BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
+  % \begin{newcontent}
+  % \item \texttt{frontend/src/pages/login.vue}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Login page with username/password form.
+  %   \item Handles session storage on success.
+  %   \item Displays login errors with translation.
+  % \end{itemize}
+  % \item \texttt{frontend/src/pages/forgot-password.vue}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Password reset request page.
+  %   \item Email input with validation.
+  %   \item Always shows success message (security).
+  % \end{itemize}
+  % \item \texttt{frontend/src/pages/reset-password.vue}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Password reset completion page.
+  %   \item Extracts token from URL.
+  %   \item New password input with strength validation.
+  % \end{itemize}
+  % \item \texttt{frontend/src/stores/auth.ts}
+  % \begin{itemize}[leftmargin=1.5em,nosep]
+  %   \item Pinia store for authentication state.
+  %   \item Manages user session data.
+  %   \item Handles session refresh scheduling.
+  % \end{itemize}
+  % \end{newcontent}
+  % END COMMENTED OUT FOR DRAFT
   \item \texttt{frontend/src/components/auth/UsernameField.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Username input with WASM validation.
@@ -266,12 +406,12 @@ const result = JSON.parse(validate_password_detailed(password));
   \item \texttt{frontend/src/generated/api-client/types.gen.ts}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Auto-generated TypeScript interfaces from OpenAPI spec.
-    \item Includes \texttt{RegistrationRequest}, \texttt{RegisterErrorResponse}, etc.
+    \item Includes \texttt{RegistrationRequest}, \texttt{LoginResponse}, etc.
   \end{itemize}
   \item \texttt{frontend/src/generated/api-client/sdk.gen.ts}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Auto-generated typed API functions.
-    \item Includes \texttt{registerUser()}, \texttt{verifyEmail()}, \texttt{healthCheck()}.
+    \item Includes \texttt{registerUser()}, \texttt{verifyEmail()}, \texttt{login()}, \texttt{logout()}, etc.
   \end{itemize}
   \item \texttt{frontend/src/generated/api-client/index.ts}
   \begin{itemize}[leftmargin=1.5em,nosep]

@@ -3,7 +3,7 @@
 
 \subsection{Purpose}
 
-The registration module provides a secure mechanism for creating user accounts and verifying ownership of email addresses before granting access to the application.
+The authentication module provides a complete secure mechanism for user registration, login, session management, and password reset. It ensures secure access to the application while protecting user credentials and session data.
 
 Its main goals are:
 
@@ -11,13 +11,16 @@ Its main goals are:
   \item Ensure only valid, well-formed data is accepted through dual validation (frontend and backend).
   \item Prevent user enumeration and information leakage through generic error responses.
   \item Protect passwords using Argon2 hashing with random salts.
-  \item Store verification tokens as SHA256 hashes, never in plaintext.
+  \item Store all tokens (verification, session, password reset) as SHA256 hashes, never in plaintext.
   \item Enforce email verification before the account can be used.
-  \item Automatically clean up expired tokens and unverified accounts.
+  \item Manage user sessions securely using HTTP-only cookies with server-side session storage.
+  \item Provide secure password reset workflow via email tokens.
+  \item Automatically clean up expired tokens, sessions, and unverified accounts.
 \end{enumerate}
 
 \subsection{Responsibilities}
 
+\subsubsection{Registration}
 \begin{itemize}[leftmargin=*,nosep]
   \item Accept registration requests with username, email, and password.
   \item Validate input on both frontend (via WASM) and backend (native Rust).
@@ -26,8 +29,29 @@ Its main goals are:
   \item Store only SHA256 hashes of tokens in the database.
   \item Send verification emails via SMTP (MailHog in development).
   \item Verify email tokens and mark users as verified.
-  \item Clean up expired tokens and unverified users automatically.
-  \item Provide translated error messages via the translator crate.
+\end{itemize}
+
+\subsubsection{Login and Session Management}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Authenticate users with username and password.
+  \item Verify email is confirmed before allowing login.
+  \item Generate 32-byte cryptographically secure session tokens.
+  \item Store session token hashes in the database with expiry timestamps.
+  \item Set HTTP-only, Secure (in production), SameSite=Lax cookies.
+  \item Provide session validation endpoint for frontend auth state.
+  \item Support session refresh to extend session lifetime.
+  \item Invalidate sessions on logout by removing from database and clearing cookie.
+\end{itemize}
+
+\subsubsection{Password Reset}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Accept password reset requests by email address.
+  \item Always return success response to prevent email enumeration.
+  \item Generate secure reset tokens and store hashes in database.
+  \item Set password reset flag on user account.
+  \item Send password reset email with secure link.
+  \item Validate reset tokens and update password on completion.
+  \item Clear reset token and flag after successful password change.
 \end{itemize}
 
 \subsection{Security Assumptions}
@@ -36,8 +60,10 @@ Its main goals are:
   \item All traffic is served over HTTPS in production.
   \item Database is encrypted using SQLCipher with a 32-byte key stored in system keyring or environment variable.
   \item Email delivery is handled via SMTP (MailHog for development, production SMTP for deployment).
-  \item Verification tokens are sent only to the user's email address.
+  \item Verification and reset tokens are sent only to the user's email address.
   \item Passwords are never logged, stored in plaintext, or returned to the client.
+  \item Session tokens are stored in HTTP-only cookies, inaccessible to JavaScript.
   \item Frontend validation is for user experience; backend validation is authoritative.
-  \item Expired tokens and unverified users are cleaned up automatically every hour.
+  \item Expired tokens, sessions, and unverified users are cleaned up automatically every hour.
+  \item Password reset always returns success to prevent email enumeration attacks.
 \end{itemize}

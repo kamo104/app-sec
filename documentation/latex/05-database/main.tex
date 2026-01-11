@@ -12,11 +12,10 @@
 \texttt{user\_id} & INTEGER & PRIMARY KEY AUTOINCREMENT & Unique user identifier \\
 \texttt{username} & TEXT & UNIQUE, NOT NULL & Indexed for lookup \\
 \texttt{email} & TEXT & UNIQUE, NOT NULL & Stored normalized (lowercase) \\
-\texttt{password} & TEXT & NOT NULL & Argon2 hash in PHC format \\
+\texttt{password} & TEXT & NULLABLE & Argon2 hash in PHC format, NULL during reset \\
 \texttt{email\_verified} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: 0=false, 1=true \\
 \texttt{email\_verified\_at} & INTEGER & NULLABLE & Unix timestamp when verified \\
-% Login_4 scope - password reset field
-% \texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
+\texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
 \bottomrule
 \end{tabularx}
 
@@ -25,7 +24,35 @@ Constraints and notes:
 \begin{itemize}[leftmargin=*,nosep]
   \item Unique constraints on \texttt{username} and \texttt{email} prevent duplicates.
   \item \texttt{email\_verified} must be true before user can log in.
+  \item \texttt{password} can be NULL when a password reset is in progress.
+  \item \texttt{password\_reset} flag indicates a reset token has been issued.
 \end{itemize}
+
+\begin{newcontent}
+\subsection{User Sessions Table (\texttt{user\_sessions})}
+
+\begin{tabularx}{\textwidth}{@{}L{3.5cm} L{1.5cm} L{4cm} X@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\texttt{user\_id} & INTEGER & FOREIGN KEY $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
+\texttt{session\_id} & TEXT & NOT NULL & Random identifier for logging \\
+\texttt{session\_hash} & TEXT & PRIMARY KEY, NOT NULL & SHA256 hash of session token \\
+\texttt{session\_expiry} & INTEGER & NOT NULL & Unix timestamp for session expiry \\
+\texttt{session\_created\_at} & INTEGER & NOT NULL & Unix timestamp when created \\
+\bottomrule
+\end{tabularx}
+
+\vspace{0.5em}
+Constraints and notes:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Primary key on \texttt{session\_hash} enables O(1) lookup by token.
+  \item Users can have multiple active sessions (multi-device support).
+  \item Sessions are validated by checking \texttt{session\_expiry > now}.
+  \item Cascading delete removes sessions when user is deleted.
+  \item Expired sessions are cleaned up hourly.
+\end{itemize}
+\end{newcontent}
 
 \subsection{User Data Table (\texttt{user\_data})}
 
@@ -70,6 +97,33 @@ Constraints and guarantees:
   \item Hourly cleanup task deletes expired tokens and associated unverified users.
 \end{itemize}
 
+\begin{newcontent}
+\subsection{Password Reset Tokens Table (\texttt{password\_reset\_tokens})}
+
+\begin{tabularx}{\textwidth}{@{}L{3.5cm} L{1.5cm} L{4cm} X@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} & \textbf{Notes} \\
+\midrule
+\texttt{user\_id} & INTEGER & PRIMARY KEY, FOREIGN KEY $\rightarrow$ \texttt{user\_login.user\_id} & CASCADE on delete \\
+\texttt{token\_hash} & TEXT & NOT NULL & SHA256 hash of reset token \\
+\texttt{expires\_at} & INTEGER & NOT NULL & Unix timestamp for expiry \\
+\texttt{created\_at} & INTEGER & NOT NULL & Unix timestamp when created \\
+\bottomrule
+\end{tabularx}
+
+\vspace{0.5em}
+Constraints and guarantees:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Primary key on \texttt{user\_id} ensures one reset token per user.
+  \item New reset request overwrites existing token (UPSERT).
+  \item Only SHA256 hash is stored; plaintext token is sent via email only.
+  \item Token is valid only if \texttt{expires\_at > current\_time}.
+  \item Token is deleted after successful password reset.
+  \item Cascading delete removes token when user is deleted.
+  \item Hourly cleanup task deletes expired tokens.
+\end{itemize}
+\end{newcontent}
+
 \subsection{Database Configuration}
 
 \begin{itemize}[leftmargin=*,nosep]
@@ -83,5 +137,5 @@ Constraints and guarantees:
     \item Auto-generated if not found
   \end{itemize}
   \item \textbf{Foreign Keys}: Enabled with \texttt{PRAGMA foreign\_keys = ON}
-  \item \textbf{Cleanup}: Hourly task removes expired tokens and unverified users
+  \item \textbf{Cleanup}: Hourly task removes expired tokens and sessions
 \end{itemize}
