@@ -53,3 +53,29 @@ FIELD_TYPE_UNSPECIFIED_TOO_SHORT: "This field is too short"
 FIELD_TYPE_UNSPECIFIED_TOO_LONG: "This field is too long"
 FIELD_TYPE_UNSPECIFIED_INVALID_CHARACTERS: "This field contains invalid characters"
 FIELD_TYPE_UNSPECIFIED_INVALID_FORMAT: "This field has an invalid format"
+
+# Post errors
+INVALID_IMAGE: "Invalid image format or size. Please upload a valid JPEG, PNG, GIF, or WebP image under 5MB."
+NOT_FOUND: "The requested resource was not found"
+IMAGE_REQUIRED: "Image is required"
+
+# Validation errors - Post Title
+POST_TITLE_REQUIRED: "Title is required"
+POST_TITLE_TOO_SHORT: "Title is too short"
+POST_TITLE_TOO_LONG: "Title must be at most 100 characters"
+POST_TITLE_INVALID_CHARACTERS: "Title contains invalid characters"
+POST_TITLE_INVALID_FORMAT: "Title format is invalid"
+
+# Validation errors - Post Description
+POST_DESCRIPTION_REQUIRED: "Description is required"
+POST_DESCRIPTION_TOO_SHORT: "Description is too short"
+POST_DESCRIPTION_TOO_LONG: "Description must be at most 500 characters"
+POST_DESCRIPTION_INVALID_CHARACTERS: "Description contains invalid characters"
+POST_DESCRIPTION_INVALID_FORMAT: "Description format is invalid"
+
+# Validation errors - Comment Content
+COMMENT_CONTENT_REQUIRED: "Comment cannot be empty"
+COMMENT_CONTENT_TOO_SHORT: "Comment is too short"
+COMMENT_CONTENT_TOO_LONG: "Comment must be at most 1000 characters"
+COMMENT_CONTENT_INVALID_CHARACTERS: "Comment contains invalid characters"
+COMMENT_CONTENT_INVALID_FORMAT: "Comment format is invalid"

@@ -18,7 +18,6 @@ use api_types::{
 };
 
 const UPLOADS_DIR: &str = "uploads";
-const MAX_IMAGE_SIZE: usize = 5 * 1024 * 1024; // 5MB
 
 // Valid image magic bytes
 const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
@@ -278,7 +277,7 @@ pub async fn create_post(
             }
             "image" => {
                 if let Ok(data) = field.bytes().await {
-                    if data.len() > MAX_IMAGE_SIZE {
+                    if !field_validator::validate_image_size(data.len()) {
                         return (
                             StatusCode::BAD_REQUEST,
                             Json(PostErrorResponse {

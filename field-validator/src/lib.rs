@@ -36,6 +36,58 @@ pub const POST_DESCRIPTION_CHAR_MAX: usize = 500;
 pub const COMMENT_CONTENT_CHAR_MIN: usize = 1;
 pub const COMMENT_CONTENT_CHAR_MAX: usize = 1000;
 
+pub const IMAGE_MAX_SIZE: usize = 5 * 1024 * 1024; // 5MB
+
+/// Allowed image MIME types
+pub const IMAGE_ALLOWED_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+// WASM-exported constants
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn get_post_title_max_length() -> usize {
+    POST_TITLE_CHAR_MAX
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn get_post_description_max_length() -> usize {
+    POST_DESCRIPTION_CHAR_MAX
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn get_comment_content_max_length() -> usize {
+    COMMENT_CONTENT_CHAR_MAX
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn get_image_max_size() -> usize {
+    IMAGE_MAX_SIZE
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn get_image_allowed_types() -> String {
+    IMAGE_ALLOWED_TYPES.join(",")
+}
+
+/// Validates image metadata (size and MIME type).
+/// Returns true if valid, false otherwise.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn validate_image(size: usize, mime_type: &str) -> bool {
+    size <= IMAGE_MAX_SIZE && IMAGE_ALLOWED_TYPES.contains(&mime_type)
+}
+
+/// Validates image size only.
+/// Returns true if valid, false otherwise.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn validate_image_size(size: usize) -> bool {
+    size <= IMAGE_MAX_SIZE
+}
+
+/// Validates image MIME type only.
+/// Returns true if valid, false otherwise.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn validate_image_type(mime_type: &str) -> bool {
+    IMAGE_ALLOWED_TYPES.contains(&mime_type)
+}
+
 /// Validates a username.
 ///
 /// # Rules

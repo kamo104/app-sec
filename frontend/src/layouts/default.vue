@@ -58,6 +58,9 @@
               </v-list-item-subtitle>
             </v-list-item>
             <v-divider />
+            <v-list-item to="/account" prepend-icon="mdi-cog">
+              <v-list-item-title>Account</v-list-item-title>
+            </v-list-item>
             <v-list-item prepend-icon="mdi-logout" @click="logout">
               <v-list-item-title>Logout</v-list-item-title>
             </v-list-item>
@@ -65,14 +68,21 @@
         </v-menu>
       </template>
 
-      <!-- Guest links -->
+      <!-- Guest menu -->
       <template v-else>
-        <v-btn variant="text" to="/login" prepend-icon="mdi-login">
-          Login
-        </v-btn>
-        <v-btn variant="tonal" color="primary" to="/register" prepend-icon="mdi-account-plus">
-          Register
-        </v-btn>
+        <v-menu>
+          <template #activator="{ props }">
+            <v-btn icon="mdi-account-circle" v-bind="props" />
+          </template>
+          <v-list density="compact">
+            <v-list-item to="/login" prepend-icon="mdi-login">
+              <v-list-item-title>Login</v-list-item-title>
+            </v-list-item>
+            <v-list-item to="/register" prepend-icon="mdi-account-plus">
+              <v-list-item-title>Register</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
       </template>
     </v-container>
   </v-app-bar>

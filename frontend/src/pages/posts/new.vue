@@ -31,7 +31,7 @@
                 :rules="titleRules"
                 :error-messages="fieldErrors.title"
                 counter
-                maxlength="100"
+                :maxlength="POST_TITLE_MAX_LENGTH"
                 class="mb-4"
               />
 
@@ -43,7 +43,7 @@
                 :rules="descriptionRules"
                 :error-messages="fieldErrors.description"
                 counter
-                maxlength="500"
+                :maxlength="POST_DESCRIPTION_MAX_LENGTH"
                 rows="3"
                 class="mb-4"
               />
@@ -53,7 +53,7 @@
                 v-model="formData.image"
                 label="Image"
                 variant="outlined"
-                accept="image/jpeg,image/png,image/gif,image/webp"
+                :accept="IMAGE_ALLOWED_TYPES.join(',')"
                 :rules="imageRules"
                 :error-messages="fieldErrors.image"
                 prepend-icon="mdi-camera"
@@ -120,16 +120,23 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { createPost } from '@/api/client'
-import { validate_field } from '@/wasm/field-validator'
+import { createPost, type PostErrorResponse } from '@/api/client'
+import {
+  validate_field,
+  get_post_title_max_length,
+  get_post_description_max_length,
+  get_image_allowed_types,
+  validate_image_size,
+  validate_image_type,
+} from '@/wasm/field-validator'
+import { translate_error_code, translate_field_validation_error } from '@/wasm/translator.js'
 
 const router = useRouter()
 
-// Constants matching backend field-validator/src/lib.rs
-const POST_TITLE_MIN_LENGTH = 1
-const POST_TITLE_MAX_LENGTH = 100
-const POST_DESCRIPTION_MAX_LENGTH = 500
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+// Constants from WASM field-validator (single source of truth)
+const POST_TITLE_MAX_LENGTH = get_post_title_max_length()
+const POST_DESCRIPTION_MAX_LENGTH = get_post_description_max_length()
+const IMAGE_ALLOWED_TYPES = get_image_allowed_types().split(',')
 
 const form = ref<HTMLFormElement | null>(null)
 const loading = ref(false)
@@ -139,7 +146,7 @@ const imagePreview = ref<string | null>(null)
 const formData = reactive({
   title: '',
   description: '',
-  image: null as File[] | null,
+  image: null as File[] | File | null | undefined,
 })
 
 const fieldErrors = reactive({
@@ -153,39 +160,76 @@ interface ValidationResult {
   errors: string[]
 }
 
-const validateField = (fieldType: string, value: string): ValidationResult => {
+const validateFieldWasm = (fieldType: string, value: string): ValidationResult => {
   const result = validate_field(fieldType, value)
   return JSON.parse(result) as ValidationResult
 }
 
+const translateValidationErrors = (fieldType: string, errors: string[]): string[] => {
+  return errors.map(err => translate_field_validation_error(fieldType, err, 'en'))
+}
+
+// Real-time validation using WASM validator
 const titleRules = [
-  (v: string) => !!v || 'Title is required',
-  (v: string) => v.trim().length >= POST_TITLE_MIN_LENGTH || `Title must be at least ${POST_TITLE_MIN_LENGTH} character`,
-  (v: string) => v.length <= POST_TITLE_MAX_LENGTH || `Title must be at most ${POST_TITLE_MAX_LENGTH} characters`,
+  (v: string) => {
+    const result = validateFieldWasm('POST_TITLE', v)
+    if (result.errors.length > 0) {
+      return translateValidationErrors('POST_TITLE', result.errors).join(', ')
+    }
+    return true
+  },
 ]
 
 const descriptionRules = [
-  (v: string) => !v || v.length <= POST_DESCRIPTION_MAX_LENGTH || `Description must be at most ${POST_DESCRIPTION_MAX_LENGTH} characters`,
+  (v: string) => {
+    if (!v) return true // Optional field
+    const result = validateFieldWasm('POST_DESCRIPTION', v)
+    if (result.errors.length > 0) {
+      return translateValidationErrors('POST_DESCRIPTION', result.errors).join(', ')
+    }
+    return true
+  },
 ]
 
+const hasValidImage = (v: File[] | File | null | undefined): v is File[] | File => {
+  if (!v) return false
+  if (Array.isArray(v)) return v.length > 0 && v[0] instanceof File
+  return v instanceof File
+}
+
+const getImageFile = (v: File[] | File | null | undefined): File | null => {
+  if (!v) return null
+  if (Array.isArray(v)) return v.length > 0 ? v[0] : null
+  return v instanceof File ? v : null
+}
+
 const imageRules = [
-  (v: File[] | null) => (v && v.length > 0) || 'Image is required',
-  (v: File[] | null) => !v || !v[0] || v[0].size <= MAX_IMAGE_SIZE || 'Image must be less than 5MB',
-  (v: File[] | null) => !v || !v[0] || ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(v[0].type) || 'Invalid image format',
+  (v: File[] | File | null | undefined) => hasValidImage(v) || translate_error_code('IMAGE_REQUIRED', undefined),
+  (v: File[] | File | null | undefined) => {
+    const file = getImageFile(v)
+    return !file || validate_image_size(file.size) || translate_error_code('INVALID_IMAGE', undefined)
+  },
+  (v: File[] | File | null | undefined) => {
+    const file = getImageFile(v)
+    return !file || validate_image_type(file.type) || translate_error_code('INVALID_IMAGE', undefined)
+  },
 ]
 
 const isValid = computed(() => {
-  return formData.title.trim().length >= POST_TITLE_MIN_LENGTH &&
-    formData.title.length <= POST_TITLE_MAX_LENGTH &&
-    (!formData.description || formData.description.length <= POST_DESCRIPTION_MAX_LENGTH) &&
-    formData.image &&
-    formData.image.length > 0 &&
-    formData.image[0].size <= MAX_IMAGE_SIZE
+  const file = getImageFile(formData.image)
+  const titleResult = validateFieldWasm('POST_TITLE', formData.title)
+  const descResult = formData.description ? validateFieldWasm('POST_DESCRIPTION', formData.description) : { errors: [] }
+  
+  return titleResult.errors.length === 0 &&
+    descResult.errors.length === 0 &&
+    file !== null &&
+    validate_image_size(file.size) &&
+    validate_image_type(file.type)
 })
 
-const onImageChange = (files: File[] | null): void => {
-  if (files && files.length > 0) {
-    const file = files[0]
+const onImageChange = (files: File[] | File | null | undefined): void => {
+  const file = getImageFile(files)
+  if (file) {
     const reader = new FileReader()
     reader.onload = (e) => {
       imagePreview.value = e.target?.result as string
@@ -208,23 +252,24 @@ const handleSubmit = async (): Promise<void> => {
   fieldErrors.image = []
   error.value = null
 
-  // Validate with WASM validators
-  const titleValidation = validateField('POST_TITLE', formData.title)
+  // Validate with WASM validators (should already pass due to rules, but double-check)
+  const titleValidation = validateFieldWasm('POST_TITLE', formData.title)
   if (titleValidation.errors.length > 0) {
-    fieldErrors.title = titleValidation.errors
+    fieldErrors.title = translateValidationErrors('POST_TITLE', titleValidation.errors)
     return
   }
 
   if (formData.description) {
-    const descValidation = validateField('POST_DESCRIPTION', formData.description)
+    const descValidation = validateFieldWasm('POST_DESCRIPTION', formData.description)
     if (descValidation.errors.length > 0) {
-      fieldErrors.description = descValidation.errors
+      fieldErrors.description = translateValidationErrors('POST_DESCRIPTION', descValidation.errors)
       return
     }
   }
 
-  if (!formData.image || formData.image.length === 0) {
-    fieldErrors.image = ['Image is required']
+  const imageFile = getImageFile(formData.image)
+  if (!imageFile) {
+    fieldErrors.image = [translate_error_code('IMAGE_REQUIRED', undefined)]
     return
   }
 
@@ -236,7 +281,7 @@ const handleSubmit = async (): Promise<void> => {
     if (formData.description.trim()) {
       formDataObj.append('description', formData.description.trim())
     }
-    formDataObj.append('image', formData.image[0])
+    formDataObj.append('image', imageFile)
 
     const { data, error: apiError } = await createPost({
       body: formDataObj as unknown as { title: string; description?: string; image: Blob },
@@ -244,15 +289,38 @@ const handleSubmit = async (): Promise<void> => {
 
     if (data) {
       router.push(`/posts/${data.postId}`)
+    } else if (apiError) {
+      handleCreatePostError(apiError as PostErrorResponse)
     } else {
-      error.value = 'Failed to create post'
-      console.error('Failed to create post:', apiError)
+      error.value = translate_error_code('INTERNAL', undefined)
     }
   } catch (e) {
-    error.value = 'Failed to create post'
+    error.value = translate_error_code('INTERNAL', undefined)
     console.error('Failed to create post:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const handleCreatePostError = (apiError: PostErrorResponse): void => {
+  console.error('Create post error:', apiError)
+
+  // Handle validation errors with field-specific messages
+  if (apiError.error === 'VALIDATION' && apiError.validation) {
+    for (const fieldError of apiError.validation.fieldErrors) {
+      const translatedErrors = translateValidationErrors(fieldError.field, fieldError.errors)
+
+      if (fieldError.field === 'POST_TITLE') {
+        fieldErrors.title = translatedErrors
+      } else if (fieldError.field === 'POST_DESCRIPTION') {
+        fieldErrors.description = translatedErrors
+      }
+    }
+    error.value = translate_error_code('VALIDATION', undefined)
+  } else if (apiError.error === 'INVALID_IMAGE') {
+    fieldErrors.image = [translate_error_code('INVALID_IMAGE', undefined)]
+  } else {
+    error.value = translate_error_code(apiError.error, undefined)
   }
 }
 </script>
