@@ -28,6 +28,14 @@ pub const PASSWORD_SCORE_WEAK_MAX: u32 = 3;
 pub const PASSWORD_SCORE_MEDIUM_MAX: u32 = 5;
 pub const PASSWORD_SCORE_STRONG_MAX: u32 = 6;
 
+pub const POST_TITLE_CHAR_MIN: usize = 1;
+pub const POST_TITLE_CHAR_MAX: usize = 100;
+
+pub const POST_DESCRIPTION_CHAR_MAX: usize = 500;
+
+pub const COMMENT_CONTENT_CHAR_MIN: usize = 1;
+pub const COMMENT_CONTENT_CHAR_MAX: usize = 1000;
+
 /// Validates a username.
 ///
 /// # Rules
@@ -114,6 +122,73 @@ pub fn validate_password(password: &str) -> ValidationFieldError {
     ret
 }
 
+/// Validates a post title.
+///
+/// # Rules
+/// - Must be between POST_TITLE_CHAR_MIN and POST_TITLE_CHAR_MAX characters
+/// - Must not contain control characters
+pub fn validate_post_title(title: &str) -> ValidationFieldError {
+    let mut ret = ValidationFieldError::new(FieldType::PostTitle);
+
+    let trimmed = title.trim();
+    if trimmed.len() < POST_TITLE_CHAR_MIN {
+        ret.add_error(ValidationErrorCode::TooShort);
+    }
+    if trimmed.len() > POST_TITLE_CHAR_MAX {
+        ret.add_error(ValidationErrorCode::TooLong);
+    }
+    if !trimmed.chars().all(|c| !c.is_control()) {
+        ret.add_error(ValidationErrorCode::InvalidCharacters);
+    }
+    ret
+}
+
+/// Validates a post description.
+///
+/// # Rules
+/// - At most POST_DESCRIPTION_CHAR_MAX characters
+/// - Must not contain control characters (except newlines)
+pub fn validate_post_description(description: &str) -> ValidationFieldError {
+    let mut ret = ValidationFieldError::new(FieldType::PostDescription);
+
+    if description.len() > POST_DESCRIPTION_CHAR_MAX {
+        ret.add_error(ValidationErrorCode::TooLong);
+    }
+    // Allow newlines but not other control characters
+    if !description
+        .chars()
+        .all(|c| !c.is_control() || c == '\n' || c == '\r')
+    {
+        ret.add_error(ValidationErrorCode::InvalidCharacters);
+    }
+    ret
+}
+
+/// Validates comment content.
+///
+/// # Rules
+/// - Must be between COMMENT_CONTENT_CHAR_MIN and COMMENT_CONTENT_CHAR_MAX characters
+/// - Must not contain control characters (except newlines)
+pub fn validate_comment_content(content: &str) -> ValidationFieldError {
+    let mut ret = ValidationFieldError::new(FieldType::CommentContent);
+
+    let trimmed = content.trim();
+    if trimmed.len() < COMMENT_CONTENT_CHAR_MIN {
+        ret.add_error(ValidationErrorCode::TooShort);
+    }
+    if trimmed.len() > COMMENT_CONTENT_CHAR_MAX {
+        ret.add_error(ValidationErrorCode::TooLong);
+    }
+    // Allow newlines but not other control characters
+    if !trimmed
+        .chars()
+        .all(|c| !c.is_control() || c == '\n' || c == '\r')
+    {
+        ret.add_error(ValidationErrorCode::InvalidCharacters);
+    }
+    ret
+}
+
 /// Validates a field based on its type.
 ///
 /// # Parameters
@@ -128,6 +203,9 @@ pub fn validate_field(field_type: &str, value: &str) -> String {
             FieldType::Username => validate_username(value),
             FieldType::Email => validate_email(value),
             FieldType::Password => validate_password(value),
+            FieldType::PostTitle => validate_post_title(value),
+            FieldType::PostDescription => validate_post_description(value),
+            FieldType::CommentContent => validate_comment_content(value),
             FieldType::Unspecified => ValidationFieldError::new(FieldType::Unspecified),
         },
         None => ValidationFieldError::new(FieldType::Unspecified),

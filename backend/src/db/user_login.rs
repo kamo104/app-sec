@@ -5,11 +5,12 @@ use argon2::{
 };
 use const_format::formatcp;
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Row};
 use sqlx::types::time::OffsetDateTime;
+use sqlx::{Executor, Row};
 use sqlx::{FromRow, SqlitePool};
 
 use super::hash_password;
+use api_types::UserRole;
 
 #[derive(FromRow, Clone, Debug, Serialize, Deserialize)]
 pub struct UserLogin {
@@ -20,6 +21,7 @@ pub struct UserLogin {
     pub email_verified: bool,
     pub email_verified_at: Option<OffsetDateTime>,
     pub password_reset: bool,
+    pub role: UserRole,
 }
 
 #[derive(Debug)]
@@ -37,7 +39,8 @@ impl UserLoginTable {
             password TEXT, \
             email_verified INTEGER NOT NULL DEFAULT 0, \
             email_verified_at INTEGER, \
-            password_reset INTEGER NOT NULL DEFAULT 0\
+            password_reset INTEGER NOT NULL DEFAULT 0, \
+            role INTEGER NOT NULL DEFAULT 0\
         )",
         UserLoginTable::TABLE_NAME,
     );
@@ -61,12 +64,13 @@ impl UserLoginTable {
                 password, \
                 email_verified, \
                 email_verified_at, \
-                password_reset\
-            ) VALUES ($1, $2, $3, $4, $5, $6) \
+                password_reset, \
+                role\
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7) \
                 ON CONFLICT(username) DO \
                 UPDATE SET email = excluded.email, password = excluded.password, \
                 email_verified = excluded.email_verified, email_verified_at = excluded.email_verified_at, \
-                password_reset = excluded.password_reset \
+                password_reset = excluded.password_reset, role = excluded.role \
                 RETURNING user_id",
             UserLoginTable::TABLE_NAME
         ))
@@ -76,6 +80,7 @@ impl UserLoginTable {
         .bind(row.email_verified)
         .bind(row.email_verified_at)
         .bind(row.password_reset)
+        .bind(row.role)
         .fetch_one(&self.conn_pool)
         .await?;
         Ok(result.get("user_id"))
@@ -295,5 +300,38 @@ impl UserLoginTable {
         .fetch_one(&self.conn_pool)
         .await?;
         Ok(row.get::<bool, _>("email_verified"))
+    }
+
+    pub async fn set_role(&self, user_id: i64, role: UserRole) -> Result<()> {
+        sqlx::query(formatcp!(
+            "UPDATE {} SET role = $1 WHERE user_id = $2",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(role)
+        .bind(user_id)
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn delete_by_user_id(&self, user_id: i64) -> Result<()> {
+        sqlx::query(formatcp!(
+            "DELETE FROM {} WHERE user_id = $1",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(user_id)
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_all_users(&self) -> Result<Vec<UserLogin>> {
+        let users = sqlx::query_as::<_, UserLogin>(formatcp!(
+            "SELECT * FROM {} ORDER BY user_id",
+            UserLoginTable::TABLE_NAME
+        ))
+        .fetch_all(&self.conn_pool)
+        .await?;
+        Ok(users)
     }
 }

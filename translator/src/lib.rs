@@ -1,16 +1,14 @@
 //! Translation library for API responses and validation errors.
 //! Can be used in both Rust backend and WebAssembly frontend.
 
+use rust_i18n::t;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
-use rust_i18n::t;
 
 use api_types::{FieldType, ValidationErrorCode, ValidationErrorData};
 use field_validator::{
-    USERNAME_CHAR_MIN, USERNAME_CHAR_MAX,
-    PASSWORD_CHAR_MIN, PASSWORD_CHAR_MAX,
-    PASSWORD_UPPERCASE_MIN, PASSWORD_LOWERCASE_MIN,
-    PASSWORD_NUMBER_MIN, PASSWORD_SPECIAL_MIN,
+    PASSWORD_CHAR_MAX, PASSWORD_CHAR_MIN, PASSWORD_LOWERCASE_MIN, PASSWORD_NUMBER_MIN,
+    PASSWORD_SPECIAL_MIN, PASSWORD_UPPERCASE_MIN, USERNAME_CHAR_MAX, USERNAME_CHAR_MIN,
 };
 
 // Initialize i18n
@@ -40,7 +38,12 @@ pub fn translate_error_code(code: &str, locale: Option<String>) -> String {
 }
 
 /// Helper function to interpolate values in translation strings.
-fn translate_validation_error_with_params(key: &str, field_type: FieldType, error_code: ValidationErrorCode, locale: &str) -> String {
+fn translate_validation_error_with_params(
+    key: &str,
+    field_type: FieldType,
+    error_code: ValidationErrorCode,
+    locale: &str,
+) -> String {
     match (field_type, error_code) {
         (FieldType::Username, ValidationErrorCode::TooShort) => {
             t!(key, locale = locale, min = USERNAME_CHAR_MIN).to_string()
@@ -87,7 +90,8 @@ pub fn translate_validation_error(validation_error_json: &str, locale: Option<St
         let field_type = field_error.field;
 
         for error_code in field_error.errors {
-            let message = translate_field_validation_error_internal(field_type, error_code, &locale);
+            let message =
+                translate_field_validation_error_internal(field_type, error_code, &locale);
             all_error_messages.push(message);
         }
     }
@@ -96,7 +100,11 @@ pub fn translate_validation_error(validation_error_json: &str, locale: Option<St
 }
 
 /// Internal function for translating a single field validation error.
-fn translate_field_validation_error_internal(field_type: FieldType, validation_code: ValidationErrorCode, locale: &str) -> String {
+fn translate_field_validation_error_internal(
+    field_type: FieldType,
+    validation_code: ValidationErrorCode,
+    locale: &str,
+) -> String {
     let field_name = field_type.as_str_name();
     let code_name = validation_code.as_str_name();
     let translation_key = format!("{}_{}", field_name, code_name);
@@ -107,7 +115,11 @@ fn translate_field_validation_error_internal(field_type: FieldType, validation_c
 /// This is a public helper function for translating individual field errors.
 /// Takes field and error_code as string names.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn translate_field_validation_error(field: &str, error_code: &str, locale: Option<String>) -> String {
+pub fn translate_field_validation_error(
+    field: &str,
+    error_code: &str,
+    locale: Option<String>,
+) -> String {
     let locale = locale.unwrap_or_else(|| "en".to_string());
 
     let field_type = match FieldType::from_str_name(field) {

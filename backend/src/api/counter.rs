@@ -1,15 +1,10 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use std::sync::Arc;
 use tracing::error;
 
-use crate::db::DBHandle;
-use api_types::{CounterData, SetCounterRequest, AuthErrorResponse};
 use super::auth_extractor::AuthenticatedUser;
+use crate::db::DBHandle;
+use api_types::{AuthErrorResponse, CounterData, SetCounterRequest};
 
 // Note: utoipa proc macros require literal integers for status codes.
 // 200 = OK, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
@@ -28,9 +23,13 @@ pub async fn get_counter(
     auth: AuthenticatedUser,
 ) -> impl IntoResponse {
     match db.user_data_table.get_counter(auth.user.user_id).await {
-        Ok(counter_value) => {
-            (StatusCode::OK, Json(CounterData { value: counter_value })).into_response()
-        }
+        Ok(counter_value) => (
+            StatusCode::OK,
+            Json(CounterData {
+                value: counter_value,
+            }),
+        )
+            .into_response(),
         Err(e) => {
             error!("Failed to get counter: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -61,9 +60,13 @@ pub async fn set_counter(
         .update_counter(auth.user.user_id, payload.value)
         .await
     {
-        Ok(_) => {
-            (StatusCode::OK, Json(CounterData { value: payload.value })).into_response()
-        }
+        Ok(_) => (
+            StatusCode::OK,
+            Json(CounterData {
+                value: payload.value,
+            }),
+        )
+            .into_response(),
         Err(e) => {
             error!("Failed to update counter: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()

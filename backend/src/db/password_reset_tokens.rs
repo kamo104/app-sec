@@ -98,9 +98,9 @@ impl PasswordResetTokensTable {
             "DELETE FROM {} WHERE expires_at < $1",
             PasswordResetTokensTable::TABLE_NAME
         ))
-            .bind(OffsetDateTime::now_utc())
-            .execute(&self.conn_pool)
-            .await?;
+        .bind(OffsetDateTime::now_utc())
+        .execute(&self.conn_pool)
+        .await?;
         Ok(())
     }
 }

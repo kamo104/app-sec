@@ -19,8 +19,12 @@ declare module 'vue-router/auto-routes' {
    */
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
+    '/admin/deleted-posts': RouteRecordInfo<'/admin/deleted-posts', '/admin/deleted-posts', Record<never, never>, Record<never, never>>,
+    '/admin/users': RouteRecordInfo<'/admin/users', '/admin/users', Record<never, never>, Record<never, never>>,
     '/forgot-password': RouteRecordInfo<'/forgot-password', '/forgot-password', Record<never, never>, Record<never, never>>,
     '/login': RouteRecordInfo<'/login', '/login', Record<never, never>, Record<never, never>>,
+    '/posts/[id]': RouteRecordInfo<'/posts/[id]', '/posts/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
+    '/posts/new': RouteRecordInfo<'/posts/new', '/posts/new', Record<never, never>, Record<never, never>>,
     '/register': RouteRecordInfo<'/register', '/register', Record<never, never>, Record<never, never>>,
     '/reset-password': RouteRecordInfo<'/reset-password', '/reset-password', Record<never, never>, Record<never, never>>,
     '/verify-email': RouteRecordInfo<'/verify-email', '/verify-email', Record<never, never>, Record<never, never>>,
@@ -41,12 +45,28 @@ declare module 'vue-router/auto-routes' {
       routes: '/'
       views: never
     }
+    'src/pages/admin/deleted-posts.vue': {
+      routes: '/admin/deleted-posts'
+      views: never
+    }
+    'src/pages/admin/users.vue': {
+      routes: '/admin/users'
+      views: never
+    }
     'src/pages/forgot-password.vue': {
       routes: '/forgot-password'
       views: never
     }
     'src/pages/login.vue': {
       routes: '/login'
+      views: never
+    }
+    'src/pages/posts/[id].vue': {
+      routes: '/posts/[id]'
+      views: never
+    }
+    'src/pages/posts/new.vue': {
+      routes: '/posts/new'
       views: never
     }
     'src/pages/register.vue': {

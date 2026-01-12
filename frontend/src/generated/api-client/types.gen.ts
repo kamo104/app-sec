@@ -17,8 +17,42 @@ export type AuthErrorResponse = {
  */
 export type AuthSessionResponse = {
     email: string;
+    role: UserRole;
     sessionCreatedAt: number;
     sessionExpiresAt: number;
+    username: string;
+};
+
+/**
+ * Error codes for comment operations.
+ */
+export type CommentError = 'NOT_FOUND' | 'POST_NOT_FOUND' | 'VALIDATION' | 'INTERNAL';
+
+/**
+ * Comment error response.
+ */
+export type CommentErrorResponse = {
+    error: CommentError;
+    validation?: (null | ValidationErrorData);
+};
+
+/**
+ * Comment list response.
+ */
+export type CommentListResponse = {
+    comments: Array<CommentResponse>;
+    total: number;
+};
+
+/**
+ * Comment data returned from API.
+ */
+export type CommentResponse = {
+    commentId: number;
+    content: string;
+    createdAt: number;
+    postId: number;
+    userId: number;
     username: string;
 };
 
@@ -43,6 +77,46 @@ export type CounterData = {
 };
 
 /**
+ * Create comment request payload.
+ */
+export type CreateCommentRequest = {
+    content: string;
+};
+
+/**
+ * Comment creation success response.
+ */
+export type CreateCommentResponse = {
+    commentId: number;
+};
+
+/**
+ * Post creation success response.
+ */
+export type CreatePostResponse = {
+    postId: number;
+};
+
+/**
+ * Deleted post data for admin restore.
+ */
+export type DeletedPostResponse = {
+    deletedAt: number;
+    postId: number;
+    title: string;
+    userId: number;
+    username: string;
+};
+
+/**
+ * Deleted posts list response.
+ */
+export type DeletedPostsListResponse = {
+    posts: Array<DeletedPostResponse>;
+    total: number;
+};
+
+/**
  * Email verification request payload.
  */
 export type EmailVerificationRequest = {
@@ -52,7 +126,7 @@ export type EmailVerificationRequest = {
 /**
  * Field types for validation errors.
  */
-export type FieldType = 'UNSPECIFIED' | 'USERNAME' | 'EMAIL' | 'PASSWORD';
+export type FieldType = 'UNSPECIFIED' | 'USERNAME' | 'EMAIL' | 'PASSWORD' | 'POST_TITLE' | 'POST_DESCRIPTION' | 'COMMENT_CONTENT';
 
 /**
  * Error codes specific to login endpoint.
@@ -80,6 +154,7 @@ export type LoginRequest = {
  */
 export type LoginResponse = {
     email: string;
+    role: UserRole;
     /**
      * Unix timestamp in seconds when the session was created.
      */
@@ -104,6 +179,82 @@ export type PasswordResetCompleteRequest = {
  */
 export type PasswordResetRequest = {
     email: string;
+};
+
+/**
+ * Error codes for post operations.
+ */
+export type PostError = 'NOT_FOUND' | 'VALIDATION' | 'INVALID_IMAGE' | 'INTERNAL';
+
+/**
+ * Post error response.
+ */
+export type PostErrorResponse = {
+    error: PostError;
+    validation?: (null | ValidationErrorData);
+};
+
+/**
+ * Post list response with pagination info.
+ */
+export type PostListResponse = {
+    limit: number;
+    offset: number;
+    posts: Array<PostResponse>;
+    total: number;
+};
+
+/**
+ * Post data returned from API.
+ */
+export type PostResponse = {
+    commentCount: number;
+    createdAt: number;
+    description?: (string) | null;
+    imageUrl: string;
+    postId: number;
+    score: number;
+    title: string;
+    updatedAt?: (number) | null;
+    userId: number;
+    /**
+     * User's rating on this post: 1, -1, or null if not rated
+     */
+    userRating?: (number) | null;
+    username: string;
+};
+
+/**
+ * Rate post request payload.
+ */
+export type RatePostRequest = {
+    /**
+     * Rating value: 1 for upvote, -1 for downvote
+     */
+    value: number;
+};
+
+/**
+ * Error codes for rating operations.
+ */
+export type RatingError = 'POST_NOT_FOUND' | 'INVALID_VALUE' | 'INTERNAL';
+
+/**
+ * Rating error response.
+ */
+export type RatingErrorResponse = {
+    error: RatingError;
+};
+
+/**
+ * Rating response showing current score after rating.
+ */
+export type RatingResponse = {
+    score: number;
+    /**
+     * User's current rating: 1, -1, or null if removed
+     */
+    userRating?: (number) | null;
 };
 
 /**
@@ -134,6 +285,45 @@ export type RegistrationRequest = {
 export type SetCounterRequest = {
     value: number;
 };
+
+/**
+ * Update post request payload.
+ */
+export type UpdatePostRequest = {
+    description?: (string) | null;
+    title: string;
+};
+
+/**
+ * Update user role request payload.
+ */
+export type UpdateUserRoleRequest = {
+    role: UserRole;
+};
+
+/**
+ * User info for admin endpoints.
+ */
+export type UserInfoResponse = {
+    email: string;
+    emailVerified: boolean;
+    role: UserRole;
+    userId: number;
+    username: string;
+};
+
+/**
+ * User list response for admin.
+ */
+export type UserListResponse = {
+    users: Array<UserInfoResponse>;
+};
+
+/**
+ * User roles for RBAC.
+ * Stored as integer in database for type safety.
+ */
+export type UserRole = 'user' | 'admin';
 
 /**
  * Validation error codes.
@@ -167,6 +357,67 @@ export type VerifyEmailErrorResponse = {
     error: VerifyEmailError;
 };
 
+export type ListDeletedPostsData = {
+    query?: {
+        /**
+         * Number of posts to return (default 20)
+         */
+        limit?: number;
+        /**
+         * Offset for pagination (default 0)
+         */
+        offset?: number;
+    };
+};
+
+export type ListDeletedPostsResponse = (DeletedPostsListResponse);
+
+export type ListDeletedPostsError = (unknown);
+
+export type RestorePostData = {
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type RestorePostResponse = (unknown);
+
+export type RestorePostError = (unknown | PostErrorResponse);
+
+export type ListUsersResponse = (UserListResponse);
+
+export type ListUsersError = (unknown);
+
+export type DeleteUserData = {
+    path: {
+        /**
+         * User ID
+         */
+        user_id: number;
+    };
+};
+
+export type DeleteUserResponse = (unknown);
+
+export type DeleteUserError = (unknown);
+
+export type UpdateUserRoleData = {
+    body: UpdateUserRoleRequest;
+    path: {
+        /**
+         * User ID
+         */
+        user_id: number;
+    };
+};
+
+export type UpdateUserRoleResponse = (unknown);
+
+export type UpdateUserRoleError = (unknown);
+
 export type AuthCheckResponse = (AuthSessionResponse);
 
 export type AuthCheckError = (AuthErrorResponse);
@@ -174,6 +425,19 @@ export type AuthCheckError = (AuthErrorResponse);
 export type RefreshSessionResponse = (AuthSessionResponse);
 
 export type RefreshSessionError = (AuthErrorResponse);
+
+export type DeleteCommentData = {
+    path: {
+        /**
+         * Comment ID
+         */
+        comment_id: number;
+    };
+};
+
+export type DeleteCommentResponse = (unknown);
+
+export type DeleteCommentError = (AuthErrorResponse | unknown | CommentErrorResponse);
 
 export type CompletePasswordResetData = {
     body: PasswordResetCompleteRequest;
@@ -210,6 +474,173 @@ export type LoginUserError = (LoginErrorResponse);
 export type LogoutUserResponse = (unknown);
 
 export type LogoutUserError = unknown;
+
+export type ListPostsData = {
+    query?: {
+        /**
+         * Number of posts to return (default 20)
+         */
+        limit?: number;
+        /**
+         * Offset for pagination (default 0)
+         */
+        offset?: number;
+    };
+};
+
+export type ListPostsResponse = (PostListResponse);
+
+export type ListPostsError = (unknown);
+
+export type CreatePostData = {
+    body: {
+        description?: (string) | null;
+        image: (Blob | File);
+        title: string;
+    };
+};
+
+export type CreatePostResponse2 = (CreatePostResponse);
+
+export type CreatePostError = (PostErrorResponse | AuthErrorResponse | unknown);
+
+export type SearchPostsData = {
+    query: {
+        /**
+         * Number of posts to return (default 20)
+         */
+        limit?: number;
+        /**
+         * Offset for pagination (default 0)
+         */
+        offset?: number;
+        /**
+         * Search query
+         */
+        q: string;
+    };
+};
+
+export type SearchPostsResponse = (PostListResponse);
+
+export type SearchPostsError = (unknown);
+
+export type GetPostData = {
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type GetPostResponse = (PostResponse);
+
+export type GetPostError = (PostErrorResponse | unknown);
+
+export type UpdatePostData = {
+    body: UpdatePostRequest;
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type UpdatePostResponse = (unknown);
+
+export type UpdatePostError = (PostErrorResponse | AuthErrorResponse | unknown);
+
+export type DeletePostData = {
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type DeletePostResponse = (unknown);
+
+export type DeletePostError = (AuthErrorResponse | unknown | PostErrorResponse);
+
+export type ListCommentsData = {
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+    query?: {
+        /**
+         * Number of comments to return (default 20)
+         */
+        limit?: number;
+        /**
+         * Offset for pagination (default 0)
+         */
+        offset?: number;
+    };
+};
+
+export type ListCommentsResponse = (CommentListResponse);
+
+export type ListCommentsError = (CommentErrorResponse | unknown);
+
+export type CreateCommentData = {
+    body: CreateCommentRequest;
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type CreateCommentResponse2 = (CreateCommentResponse);
+
+export type CreateCommentError = (CommentErrorResponse | AuthErrorResponse | unknown);
+
+export type GetPostImageData = {
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type GetPostImageResponse = (unknown);
+
+export type GetPostImageError = (unknown);
+
+export type RatePostData = {
+    body: RatePostRequest;
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type RatePostResponse = (RatingResponse);
+
+export type RatePostError = (RatingErrorResponse | AuthErrorResponse | unknown);
+
+export type RemoveRatingData = {
+    path: {
+        /**
+         * Post ID
+         */
+        post_id: number;
+    };
+};
+
+export type RemoveRatingResponse = (RatingResponse);
+
+export type RemoveRatingError = (AuthErrorResponse | RatingErrorResponse | unknown);
 
 export type RegisterUserData = {
     body: RegistrationRequest;

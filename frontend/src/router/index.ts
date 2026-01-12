@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth'
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
+    requiresAdmin?: boolean
     guestOnly?: boolean
   }
 }
@@ -24,6 +25,16 @@ const configureRoutes = (routes: RouteRecordRaw[]): RouteRecordRaw[] => {
     // Guest-only routes (redirect to home if already logged in)
     if (['/login', '/register', '/forgot-password'].includes(route.path)) {
       route.meta = { ...route.meta, guestOnly: true }
+    }
+
+    // Auth-required routes
+    if (['/posts/new'].includes(route.path)) {
+      route.meta = { ...route.meta, requiresAuth: true }
+    }
+
+    // Admin-only routes
+    if (route.path.startsWith('/admin')) {
+      route.meta = { ...route.meta, requiresAuth: true, requiresAdmin: true }
     }
 
     // Recursively configure child routes if they exist
@@ -55,6 +66,13 @@ router.beforeEach(async (to, _from, next) => {
       // Not logged in or session expired, clear and redirect to login
       authStore.clearUser()
       next('/login')
+      return
+    }
+
+    // Check if route requires admin privileges
+    if (to.meta.requiresAdmin && !authStore.isAdmin) {
+      // Not an admin, redirect to home
+      next('/')
       return
     }
   }

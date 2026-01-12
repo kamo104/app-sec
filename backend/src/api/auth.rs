@@ -1,18 +1,13 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
-use tower_cookies::Cookies;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
+use tower_cookies::Cookies;
 use tracing::{debug, error};
 
-use crate::db::{DBHandle, hash_token};
-use api_types::{AuthErrorResponse, AuthError, AuthSessionResponse};
 use super::auth_extractor::AuthenticatedUser;
-use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
+use super::utils::{SESSION_DURATION_DAYS, create_session_cookie};
+use crate::db::{DBHandle, hash_token};
+use api_types::{AuthError, AuthErrorResponse, AuthSessionResponse};
 
 // Note: utoipa proc macros require literal integers for status codes.
 // 200 = OK, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
@@ -26,12 +21,16 @@ use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
     tag = "auth"
 )]
 pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
-    (StatusCode::OK, Json(AuthSessionResponse {
-        username: auth.user.username,
-        email: auth.user.email,
-        session_expires_at: auth.session.session_expiry.unix_timestamp(),
-        session_created_at: auth.session.session_created_at.unix_timestamp(),
-    }))
+    (
+        StatusCode::OK,
+        Json(AuthSessionResponse {
+            username: auth.user.username,
+            email: auth.user.email,
+            role: auth.user.role,
+            session_expires_at: auth.session.session_expiry.unix_timestamp(),
+            session_created_at: auth.session.session_created_at.unix_timestamp(),
+        }),
+    )
 }
 
 // Note: utoipa proc macros require literal integers for status codes.
@@ -65,29 +64,54 @@ pub async fn refresh_session(
         Ok(hash) => hash,
         Err(e) => {
             error!("Failed to hash session token: {:?}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(AuthErrorResponse { error: AuthError::Internal })).into_response();
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(AuthErrorResponse {
+                    error: AuthError::Internal,
+                }),
+            )
+                .into_response();
         }
     };
 
     let new_expiry = OffsetDateTime::now_utc() + time::Duration::days(SESSION_DURATION_DAYS);
 
-    match db.user_sessions_table.update_expiry(&session_hash, new_expiry).await {
+    match db
+        .user_sessions_table
+        .update_expiry(&session_hash, new_expiry)
+        .await
+    {
         Ok(_) => {
-            debug!("Session refreshed successfully for user: {}", auth.user.username);
+            debug!(
+                "Session refreshed successfully for user: {}",
+                auth.user.username
+            );
 
-            let cookie = create_session_cookie(token.value().to_string(), Some(new_expiry), db.is_dev);
+            let cookie =
+                create_session_cookie(token.value().to_string(), Some(new_expiry), db.is_dev);
             cookies.add(cookie);
 
-            (StatusCode::OK, Json(AuthSessionResponse {
-                username: auth.user.username,
-                email: auth.user.email,
-                session_expires_at: new_expiry.unix_timestamp(),
-                session_created_at: auth.session.session_created_at.unix_timestamp(),
-            })).into_response()
+            (
+                StatusCode::OK,
+                Json(AuthSessionResponse {
+                    username: auth.user.username,
+                    email: auth.user.email,
+                    role: auth.user.role,
+                    session_expires_at: new_expiry.unix_timestamp(),
+                    session_created_at: auth.session.session_created_at.unix_timestamp(),
+                }),
+            )
+                .into_response()
         }
         Err(e) => {
             error!("Failed to refresh session: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(AuthErrorResponse { error: AuthError::Internal })).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(AuthErrorResponse {
+                    error: AuthError::Internal,
+                }),
+            )
+                .into_response()
         }
     }
 }

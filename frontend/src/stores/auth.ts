@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { refreshSession, type LoginResponse, type AuthSessionResponse } from '@/api/client'
+import { refreshSession, type LoginResponse, type AuthSessionResponse, type UserRole } from '@/api/client'
 
 // Common user data fields shared across login and auth responses
 interface UserData {
   username: string
   email: string
+  role: UserRole
   sessionExpiresAt: number
   sessionCreatedAt: number
 }
@@ -13,6 +14,7 @@ interface UserData {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserData | null>(null)
   const isAuthenticated = computed(() => user.value !== null)
+  const isAdmin = computed(() => user.value?.role === 'admin')
   const sessionExpiresAt = ref<number | null>(null)
   const sessionCreatedAt = ref<number | null>(null)
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -22,6 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
       const data: UserData = {
         username: userData.username,
         email: userData.email,
+        role: userData.role,
         sessionExpiresAt: userData.sessionExpiresAt,
         sessionCreatedAt: userData.sessionCreatedAt,
       }
@@ -128,6 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     isAuthenticated,
+    isAdmin,
     sessionExpiresAt,
     isSessionValid,
     setUser,

@@ -1,5 +1,5 @@
-use axum::response::IntoResponse;
 use axum::Json;
+use axum::response::IntoResponse;
 
 // Note: utoipa proc macros require literal integers for status codes.
 // 200 = OK

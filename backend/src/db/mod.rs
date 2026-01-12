@@ -11,17 +11,23 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString},
 };
 
-mod user_login;
-mod user_sessions;
+mod comments;
 mod email_verification_tokens;
 mod password_reset_tokens;
+mod posts;
+mod ratings;
 mod user_data;
+mod user_login;
+mod user_sessions;
 
-pub use user_login::{UserLogin, UserLoginTable};
-pub use user_sessions::{UserSession, UserSessionsTable};
+pub use comments::{Comment, CommentsTable};
 pub use email_verification_tokens::EmailVerificationTokensTable;
 pub use password_reset_tokens::PasswordResetTokensTable;
+pub use posts::{Post, PostsTable};
+pub use ratings::{RATING_DOWNVOTE, RATING_UPVOTE, Rating, RatingsTable};
 pub use user_data::UserDataTable;
+pub use user_login::{UserLogin, UserLoginTable};
+pub use user_sessions::{UserSession, UserSessionsTable};
 
 const KEYRING_SERVICE_NAME: &str = "APPSEC_DB_KEY";
 const KEYRING_USERNAME: &str = "APPSEC";
@@ -76,6 +82,9 @@ pub struct DBHandle {
     pub email_verification_tokens_table: EmailVerificationTokensTable,
     pub password_reset_tokens_table: PasswordResetTokensTable,
     pub user_data_table: UserDataTable,
+    pub posts_table: PostsTable,
+    pub comments_table: CommentsTable,
+    pub ratings_table: RatingsTable,
     pub is_dev: bool,
 }
 
@@ -86,6 +95,9 @@ impl DBHandle {
         self.user_sessions_table.create_table().await?;
         self.email_verification_tokens_table.create_table().await?;
         self.password_reset_tokens_table.create_table().await?;
+        self.posts_table.create_table().await?;
+        self.comments_table.create_table().await?;
+        self.ratings_table.create_table().await?;
         Ok(())
     }
 
@@ -134,7 +146,8 @@ impl DBHandle {
                             write!(key_str, "{:02X}", byte)?;
                         }
                         Ok(format!("\"x'{}'\"", key_str))
-                    }).await??
+                    })
+                    .await??
                 }
             };
         }
@@ -154,6 +167,9 @@ impl DBHandle {
             email_verification_tokens_table: EmailVerificationTokensTable::new(conn_pool.clone()),
             password_reset_tokens_table: PasswordResetTokensTable::new(conn_pool.clone()),
             user_data_table: UserDataTable::new(conn_pool.clone()),
+            posts_table: PostsTable::new(conn_pool.clone()),
+            comments_table: CommentsTable::new(conn_pool.clone()),
+            ratings_table: RatingsTable::new(conn_pool.clone()),
             is_dev,
         };
 

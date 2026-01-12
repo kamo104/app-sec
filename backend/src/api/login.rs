@@ -1,17 +1,12 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
-use tower_cookies::Cookies;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
+use tower_cookies::Cookies;
 use tracing::{debug, error};
 
+use super::utils::{SESSION_DURATION_DAYS, create_session_cookie};
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
-use api_types::{LoginErrorResponse, LoginError, LoginResponse, LoginRequest, ValidationErrorData};
-use super::utils::{create_session_cookie, SESSION_DURATION_DAYS};
+use api_types::{LoginError, LoginErrorResponse, LoginRequest, LoginResponse, ValidationErrorData};
 
 // Note: utoipa proc macros require literal integers for status codes.
 // 200 = OK, 400 = BAD_REQUEST, 401 = UNAUTHORIZED, 500 = INTERNAL_SERVER_ERROR
@@ -36,14 +31,18 @@ pub async fn login_user(
 
     let username_result = field_validator::validate_username(&payload.username);
     if !username_result.is_valid() {
-        debug!("Username validation failed for '{}': {:?}", payload.username, username_result.errors);
+        debug!(
+            "Username validation failed for '{}': {:?}",
+            payload.username, username_result.errors
+        );
         return (
             StatusCode::BAD_REQUEST,
             Json(LoginErrorResponse {
                 error: LoginError::Validation,
                 validation: Some(ValidationErrorData::from_errors(vec![username_result])),
-            })
-        ).into_response();
+            }),
+        )
+            .into_response();
     }
 
     let user = match db.user_login_table.get_by_username(&payload.username).await {
@@ -55,8 +54,9 @@ pub async fn login_user(
                 Json(LoginErrorResponse {
                     error: LoginError::InvalidCredentials,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
         Err(e) => {
             debug!(
@@ -68,8 +68,9 @@ pub async fn login_user(
                 Json(LoginErrorResponse {
                     error: LoginError::Internal,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
     };
 
@@ -83,8 +84,9 @@ pub async fn login_user(
             Json(LoginErrorResponse {
                 error: LoginError::EmailNotVerified,
                 validation: None,
-            })
-        ).into_response();
+            }),
+        )
+            .into_response();
     }
 
     match db
@@ -105,8 +107,9 @@ pub async fn login_user(
                         Json(LoginErrorResponse {
                             error: LoginError::Internal,
                             validation: None,
-                        })
-                    ).into_response();
+                        }),
+                    )
+                        .into_response();
                 }
             };
 
@@ -127,8 +130,9 @@ pub async fn login_user(
                     Json(LoginErrorResponse {
                         error: LoginError::Internal,
                         validation: None,
-                    })
-                ).into_response();
+                    }),
+                )
+                    .into_response();
             }
 
             let cookie = create_session_cookie(session_token, Some(expiry), db.is_dev);
@@ -138,6 +142,7 @@ pub async fn login_user(
             let response_data = LoginResponse {
                 username: user.username,
                 email: user.email,
+                role: user.role,
                 session_expires_at: expiry.unix_timestamp(),
                 session_created_at: now.unix_timestamp(),
             };
@@ -154,8 +159,9 @@ pub async fn login_user(
                 Json(LoginErrorResponse {
                     error: LoginError::InvalidCredentials,
                     validation: None,
-                })
-            ).into_response()
+                }),
+            )
+                .into_response()
         }
         Err(e) => {
             debug!(
@@ -167,8 +173,9 @@ pub async fn login_user(
                 Json(LoginErrorResponse {
                     error: LoginError::Internal,
                     validation: None,
-                })
-            ).into_response()
+                }),
+            )
+                .into_response()
         }
     }
 }

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use const_format::formatcp;
 use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
 use sqlx::{Executor, FromRow, Row};
-use sqlx::{SqlitePool};
 
 use super::user_login::UserLoginTable;
 

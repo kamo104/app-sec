@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 # Workspace crates
-api-types = { workspace = true, features = ["openapi"] }
+api-types = { workspace = true, features = ["openapi", "sqlx"] }
 field-validator.workspace = true
 
 # Serialization
@@ -55,6 +55,7 @@ num-traits.workspace = true
 enum-primitive-derive.workspace = true
 strum.workspace = true
 lettre = { workspace = true, features = ["builder", "tokio1-rustls", "smtp-transport", "tokio1-native-tls", "rustls-native-certs", "ring", "rustls-tls"] }
+mime_guess.workspace = true
 
 # Logging
 tracing.workspace = true

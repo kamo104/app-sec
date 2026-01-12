@@ -182,6 +182,27 @@ async fn main() {
     .routes(routes!(api::password_reset::complete_password_reset))
     .routes(routes!(api::counter::get_counter))
     .routes(routes!(api::counter::set_counter))
+    // Posts endpoints
+    .routes(routes!(api::posts::list_posts))
+    .routes(routes!(api::posts::search_posts))
+    .routes(routes!(api::posts::get_post))
+    .routes(routes!(api::posts::get_post_image))
+    .routes(routes!(api::posts::create_post))
+    .routes(routes!(api::posts::update_post))
+    .routes(routes!(api::posts::delete_post))
+    // Comments endpoints
+    .routes(routes!(api::comments::list_comments))
+    .routes(routes!(api::comments::create_comment))
+    .routes(routes!(api::comments::delete_comment))
+    // Ratings endpoints
+    .routes(routes!(api::ratings::rate_post))
+    .routes(routes!(api::ratings::remove_rating))
+    // Admin endpoints
+    .routes(routes!(api::admin::list_users))
+    .routes(routes!(api::admin::update_user_role))
+    .routes(routes!(api::admin::delete_user))
+    .routes(routes!(api::admin::list_deleted_posts))
+    .routes(routes!(api::admin::restore_post))
     .split_for_parts();
 
     // Build the main application router

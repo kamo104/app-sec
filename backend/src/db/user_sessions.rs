@@ -122,9 +122,9 @@ impl UserSessionsTable {
             "DELETE FROM {} WHERE session_expiry < $1",
             UserSessionsTable::TABLE_NAME
         ))
-            .bind(OffsetDateTime::now_utc())
-            .execute(&self.conn_pool)
-            .await?;
+        .bind(OffsetDateTime::now_utc())
+        .execute(&self.conn_pool)
+        .await?;
         Ok(())
     }
 }

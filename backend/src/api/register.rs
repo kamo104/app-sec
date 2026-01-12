@@ -1,17 +1,14 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
 
+use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
-use api_types::{RegisterError, RegisterErrorResponse, RegistrationRequest, ValidationErrorData};
-use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
+use api_types::{
+    RegisterError, RegisterErrorResponse, RegistrationRequest, UserRole, ValidationErrorData,
+};
 
 // Note: utoipa proc macros require literal integers for status codes.
 // 200 = OK, 400 = BAD_REQUEST, 409 = CONFLICT, 500 = INTERNAL_SERVER_ERROR
@@ -58,8 +55,9 @@ pub async fn register_user(
             Json(RegisterErrorResponse {
                 error: RegisterError::Validation,
                 validation: Some(ValidationErrorData::from_errors(errors)),
-            })
-        ).into_response();
+            }),
+        )
+            .into_response();
     }
 
     match db
@@ -80,8 +78,9 @@ pub async fn register_user(
                 Json(RegisterErrorResponse {
                     error: RegisterError::UsernameTaken,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
         Err(e) => {
             debug!(
@@ -93,16 +92,13 @@ pub async fn register_user(
                 Json(RegisterErrorResponse {
                     error: RegisterError::Internal,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
     }
 
-    match db
-        .user_login_table
-        .is_email_free(&payload.email)
-        .await
-    {
+    match db.user_login_table.is_email_free(&payload.email).await {
         Ok(true) => {
             debug!("Email '{}' is available", payload.email);
         }
@@ -116,21 +112,20 @@ pub async fn register_user(
                 Json(RegisterErrorResponse {
                     error: RegisterError::EmailTaken,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
         Err(e) => {
-            debug!(
-                "Database error checking email '{}': {:?}",
-                payload.email, e
-            );
+            debug!("Database error checking email '{}': {:?}", payload.email, e);
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(RegisterErrorResponse {
                     error: RegisterError::Internal,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
     }
 
@@ -146,8 +141,9 @@ pub async fn register_user(
                 Json(RegisterErrorResponse {
                     error: RegisterError::Internal,
                     validation: None,
-                })
-            ).into_response();
+                }),
+            )
+                .into_response();
         }
     };
 
@@ -159,6 +155,7 @@ pub async fn register_user(
         email_verified: false,
         email_verified_at: None,
         password_reset: false,
+        role: UserRole::User,
     };
 
     match db.user_login_table.new_user(&user_login).await {
@@ -186,8 +183,9 @@ pub async fn register_user(
                     Json(RegisterErrorResponse {
                         error: RegisterError::Internal,
                         validation: None,
-                    })
-                ).into_response();
+                    }),
+                )
+                    .into_response();
             }
 
             let token = generate_verification_token();
@@ -210,12 +208,14 @@ pub async fn register_user(
                         Json(RegisterErrorResponse {
                             error: RegisterError::Internal,
                             validation: None,
-                        })
-                    ).into_response();
+                        }),
+                    )
+                        .into_response();
                 }
             };
 
-            let expires_at = OffsetDateTime::now_utc() + time::Duration::hours(EMAIL_VERIFICATION_TOKEN_DURATION_HOURS);
+            let expires_at = OffsetDateTime::now_utc()
+                + time::Duration::hours(EMAIL_VERIFICATION_TOKEN_DURATION_HOURS);
 
             match db
                 .email_verification_tokens_table
@@ -256,8 +256,9 @@ pub async fn register_user(
                             Json(RegisterErrorResponse {
                                 error: RegisterError::Internal,
                                 validation: None,
-                            })
-                        ).into_response();
+                            }),
+                        )
+                            .into_response();
                     }
 
                     (StatusCode::OK, Json(serde_json::json!({}))).into_response()
@@ -279,8 +280,9 @@ pub async fn register_user(
                         Json(RegisterErrorResponse {
                             error: RegisterError::Internal,
                             validation: None,
-                        })
-                    ).into_response()
+                        }),
+                    )
+                        .into_response()
                 }
             }
         }
@@ -296,8 +298,9 @@ pub async fn register_user(
                 Json(RegisterErrorResponse {
                     error: error_code,
                     validation: None,
-                })
-            ).into_response()
+                }),
+            )
+                .into_response()
         }
     }
 }

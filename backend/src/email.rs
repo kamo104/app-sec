@@ -13,7 +13,8 @@ pub struct EmailSender {
 
 impl EmailSender {
     pub fn new_mailhog() -> Self {
-        let smtp_host = std::env::var(SMTP_HOST_ENV_VAR).unwrap_or_else(|_| DEFAULT_SMTP_HOST.to_string());
+        let smtp_host =
+            std::env::var(SMTP_HOST_ENV_VAR).unwrap_or_else(|_| DEFAULT_SMTP_HOST.to_string());
         let transport = AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_host)
             .unwrap()
             .port(SMTP_PORT)

@@ -1,5 +1,6 @@
 //! Enum types for API responses and validation.
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use strum::{EnumString, IntoStaticStr};
 
@@ -60,6 +61,9 @@ define_enum! {
         Username,
         Email,
         Password,
+        PostTitle,
+        PostDescription,
+        CommentContent,
     }
 }
 
@@ -90,4 +94,30 @@ define_enum! {
         Strong = "PASSWORD_STRENGTH_STRONG",
         Cia = "PASSWORD_STRENGTH_CIA",
     }
+}
+
+/// User roles for RBAC.
+/// Stored as integer in database for type safety.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    IntoPrimitive,
+    TryFromPrimitive,
+)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[serde(rename_all = "lowercase")]
+#[repr(i32)]
+pub enum UserRole {
+    #[default]
+    User = 0,
+    Admin = 1,
 }
