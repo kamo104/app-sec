@@ -174,6 +174,7 @@ const translateValidationErrors = (fieldType: string, errors: string[]): string[
 const titleRules = [
   (v: string) => {
     const result = validateFieldWasm('POST_TITLE', v)
+    console.log(result)
     if (result.errors.length > 0) {
       return translateValidationErrors('POST_TITLE', result.errors).join(', ')
     }
@@ -220,9 +221,9 @@ const isValid = computed(() => {
   const file = getImageFile(formData.image)
   const titleResult = validateFieldWasm('POST_TITLE', formData.title)
   const descResult = formData.description ? validateFieldWasm('POST_DESCRIPTION', formData.description) : { errors: [] }
-  
+
   if (!file) return false
-  
+
   return titleResult.errors.length === 0 &&
     descResult.errors.length === 0 &&
     validate_image_size(file.size) &&
@@ -278,15 +279,12 @@ const handleSubmit = async (): Promise<void> => {
   loading.value = true
 
   try {
-    const formDataObj = new FormData()
-    formDataObj.append('title', formData.title.trim())
-    if (formData.description.trim()) {
-      formDataObj.append('description', formData.description.trim())
-    }
-    formDataObj.append('image', imageFile)
-
     const { data, error: apiError } = await createPost({
-      body: formDataObj as unknown as { title: string; description?: string; image: Blob },
+      body: {
+        title: formData.title.trim(),
+        description: formData.description.trim() || undefined,
+        image: imageFile,
+      },
     })
 
     if (data) {

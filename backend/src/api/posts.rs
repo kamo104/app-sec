@@ -13,8 +13,9 @@ use tracing::{debug, error};
 use super::auth_extractor::AuthenticatedUser;
 use crate::db::{DBHandle, Post, hash_token};
 use api_types::{
-    AuthErrorResponse, CreatePostResponse, PaginationQuery, PostError, PostErrorResponse,
-    PostListResponse, PostResponse, SearchQuery, UpdatePostRequest, ValidationErrorData,
+    AuthErrorResponse, CreatePostMultipart, CreatePostResponse, PaginationQuery, PostError,
+    PostErrorResponse, PostListResponse, PostResponse, SearchQuery, UpdatePostRequest,
+    ValidationErrorData,
 };
 
 const UPLOADS_DIR: &str = "uploads";
@@ -235,67 +236,47 @@ pub async fn create_post(
     auth: AuthenticatedUser,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    let mut title: Option<String> = None;
-    let mut description: Option<String> = None;
-    let mut image_data: Option<Vec<u8>> = None;
-    let mut image_ext: Option<&'static str> = None;
+    // Extract multipart data into CreatePostMultipart struct
+    let mut post_data: Option<CreatePostMultipart> = None;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let name = field.name().unwrap_or_default().to_string();
 
         match name.as_str() {
             "title" => {
-                title = field.text().await.ok();
+                if let Ok(title) = field.text().await {
+                    if post_data.is_none() {
+                        post_data = Some(CreatePostMultipart {
+                            title,
+                            description: None,
+                            image: Vec::new(),
+                        });
+                    } else if let Some(ref mut data) = post_data {
+                        data.title = title;
+                    }
+                }
             }
             "description" => {
-                description = field.text().await.ok();
+                if let Ok(description) = field.text().await {
+                    if let Some(ref mut data) = post_data {
+                        data.description = Some(description);
+                    }
+                }
             }
             "image" => {
-                let field_name = field.name().unwrap_or_default().to_string();
                 if let Ok(data) = field.bytes().await {
-                    if !field_validator::validate_image_size(data.len()) {
-                        return (
-                            StatusCode::BAD_REQUEST,
-                            Json(PostErrorResponse {
-                                error: PostError::InvalidImage,
-                                validation: None,
-                            }),
-                        )
-                            .into_response();
+                    if let Some(ref mut post_data) = post_data {
+                        post_data.image = data.to_vec();
                     }
-
-                    // Use mime_guess to detect MIME type from file name
-                    let mime = mime_guess::from_path(&field_name).first_or_octet_stream();
-
-                    // Validate MIME type using field-validator
-                    if !field_validator::validate_image_mime(mime.as_ref()) {
-                        return (
-                            StatusCode::BAD_REQUEST,
-                            Json(PostErrorResponse {
-                                error: PostError::InvalidImage,
-                                validation: None,
-                            }),
-                        )
-                            .into_response();
-                    }
-
-                    image_data = Some(data.to_vec());
-                    // Get extension from MIME type
-                    image_ext = match mime.subtype().as_str() {
-                        "jpeg" => Some("jpg"),
-                        "png" => Some("png"),
-                        "gif" => Some("gif"),
-                        "webp" => Some("webp"),
-                        _ => None,
-                    };
                 }
             }
             _ => {}
         }
     }
 
-    let title = match title {
-        Some(t) => t,
+    // Validate the extracted data
+    let post_data = match post_data {
+        Some(data) => data,
         None => {
             return (
                 StatusCode::BAD_REQUEST,
@@ -310,47 +291,59 @@ pub async fn create_post(
         }
     };
 
+    // Validate all fields using field-validator
+    let mut validation_errors = Vec::new();
+
     // Validate title
-    let title_validation = field_validator::validate_post_title(&title);
+    let title_validation = field_validator::validate_post_title(&post_data.title);
     if !title_validation.is_valid() {
+        validation_errors.push(title_validation);
+    }
+
+    // Validate description if provided
+    if let Some(ref desc) = post_data.description {
+        let desc_validation = field_validator::validate_post_description(desc);
+        if !desc_validation.is_valid() {
+            validation_errors.push(desc_validation);
+        }
+    }
+
+    // Return validation errors if any
+    if !validation_errors.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
             Json(PostErrorResponse {
                 error: PostError::Validation,
-                validation: Some(ValidationErrorData::from_errors(vec![title_validation])),
+                validation: Some(ValidationErrorData::from_errors(validation_errors)),
             }),
         )
             .into_response();
     }
 
-    // Validate description if provided
-    if let Some(ref desc) = description {
-        let desc_validation = field_validator::validate_post_description(desc);
-        if !desc_validation.is_valid() {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(PostErrorResponse {
-                    error: PostError::Validation,
-                    validation: Some(ValidationErrorData::from_errors(vec![desc_validation])),
-                }),
-            )
-                .into_response();
-        }
+    // Validate image content and get extension from magic bytes
+    if post_data.image.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(PostErrorResponse {
+                error: PostError::InvalidImage,
+                validation: None,
+            }),
+        )
+            .into_response();
     }
 
-    let (image_data, image_ext) = match (image_data, image_ext) {
-        (Some(data), Some(ext)) => (data, ext),
-        _ => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(PostErrorResponse {
-                    error: PostError::InvalidImage,
-                    validation: None,
-                }),
-            )
-                .into_response();
-        }
-    };
+    let image_ext = field_validator::validate_image_content_and_get_ext(&post_data.image);
+    if image_ext.is_none() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(PostErrorResponse {
+                error: PostError::InvalidImage,
+                validation: None,
+            }),
+        )
+            .into_response();
+    }
+    let image_ext = image_ext.unwrap();
 
     // Generate unique filename
     let filename = format!(
@@ -371,7 +364,7 @@ pub async fn create_post(
 
     // Save image
     let file_path = uploads_path.join(&filename);
-    if let Err(e) = std::fs::write(&file_path, &image_data) {
+    if let Err(e) = std::fs::write(&file_path, &post_data.image) {
         error!("Failed to save image: {:?}", e);
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
@@ -381,8 +374,8 @@ pub async fn create_post(
     let post = Post {
         post_id: 0, // Will be set by DB
         user_id: auth.user.user_id,
-        title,
-        description,
+        title: post_data.title,
+        description: post_data.description,
         image_path: filename,
         created_at: OffsetDateTime::now_utc(),
         updated_at: None,
@@ -398,16 +391,6 @@ pub async fn create_post(
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
-}
-
-/// Multipart form data for creating a post (for OpenAPI docs)
-#[derive(utoipa::ToSchema)]
-#[allow(dead_code)]
-struct CreatePostMultipart {
-    title: String,
-    description: Option<String>,
-    #[schema(value_type = String, format = Binary)]
-    image: Vec<u8>,
 }
 
 #[utoipa::path(

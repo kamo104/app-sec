@@ -4,7 +4,6 @@
 //! It supports validation for usernames, emails, passwords, and other fields.
 
 use lettre::Address;
-use mime_guess::MimeGuess;
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -48,24 +47,6 @@ pub fn is_allowed_image_mime(mime_type: &str) -> bool {
     IMAGE_ALLOWED_MIME_TYPES.contains(&mime_type)
 }
 
-/// Returns true if the file extension represents an allowed image type
-/// Uses mime_guess to validate the extension maps to an allowed MIME type
-pub fn is_allowed_image_extension(ext: &str) -> bool {
-    let mime = MimeGuess::from_ext(ext).first();
-    match mime {
-        Some(m) => is_allowed_image_mime(m.as_ref()),
-        None => false,
-    }
-}
-
-/// Gets the MIME type from a file extension
-pub fn get_mime_from_extension(ext: &str) -> String {
-    MimeGuess::from_ext(ext)
-        .first()
-        .map(|m| m.to_string())
-        .unwrap_or_else(|| "application/octet-stream".to_string())
-}
-
 /// Posts per page for pagination
 pub const POSTS_PER_PAGE: usize = 12;
 
@@ -95,13 +76,6 @@ pub fn get_image_allowed_mime_types() -> String {
     IMAGE_ALLOWED_MIME_TYPES.join(",")
 }
 
-/// Validates image metadata (size and MIME type).
-/// Returns true if valid, false otherwise.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn validate_image(size: usize, mime_type: &str) -> bool {
-    size <= IMAGE_MAX_SIZE && is_allowed_image_mime(mime_type)
-}
-
 /// Validates image size only.
 /// Returns true if valid, false otherwise.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -116,32 +90,63 @@ pub fn validate_image_mime(mime_type: &str) -> bool {
     is_allowed_image_mime(mime_type)
 }
 
-/// Validates image from file extension.
-/// Returns true if valid, false otherwise.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn validate_image_from_extension(size: usize, file_extension: &str) -> bool {
-    size <= IMAGE_MAX_SIZE && is_allowed_image_extension(file_extension)
-}
-
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn get_posts_per_page() -> usize {
     POSTS_PER_PAGE
 }
 
-/// Validates image data and returns a validation result.
-/// Returns ValidationFieldError with appropriate error codes if invalid.
-pub fn validate_image_data(size: usize, mime_type: &str) -> ValidationFieldError {
-    let mut result = ValidationFieldError::new(FieldType::Unspecified);
+/// Magic bytes for image format detection
+const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
+const PNG_MAGIC: &[u8] = &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+const GIF_MAGIC: &[u8] = &[0x47, 0x49, 0x46, 0x38];
+const WEBP_MAGIC: &[u8] = &[0x52, 0x49, 0x46, 0x46];
 
-    if size > IMAGE_MAX_SIZE {
-        result.add_error(ValidationErrorCode::TooLong);
+/// Detects image MIME type from binary data using magic bytes.
+/// Returns the MIME type if valid, None otherwise.
+/// This is the internal implementation that returns &str.
+fn detect_image_mime_internal(data: &[u8]) -> Option<&'static str> {
+    if data.len() < 12 {
+        return None;
     }
 
+    if data.starts_with(JPEG_MAGIC) {
+        return Some("image/jpeg");
+    }
+    if data.starts_with(PNG_MAGIC) {
+        return Some("image/png");
+    }
+    if data.starts_with(GIF_MAGIC) {
+        return Some("image/gif");
+    }
+    if data.starts_with(WEBP_MAGIC) && data.len() >= 12 && &data[8..12] == b"WEBP" {
+        return Some("image/webp");
+    }
+
+    None
+}
+
+/// Validates image data and returns the file extension.
+/// Returns None if validation fails.
+pub fn validate_image_content_and_get_ext(data: &[u8]) -> Option<&'static str> {
+    if data.len() > IMAGE_MAX_SIZE {
+        return None;
+    }
+
+    let mime_type = detect_image_mime_internal(data)?;
+
+    // Validate MIME type
     if !is_allowed_image_mime(mime_type) {
-        result.add_error(ValidationErrorCode::InvalidFormat);
+        return None;
     }
 
-    result
+    // Return appropriate extension
+    match mime_type {
+        "image/jpeg" => Some("jpg"),
+        "image/png" => Some("png"),
+        "image/gif" => Some("gif"),
+        "image/webp" => Some("webp"),
+        _ => None,
+    }
 }
 
 /// Validates a username.
@@ -321,31 +326,6 @@ pub fn validate_field(field_type: &str, value: &str) -> String {
     serde_json::to_string(&result).unwrap_or_default()
 }
 
-/// Validates a field and returns ValidationFieldError directly (for Rust backend usage).
-/// This is a non-WASM function for backend use.
-pub fn validate_field_direct(field_type: FieldType, value: &str) -> ValidationFieldError {
-    match field_type {
-        FieldType::Username => validate_username(value),
-        FieldType::Email => validate_email(value),
-        FieldType::Password => validate_password(value),
-        FieldType::PostTitle => validate_post_title(value),
-        FieldType::PostDescription => validate_post_description(value),
-        FieldType::CommentContent => validate_comment_content(value),
-        FieldType::Unspecified => ValidationFieldError::new(FieldType::Unspecified),
-    }
-}
-
-/// Validates multiple fields and returns a vector of validation errors.
-/// This is useful for batch validation (e.g., register endpoint).
-/// Returns empty vector if all fields are valid.
-pub fn validate_fields(fields: Vec<(FieldType, &str)>) -> Vec<ValidationFieldError> {
-    fields
-        .into_iter()
-        .map(|(field_type, value)| validate_field_direct(field_type, value))
-        .filter(|result| !result.is_valid())
-        .collect()
-}
-
 /// Validates password and returns detailed strength information
 /// # Returns
 /// - JSON string of `ValidationDetailedPasswordData`
@@ -386,22 +366,4 @@ pub fn validate_password_detailed(password: &str) -> String {
     };
     let ret = ValidationDetailedPasswordData::new(validation_errors, strength, score);
     serde_json::to_string(&ret).unwrap_or_default()
-}
-
-/// Returns true if all provided validation results are valid.
-pub fn all_valid(results: &[ValidationFieldError]) -> bool {
-    results.iter().all(|r| r.is_valid())
-}
-
-/// Returns a vector of error messages from validation results.
-pub fn collect_errors(results: &[ValidationFieldError]) -> Vec<String> {
-    results
-        .iter()
-        .flat_map(|r| {
-            r.errors
-                .iter()
-                .map(|e| format!("{:?}: {:?}", r.field, e))
-                .collect::<Vec<_>>()
-        })
-        .collect()
 }

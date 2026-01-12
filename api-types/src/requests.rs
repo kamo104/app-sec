@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
+#[cfg(feature = "wasm")]
+use tsify_next::Tsify;
+
 /// Registration request payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
@@ -61,7 +64,7 @@ pub struct PasswordResetCompleteRequest {
 // Post requests
 // =============================================================================
 
-/// Create post request payload.
+/// Create post request payload (JSON).
 /// Note: Image is uploaded separately via multipart form.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
@@ -70,6 +73,23 @@ pub struct CreatePostRequest {
     pub title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+}
+
+/// Create post request payload (multipart/form-data).
+/// This type represents the structure of multipart form data for creating posts.
+/// Used for OpenAPI documentation.
+///
+/// Note: This type is not used for serde serialization since multipart data
+/// is handled by Axum's Multipart extractor. The frontend gets the correct
+/// TypeScript types from the generated OpenAPI client.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct CreatePostMultipart {
+    pub title: String,
+    pub description: Option<String>,
+    /// The image file as binary data
+    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Binary))]
+    pub image: Vec<u8>,
 }
 
 /// Update post request payload.

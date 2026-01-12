@@ -495,6 +495,9 @@ export type ListPostsError = (unknown);
 export type CreatePostData = {
     body: {
         description?: (string) | null;
+        /**
+         * The image file as binary data
+         */
         image: (Blob | File);
         title: string;
     };
