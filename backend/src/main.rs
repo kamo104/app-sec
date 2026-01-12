@@ -1,7 +1,10 @@
 use axum::{
     Router,
     body::Body,
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{
+        DefaultBodyLimit,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
     http::{Request, StatusCode},
     response::{IntoResponse, Response},
     routing::any,
@@ -231,6 +234,7 @@ async fn main() {
                 .allow_headers(Any)
                 .allow_origin(Any),
         )
+        .layer(DefaultBodyLimit::max(2048))
         // logging
         .layer(
             TraceLayer::new_for_http()
