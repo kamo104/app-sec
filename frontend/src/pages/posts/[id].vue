@@ -263,7 +263,10 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const postId = computed(() => Number(route.params.id))
+const postId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? Number(id) : 0
+})
 
 const post = ref<PostResponse | null>(null)
 const comments = ref<CommentResponse[]>([])
@@ -280,7 +283,7 @@ const deleteDialog = ref(false)
 
 const canEdit = computed(() => {
   if (!post.value || !authStore.user) return false
-  return post.value.userId === authStore.user.username || authStore.isAdmin
+  return post.value.userId === authStore.user.userId || authStore.isAdmin
 })
 
 const canDeleteComment = (comment: CommentResponse): boolean => {
@@ -308,7 +311,7 @@ const fetchPost = async (): Promise<void> => {
   error.value = null
 
   try {
-    const { data, error: apiError } = await getPost({ path: { postId: postId.value } })
+    const { data, error: apiError } = await getPost({ path: { post_id: postId.value } })
     if (data) {
       post.value = data
     } else {
@@ -325,7 +328,7 @@ const fetchPost = async (): Promise<void> => {
 
 const fetchComments = async (): Promise<void> => {
   try {
-    const { data } = await listComments({ path: { postId: postId.value } })
+    const { data } = await listComments({ path: { post_id: postId.value } })
     if (data) {
       comments.value = data.comments
     }
@@ -342,7 +345,7 @@ const submitComment = async (): Promise<void> => {
 
   try {
     const { data, error: apiError } = await createComment({
-      path: { postId: postId.value },
+      path: { post_id: postId.value },
       body: { content: newComment.value.trim() },
     })
 
@@ -366,7 +369,7 @@ const submitComment = async (): Promise<void> => {
 
 const deleteComment = async (commentId: number): Promise<void> => {
   try {
-    const { error: apiError } = await apiDeleteComment({ path: { commentId } })
+    const { error: apiError } = await apiDeleteComment({ path: { comment_id: commentId } })
     if (!apiError) {
       comments.value = comments.value.filter(c => c.commentId !== commentId)
       if (post.value) {
@@ -386,19 +389,19 @@ const ratePost = async (value: 1 | -1): Promise<void> => {
   try {
     // If clicking same rating, remove it
     if (post.value.userRating === value) {
-      const { error: apiError } = await removeRating({ path: { postId: postId.value } })
+      const { error: apiError } = await removeRating({ path: { post_id: postId.value } })
       if (!apiError) {
         post.value.score -= value
         post.value.userRating = null
       }
     } else {
       const { error: apiError } = await apiRatePost({
-        path: { postId: postId.value },
+        path: { post_id: postId.value },
         body: { value },
       })
       if (!apiError) {
         // Adjust score based on previous rating
-        if (post.value.userRating !== null) {
+        if (post.value.userRating !== null && post.value.userRating !== undefined) {
           post.value.score -= post.value.userRating
         }
         post.value.score += value
@@ -422,7 +425,7 @@ const deletePostConfirmed = async (): Promise<void> => {
   deleteLoading.value = true
 
   try {
-    const { error: apiError } = await apiDeletePost({ path: { postId: postId.value } })
+    const { error: apiError } = await apiDeletePost({ path: { post_id: postId.value } })
     if (!apiError) {
       router.push('/')
     } else {

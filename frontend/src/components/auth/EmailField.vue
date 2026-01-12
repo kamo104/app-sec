@@ -4,7 +4,7 @@
       :model-value="modelValue"
       @update:model-value="handleInput"
       :rules="rules"
-      label="Email"
+      :label="translate('EMAIL_LABEL', undefined)"
       prepend-inner-icon="mdi-email"
       variant="outlined"
       required
@@ -20,7 +20,7 @@
 import { ref } from 'vue'
 import { validate_field } from '@/wasm/field-validator.js'
 import type { ValidationFieldError } from '@/generated/api-client'
-import { translate_field_validation_error } from '@/wasm/translator.js'
+import { translate, translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
   modelValue: string

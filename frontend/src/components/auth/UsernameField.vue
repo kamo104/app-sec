@@ -4,7 +4,7 @@
       :model-value="modelValue"
       @update:model-value="handleInput"
       :rules="rules"
-      label="Username"
+      :label="translate('USERNAME_LABEL', undefined)"
       prepend-inner-icon="mdi-account"
       variant="outlined"
       required
@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { validate_field, type ValidationFieldError } from '@/wasm/field-validator.js'
-import { translate_field_validation_error } from '@/wasm/translator.js'
+import { translate, translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
   modelValue: string

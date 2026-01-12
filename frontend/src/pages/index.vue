@@ -125,8 +125,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { listPosts, searchPosts, type PostResponse } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
-
-const POSTS_PER_PAGE = 12
+import { translate_error_code } from '@/wasm/translator.js'
+import { PAGINATION } from '@/utils/constants'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -140,7 +140,7 @@ const isSearching = ref(false)
 const total = ref(0)
 const currentPage = ref(1)
 
-const totalPages = computed(() => Math.ceil(total.value / POSTS_PER_PAGE))
+const totalPages = computed(() => Math.ceil(total.value / PAGINATION.POSTS_PER_PAGE))
 
 const t = (key: string, params?: Record<string, string | number>): string => {
   const translations: Record<string, string> = {

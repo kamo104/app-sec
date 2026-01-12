@@ -53,7 +53,7 @@
                 v-model="formData.image"
                 label="Image"
                 variant="outlined"
-                :accept="IMAGE_ALLOWED_TYPES.join(',')"
+                :accept="IMAGE_ALLOWED_MIME_TYPES.join(',')"
                 :rules="imageRules"
                 :error-messages="fieldErrors.image"
                 prepend-icon="mdi-camera"
@@ -125,18 +125,19 @@ import {
   validate_field,
   get_post_title_max_length,
   get_post_description_max_length,
-  get_image_allowed_types,
+  get_image_allowed_mime_types,
   validate_image_size,
-  validate_image_type,
-} from '@/wasm/field-validator'
+  validate_image_mime,
+} from '@/wasm/field-validator.js'
 import { translate_error_code, translate_field_validation_error } from '@/wasm/translator.js'
+import { VALIDATION_CONSTANTS } from '@/utils/validation.js'
 
 const router = useRouter()
 
 // Constants from WASM field-validator (single source of truth)
-const POST_TITLE_MAX_LENGTH = get_post_title_max_length()
-const POST_DESCRIPTION_MAX_LENGTH = get_post_description_max_length()
-const IMAGE_ALLOWED_TYPES = get_image_allowed_types().split(',')
+const POST_TITLE_MAX_LENGTH = VALIDATION_CONSTANTS.POST_TITLE_MAX_LENGTH
+const POST_DESCRIPTION_MAX_LENGTH = VALIDATION_CONSTANTS.POST_DESCRIPTION_MAX_LENGTH
+const IMAGE_ALLOWED_MIME_TYPES = VALIDATION_CONSTANTS.IMAGE_ALLOWED_MIME_TYPES
 
 const form = ref<HTMLFormElement | null>(null)
 const loading = ref(false)
@@ -211,7 +212,7 @@ const imageRules = [
   },
   (v: File[] | File | null | undefined) => {
     const file = getImageFile(v)
-    return !file || validate_image_type(file.type) || translate_error_code('INVALID_IMAGE', undefined)
+    return !file || validate_image_mime(file.type) || translate_error_code('INVALID_IMAGE', undefined)
   },
 ]
 
@@ -220,11 +221,12 @@ const isValid = computed(() => {
   const titleResult = validateFieldWasm('POST_TITLE', formData.title)
   const descResult = formData.description ? validateFieldWasm('POST_DESCRIPTION', formData.description) : { errors: [] }
   
+  if (!file) return false
+  
   return titleResult.errors.length === 0 &&
     descResult.errors.length === 0 &&
-    file !== null &&
     validate_image_size(file.size) &&
-    validate_image_type(file.type)
+    validate_image_mime(file.type)
 })
 
 const onImageChange = (files: File[] | File | null | undefined): void => {

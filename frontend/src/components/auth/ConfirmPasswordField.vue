@@ -4,7 +4,7 @@
       :model-value="modelValue"
       @update:model-value="handleInput"
       :rules="rules"
-      label="Confirm Password"
+      :label="translate('PASSWORD_CONFIRM_LABEL', undefined)"
       prepend-inner-icon="mdi-lock-check"
       variant="outlined"
       required
@@ -20,10 +20,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { translate } from '@/wasm/translator.js'
 
 // Constants for validation messages
-const CONFIRM_PASSWORD_REQUIRED = 'Please confirm your password'
-const PASSWORDS_DO_NOT_MATCH = 'Passwords do not match'
+const CONFIRM_PASSWORD_REQUIRED = translate('CONFIRM_PASSWORD_REQUIRED', undefined)
+const PASSWORDS_DO_NOT_MATCH = translate('PASSWORDS_DO_NOT_MATCH', undefined)
 
 interface Props {
   modelValue: string

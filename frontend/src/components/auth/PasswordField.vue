@@ -4,7 +4,7 @@
       :model-value="modelValue"
       @update:model-value="handleInput"
       :rules="rules"
-      label="Password"
+      :label="translate('PASSWORD_LABEL', undefined)"
       prepend-inner-icon="mdi-lock"
       variant="outlined"
       required
@@ -43,7 +43,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { validate_password_detailed, type PasswordStrength, type ValidationDetailedPasswordData } from '@/wasm/field-validator.js'
-import { translate_field_validation_error } from '@/wasm/translator.js'
+import { translate, translate_field_validation_error } from '@/wasm/translator.js'
 
 interface Props {
   modelValue: string

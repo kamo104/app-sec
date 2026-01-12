@@ -47,9 +47,7 @@
                 />
               </template>
 
-              <template #item.createdAt="{ item }">
-                {{ formatDate(item.createdAt) }}
-              </template>
+
 
               <template #item.actions="{ item }">
                 <v-btn
@@ -106,8 +104,7 @@ const headers = [
   { title: 'ID', key: 'userId', width: '80px' },
   { title: 'Username', key: 'username' },
   { title: 'Email', key: 'email' },
-  { title: 'Role', key: 'role', width: '150px' },
-  { title: 'Created', key: 'createdAt' },
+  { title: 'Role', key: 'role' },
   { title: 'Actions', key: 'actions', width: '100px', sortable: false },
 ]
 
@@ -116,9 +113,7 @@ const roleOptions = [
   { title: 'Admin', value: 'admin' },
 ]
 
-const formatDate = (timestamp: number): string => {
-  return new Date(timestamp * 1000).toLocaleDateString()
-}
+
 
 const fetchUsers = async (): Promise<void> => {
   loading.value = true
@@ -145,7 +140,7 @@ const updateRole = async (userId: number, newRole: 'user' | 'admin'): Promise<vo
 
   try {
     const { error: apiError } = await updateUserRole({
-      path: { userId },
+      path: { user_id: userId },
       body: { role: newRole },
     })
 
@@ -175,12 +170,11 @@ const deleteUserConfirmed = async (): Promise<void> => {
   deleteLoading.value = true
 
   try {
-    const { error: apiError } = await apiDeleteUser({
-      path: { userId: userToDelete.value.userId },
-    })
+    const { error: apiError } = await apiDeleteUser({ path: { user_id: userToDelete.value.userId } })
 
     if (!apiError) {
       users.value = users.value.filter(u => u.userId !== userToDelete.value!.userId)
+      deleteDialog.value = false
     } else {
       console.error('Failed to delete user:', apiError)
     }
@@ -188,8 +182,6 @@ const deleteUserConfirmed = async (): Promise<void> => {
     console.error('Failed to delete user:', e)
   } finally {
     deleteLoading.value = false
-    deleteDialog.value = false
-    userToDelete.value = null
   }
 }
 

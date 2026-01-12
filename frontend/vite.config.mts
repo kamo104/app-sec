@@ -13,7 +13,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 
-// Custom plugin to build WebAssembly field validator before build
+// Custom plugin to build WebAssembly modules before build
 function wasmPlugin() {
   return {
     name: 'wasm-builder',
@@ -25,17 +25,22 @@ function wasmPlugin() {
 
       try {
         console.log('Building WebAssembly field validator...')
-        // Build the Rust library for WebAssembly
+        // Use wasm-pack to build the field-validator library
         execSync(
-          'cd ../field-validator && cargo build --target wasm32-unknown-unknown --release --features wasm',
+          'cd ../field-validator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name field-validator --release --features wasm --quiet',
           { stdio: 'inherit' }
         )
-        // Generate JavaScript bindings
+        
+        console.log('Building WebAssembly translator...')
+        // Use wasm-pack to build the translator library
         execSync(
-          'wasm-bindgen ../field-validator/target/wasm32-unknown-unknown/release/field_validator.wasm --target web --out-dir ../frontend/src/wasm --out-name field-validator',
+          'cd ../translator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name translator --release --features wasm --quiet',
           { stdio: 'inherit' }
         )
-        console.log('WebAssembly field validator built successfully')
+        
+        // Remove unnecessary files
+        execSync('rm -f ../frontend/src/wasm/package.json ../frontend/src/wasm/.gitignore ../frontend/src/wasm/README.md', { stdio: 'ignore' })
+        console.log('WebAssembly modules built successfully')
       } catch (error) {
         console.warn('Could not build WebAssembly module:', (error as Error).message)
       }

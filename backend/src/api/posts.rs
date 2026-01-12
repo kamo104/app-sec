@@ -19,31 +19,6 @@ use api_types::{
 
 const UPLOADS_DIR: &str = "uploads";
 
-// Valid image magic bytes
-const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
-const PNG_MAGIC: &[u8] = &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-const GIF_MAGIC: &[u8] = &[0x47, 0x49, 0x46, 0x38];
-const WEBP_MAGIC: &[u8] = &[0x52, 0x49, 0x46, 0x46]; // RIFF header, need to check for WEBP too
-
-fn validate_image_magic(data: &[u8]) -> Option<&'static str> {
-    if data.len() < 12 {
-        return None;
-    }
-    if data.starts_with(JPEG_MAGIC) {
-        return Some("jpg");
-    }
-    if data.starts_with(PNG_MAGIC) {
-        return Some("png");
-    }
-    if data.starts_with(GIF_MAGIC) {
-        return Some("gif");
-    }
-    if data.starts_with(WEBP_MAGIC) && data.len() >= 12 && &data[8..12] == b"WEBP" {
-        return Some("webp");
-    }
-    None
-}
-
 /// Try to get user_id from session cookie without requiring authentication
 async fn get_optional_user_id(db: &DBHandle, cookies: &Cookies) -> Option<i64> {
     let token = cookies.get("session_token")?;
@@ -276,6 +251,7 @@ pub async fn create_post(
                 description = field.text().await.ok();
             }
             "image" => {
+                let field_name = field.name().unwrap_or_default().to_string();
                 if let Ok(data) = field.bytes().await {
                     if !field_validator::validate_image_size(data.len()) {
                         return (
@@ -287,10 +263,12 @@ pub async fn create_post(
                         )
                             .into_response();
                     }
-                    if let Some(ext) = validate_image_magic(&data) {
-                        image_ext = Some(ext);
-                        image_data = Some(data.to_vec());
-                    } else {
+
+                    // Use mime_guess to detect MIME type from file name
+                    let mime = mime_guess::from_path(&field_name).first_or_octet_stream();
+
+                    // Validate MIME type using field-validator
+                    if !field_validator::validate_image_mime(mime.as_ref()) {
                         return (
                             StatusCode::BAD_REQUEST,
                             Json(PostErrorResponse {
@@ -300,6 +278,16 @@ pub async fn create_post(
                         )
                             .into_response();
                     }
+
+                    image_data = Some(data.to_vec());
+                    // Get extension from MIME type
+                    image_ext = match mime.subtype().as_str() {
+                        "jpeg" => Some("jpg"),
+                        "png" => Some("png"),
+                        "gif" => Some("gif"),
+                        "webp" => Some("webp"),
+                        _ => None,
+                    };
                 }
             }
             _ => {}

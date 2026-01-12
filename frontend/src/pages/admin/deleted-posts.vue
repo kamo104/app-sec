@@ -45,19 +45,12 @@
             >
               <template #item.title="{ item }">
                 <div class="d-flex align-center">
-                  <v-avatar size="40" class="mr-3">
-                    <v-img :src="item.imageUrl" cover />
-                  </v-avatar>
                   <span>{{ item.title }}</span>
                 </div>
               </template>
 
               <template #item.deletedAt="{ item }">
                 {{ formatDate(item.deletedAt) }}
-              </template>
-
-              <template #item.createdAt="{ item }">
-                {{ formatDate(item.createdAt) }}
               </template>
 
               <template #item.actions="{ item }">
@@ -129,7 +122,7 @@ const restorePost = async (postId: number): Promise<void> => {
   restoreLoading[postId] = true
 
   try {
-    const { error: apiError } = await apiRestorePost({ path: { postId } })
+    const { error: apiError } = await apiRestorePost({ path: { post_id: postId } })
 
     if (!apiError) {
       posts.value = posts.value.filter(p => p.postId !== postId)
