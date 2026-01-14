@@ -11,7 +11,6 @@ import {
   get_post_title_max_length,
   get_post_description_max_length,
   get_image_allowed_mime_types,
-  get_posts_per_page,
   type ValidationFieldError,
   type ValidationDetailedPasswordData,
   type FieldType,

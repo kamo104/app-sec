@@ -4,14 +4,14 @@
  * Bootstraps Vuetify and other plugins then mounts the App`
  */
 
-// Plugins
-import { registerPlugins } from '@/plugins'
+// Initialize WASM modules first, before any other imports that might use them
+import { initializeWasm } from '@/api/wasmLoader'
+await initializeWasm()
 
-// Components
-import App from './App.vue'
-
-// Composables
-import { createApp } from 'vue'
+// Now safe to import modules that depend on WASM
+const { registerPlugins } = await import('@/plugins')
+const { default: App } = await import('./App.vue')
+const { createApp } = await import('vue')
 
 // Styles
 // Import Vuetify styles (configured via vite.config.mts -> settings.scss)
