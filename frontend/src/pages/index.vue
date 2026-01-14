@@ -175,9 +175,9 @@ const fetchPosts = async (): Promise<void> => {
   error.value = null
 
   try {
-    const offset = (currentPage.value - 1) * POSTS_PER_PAGE
+    const offset = (currentPage.value - 1) * PAGINATION.POSTS_PER_PAGE
     const { data, error: apiError } = await listPosts({
-      query: { limit: POSTS_PER_PAGE, offset },
+      query: { limit: PAGINATION.POSTS_PER_PAGE, offset },
     })
 
     if (data) {
@@ -211,7 +211,7 @@ const performSearch = async (): Promise<void> => {
     const { data, error: apiError } = await searchPosts({
       query: {
         q: searchQuery.value.trim(),
-        limit: POSTS_PER_PAGE,
+        limit: PAGINATION.POSTS_PER_PAGE,
         offset: 0,
       },
     })

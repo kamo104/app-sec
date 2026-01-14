@@ -26,5 +26,4 @@ export const VALIDATION_CONSTANTS = {
   POST_TITLE_MAX_LENGTH: get_post_title_max_length(),
   POST_DESCRIPTION_MAX_LENGTH: get_post_description_max_length(),
   IMAGE_ALLOWED_MIME_TYPES: get_image_allowed_mime_types().split(','),
-  POSTS_PER_PAGE: get_posts_per_page(),
 } as const

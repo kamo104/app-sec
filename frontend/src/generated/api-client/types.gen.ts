@@ -184,7 +184,7 @@ export type PasswordResetRequest = {
 /**
  * Error codes for post operations.
  */
-export type PostError = 'NOT_FOUND' | 'VALIDATION' | 'INVALID_IMAGE' | 'INTERNAL';
+export type PostError = 'NOT_FOUND' | 'VALIDATION' | 'INVALID_IMAGE' | 'FILE_TOO_LARGE' | 'INTERNAL';
 
 /**
  * Post error response.

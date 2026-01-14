@@ -1,11 +1,12 @@
 use axum::{
-    Router,
+    Json, Router,
     body::Body,
     extract::{
         DefaultBodyLimit,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::{Request, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::any,
 };
@@ -60,6 +61,12 @@ struct Args {
         help = "Run in development mode (uses data_dev.db without encryption, no keyring required)"
     )]
     dev: bool,
+    #[arg(
+        long,
+        default_value_t = 10 * 1024 * 1024,
+        help = "Maximum request body size in bytes (default: 10MB)"
+    )]
+    max_body_size: usize,
 }
 
 static DB_HANDLE: OnceCell<Arc<DBHandle>> = OnceCell::const_new();
@@ -234,7 +241,7 @@ async fn main() {
                 .allow_headers(Any)
                 .allow_origin(Any),
         )
-        .layer(DefaultBodyLimit::max(2048))
+        .layer(DefaultBodyLimit::max(args.max_body_size))
         // logging
         .layer(
             TraceLayer::new_for_http()

@@ -242,6 +242,8 @@ pub enum PostError {
     Validation,
     #[serde(rename = "INVALID_IMAGE")]
     InvalidImage,
+    #[serde(rename = "FILE_TOO_LARGE")]
+    FileTooLarge,
     #[serde(rename = "INTERNAL")]
     Internal,
 }

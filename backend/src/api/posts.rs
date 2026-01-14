@@ -237,7 +237,11 @@ pub async fn create_post(
     mut multipart: Multipart,
 ) -> impl IntoResponse {
     // Extract multipart data into CreatePostMultipart struct
-    let mut post_data: Option<CreatePostMultipart> = None;
+    let mut post_data = CreatePostMultipart {
+        title: String::new(),
+        description: None,
+        image: Vec::new(),
+    };
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let name = field.name().unwrap_or_default().to_string();
@@ -245,51 +249,22 @@ pub async fn create_post(
         match name.as_str() {
             "title" => {
                 if let Ok(title) = field.text().await {
-                    if post_data.is_none() {
-                        post_data = Some(CreatePostMultipart {
-                            title,
-                            description: None,
-                            image: Vec::new(),
-                        });
-                    } else if let Some(ref mut data) = post_data {
-                        data.title = title;
-                    }
+                    post_data.title = title;
                 }
             }
             "description" => {
                 if let Ok(description) = field.text().await {
-                    if let Some(ref mut data) = post_data {
-                        data.description = Some(description);
-                    }
+                    post_data.description = Some(description);
                 }
             }
             "image" => {
                 if let Ok(data) = field.bytes().await {
-                    if let Some(ref mut post_data) = post_data {
-                        post_data.image = data.to_vec();
-                    }
+                    post_data.image = data.to_vec();
                 }
             }
             _ => {}
         }
     }
-
-    // Validate the extracted data
-    let post_data = match post_data {
-        Some(data) => data,
-        None => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(PostErrorResponse {
-                    error: PostError::Validation,
-                    validation: Some(ValidationErrorData::from_errors(vec![
-                        field_validator::validate_post_title(""),
-                    ])),
-                }),
-            )
-                .into_response();
-        }
-    };
 
     // Validate all fields using field-validator
     let mut validation_errors = Vec::new();
