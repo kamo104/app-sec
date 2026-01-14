@@ -1,11 +1,11 @@
 <template>
   <v-alert
     v-if="message"
+    class="mb-4"
+    closable
+    density="compact"
     :type="type"
     variant="tonal"
-    class="mb-4"
-    density="compact"
-    closable
     @click:close="handleClose"
   >
     {{ message }}
@@ -13,18 +13,18 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
-  message: string
-  type?: 'success' | 'error' | 'warning' | 'info'
-}>()
+  const props = defineProps<{
+    message: string
+    type?: 'success' | 'error' | 'warning' | 'info'
+  }>()
 
-const emit = defineEmits<{
-  close: []
-}>()
+  const emit = defineEmits<{
+    close: []
+  }>()
 
-const handleClose = () => {
-  emit('close')
-}
+  function handleClose () {
+    emit('close')
+  }
 </script>
 
 <style scoped>

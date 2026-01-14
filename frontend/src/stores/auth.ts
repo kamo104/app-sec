@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { refreshSession, type LoginResponse, type AuthSessionResponse, type UserRole } from '@/api/client'
+import { computed, ref } from 'vue'
+import { type AuthSessionResponse, type LoginResponse, refreshSession, type UserRole } from '@/api/client'
 
 // Common user data fields shared across login and auth responses
 interface UserData {
@@ -19,7 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   const sessionCreatedAt = ref<number | null>(null)
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-  function setUser(userData: UserData | LoginResponse | AuthSessionResponse | null): void {
+  function setUser (userData: UserData | LoginResponse | AuthSessionResponse | null): void {
     if (userData) {
       const data: UserData = {
         username: userData.username,
@@ -46,7 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function loadUser(): void {
+  function loadUser (): void {
     const userStr = localStorage.getItem('user')
     const expiresAtStr = localStorage.getItem('sessionExpiresAt')
     const createdAtStr = localStorage.getItem('sessionCreatedAt')
@@ -68,14 +68,14 @@ export const useAuthStore = defineStore('auth', () => {
           // Session expired, clear it
           clearUser()
         }
-      } catch (e) {
-        console.error('Failed to parse user from localStorage', e)
+      } catch (error) {
+        console.error('Failed to parse user from localStorage', error)
         clearUser()
       }
     }
   }
 
-  function clearUser(): void {
+  function clearUser (): void {
     user.value = null
     sessionExpiresAt.value = null
     sessionCreatedAt.value = null
@@ -85,17 +85,19 @@ export const useAuthStore = defineStore('auth', () => {
     clearRefreshTimer()
   }
 
-  function clearRefreshTimer(): void {
+  function clearRefreshTimer (): void {
     if (refreshTimer) {
       clearTimeout(refreshTimer)
       refreshTimer = null
     }
   }
 
-  function scheduleRefresh(): void {
+  function scheduleRefresh (): void {
     clearRefreshTimer()
 
-    if (!sessionExpiresAt.value || !sessionCreatedAt.value) return
+    if (!sessionExpiresAt.value || !sessionCreatedAt.value) {
+      return
+    }
 
     const now = Math.floor(Date.now() / 1000)
     const sessionLifetime = sessionExpiresAt.value - sessionCreatedAt.value
@@ -114,16 +116,18 @@ export const useAuthStore = defineStore('auth', () => {
             console.error('Failed to refresh session:', error)
             clearUser()
           }
-        } catch (e) {
-          console.error('Failed to refresh session, logging out', e)
+        } catch (error) {
+          console.error('Failed to refresh session, logging out', error)
           clearUser()
         }
       }, refreshIn * 1000)
     }
   }
 
-  function isSessionValid(): boolean {
-    if (!sessionExpiresAt.value) return false
+  function isSessionValid (): boolean {
+    if (!sessionExpiresAt.value) {
+      return false
+    }
     const now = Math.floor(Date.now() / 1000)
     return sessionExpiresAt.value > now
   }

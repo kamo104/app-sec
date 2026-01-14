@@ -1,7 +1,7 @@
 <template>
   <v-container class="fill-height" max-width="600">
     <v-row justify="center">
-      <v-col cols="12" md="8" lg="6">
+      <v-col cols="12" lg="6" md="8">
         <v-card class="pa-6" elevation="2" rounded="lg">
           <v-card-title class="text-h5 text-center mb-4">
             Email Verification
@@ -11,10 +11,10 @@
             <!-- Loading State -->
             <div v-if="loading" class="text-center py-8">
               <v-progress-circular
-                indeterminate
-                color="primary"
-                size="64"
                 class="mb-4"
+                color="primary"
+                indeterminate
+                size="64"
               />
               <div class="text-body-1">Verifying your email...</div>
             </div>
@@ -22,10 +22,10 @@
             <!-- Success State -->
             <v-alert
               v-else-if="success"
-              type="success"
-              variant="tonal"
               class="mb-4"
               icon="mdi-check-circle"
+              type="success"
+              variant="tonal"
             >
               <div class="text-body-1 font-weight-bold mb-2">Email Verified!</div>
               <div class="text-body-2">
@@ -36,10 +36,10 @@
             <!-- Error State -->
             <v-alert
               v-else-if="error"
-              type="error"
-              variant="tonal"
               class="mb-4"
               icon="mdi-alert-circle"
+              type="error"
+              variant="tonal"
             >
               <div class="text-body-1 font-weight-bold mb-2">Verification Failed</div>
               <div class="text-body-2">
@@ -50,10 +50,10 @@
             <!-- No Token State -->
             <v-alert
               v-else
-              type="warning"
-              variant="tonal"
               class="mb-4"
               icon="mdi-help-circle"
+              type="warning"
+              variant="tonal"
             >
               <div class="text-body-1 font-weight-bold mb-2">No Token Provided</div>
               <div class="text-body-2">
@@ -66,9 +66,9 @@
             <v-btn
               v-if="success"
               color="primary"
-              variant="elevated"
               href="/login"
               prepend-icon="mdi-login"
+              variant="elevated"
             >
               Go to Login
             </v-btn>
@@ -76,9 +76,9 @@
             <v-btn
               v-if="error || !hasToken"
               color="secondary"
-              variant="outlined"
               href="/"
               prepend-icon="mdi-home"
+              variant="outlined"
             >
               Return Home
             </v-btn>
@@ -90,60 +90,60 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { StatusCodes } from 'http-status-codes'
-import { verifyEmail, type VerifyEmailErrorResponse } from '@/api/client'
-import { translate, translate_error_code } from '@/wasm/translator.js'
+  import { StatusCodes } from 'http-status-codes'
+  import { onMounted, ref } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
+  import { verifyEmail, type VerifyEmailErrorResponse } from '@/api/client'
+  import { translate, translate_error_code } from '@/wasm/translator.js'
 
-const route = useRoute()
-const router = useRouter()
+  const route = useRoute()
+  const router = useRouter()
 
-const loading = ref(true)
-const success = ref(false)
-const error = ref(false)
-const message = ref('')
-const hasToken = ref(false)
+  const loading = ref(true)
+  const success = ref(false)
+  const error = ref(false)
+  const message = ref('')
+  const hasToken = ref(false)
 
-const verifyToken = async () => {
-  // Extract token from URL query parameter
-  const token = route.query.token as string
+  async function verifyToken () {
+    // Extract token from URL query parameter
+    const token = route.query.token as string
 
-  if (!token) {
-    loading.value = false
-    hasToken.value = false
-    message.value = 'No token provided in the URL.'
-    return
-  }
-
-  hasToken.value = true
-
-  try {
-    const { data, error: apiError, response } = await verifyEmail({ body: { token } })
-
-    if (data) {
-      message.value = translate('SUCCESS_EMAIL_VERIFIED', undefined)
-      success.value = true
-    } else if (response.status === StatusCodes.BAD_REQUEST && apiError) {
-      error.value = true
-      const errorResponse = apiError as VerifyEmailErrorResponse
-      message.value = translate_error_code(errorResponse.error, undefined)
-    } else {
-      error.value = true
-      message.value = translate('INTERNAL', undefined)
+    if (!token) {
+      loading.value = false
+      hasToken.value = false
+      message.value = 'No token provided in the URL.'
+      return
     }
-  } catch (err) {
-    error.value = true
-    message.value = 'Cannot connect to the server. Please try again later.'
-  } finally {
-    loading.value = false
-  }
-}
 
-// Run verification when component mounts
-onMounted(() => {
-  verifyToken()
-})
+    hasToken.value = true
+
+    try {
+      const { data, error: apiError, response } = await verifyEmail({ body: { token } })
+
+      if (data) {
+        message.value = translate('SUCCESS_EMAIL_VERIFIED', undefined)
+        success.value = true
+      } else if (response.status === StatusCodes.BAD_REQUEST && apiError) {
+        error.value = true
+        const errorResponse = apiError as VerifyEmailErrorResponse
+        message.value = translate_error_code(errorResponse.error, undefined)
+      } else {
+        error.value = true
+        message.value = translate('INTERNAL', undefined)
+      }
+    } catch {
+      error.value = true
+      message.value = 'Cannot connect to the server. Please try again later.'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Run verification when component mounts
+  onMounted(() => {
+    verifyToken()
+  })
 </script>
 
 <style scoped>

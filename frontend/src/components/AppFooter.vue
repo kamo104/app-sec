@@ -1,14 +1,14 @@
 <template>
   <v-footer
     app
-    height="40"
     class="px-4"
+    height="40"
   >
     <div class="text-caption text-disabled">
       &copy; {{ (new Date()).getFullYear() }} MemeShark — The ocean of memes
     </div>
 
-    <v-spacer></v-spacer>
+    <v-spacer />
 
     <div class="text-caption text-disabled">
       Built with security in mind

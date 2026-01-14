@@ -1,23 +1,23 @@
+import { execSync } from 'node:child_process'
+import { existsSync, mkdirSync } from 'node:fs'
+import { fileURLToPath, URL } from 'node:url'
+import Vue from '@vitejs/plugin-vue'
 // Plugins
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import Layouts from 'vite-plugin-vue-layouts-next'
-import Vue from '@vitejs/plugin-vue'
-import VueRouter from 'unplugin-vue-router/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
-import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
+import VueRouter from 'unplugin-vue-router/vite'
 // Utilities
 import { defineConfig } from 'vite'
-import { fileURLToPath, URL } from 'node:url'
-import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import Layouts from 'vite-plugin-vue-layouts-next'
+import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // Custom plugin to build WebAssembly modules before build
-function wasmPlugin() {
+function wasmPlugin () {
   return {
     name: 'wasm-builder',
-    buildStart() {
+    buildStart () {
       const wasmDir = './src/wasm'
       if (!existsSync(wasmDir)) {
         mkdirSync(wasmDir, { recursive: true })
@@ -28,23 +28,23 @@ function wasmPlugin() {
         // Use wasm-pack to build the field-validator library
         execSync(
           'cd ../field-validator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name field-validator --release --features wasm --quiet',
-          { stdio: 'inherit' }
+          { stdio: 'inherit' },
         )
-        
+
         console.log('Building WebAssembly translator...')
         // Use wasm-pack to build the translator library
         execSync(
           'cd ../translator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name translator --release --features wasm --quiet',
-          { stdio: 'inherit' }
+          { stdio: 'inherit' },
         )
-        
+
         // Remove unnecessary files
         execSync('rm -f ../frontend/src/wasm/package.json ../frontend/src/wasm/.gitignore ../frontend/src/wasm/README.md', { stdio: 'ignore' })
         console.log('WebAssembly modules built successfully')
       } catch (error) {
         console.warn('Could not build WebAssembly module:', (error as Error).message)
       }
-    }
+    },
   }
 }
 

@@ -1,11 +1,11 @@
 <template>
   <div class="auth-forgot-password-wrapper">
     <v-btn
-      variant="text"
+      class="auth-forgot-password-button"
       color="info"
       size="small"
-      class="auth-forgot-password-button"
       to="/forgot-password"
+      variant="text"
     >
       {{ label }}
     </v-btn>
@@ -13,21 +13,21 @@
 </template>
 
 <script setup lang="ts">
-interface Props {
-  label?: string
-}
+  interface Props {
+    label?: string
+  }
 
-const props = withDefaults(defineProps<Props>(), {
-  label: 'Forgot your password?',
-})
+  const props = withDefaults(defineProps<Props>(), {
+    label: 'Forgot your password?',
+  })
 
-const emit = defineEmits<{
-  click: []
-}>()
+  const emit = defineEmits<{
+    click: []
+  }>()
 
-const handleClick = () => {
-  emit('click')
-}
+  function handleClick () {
+    emit('click')
+  }
 </script>
 
 <style scoped>

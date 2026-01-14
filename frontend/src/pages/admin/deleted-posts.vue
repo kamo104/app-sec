@@ -8,18 +8,18 @@
         </h1>
 
         <!-- Access denied for non-admins -->
-        <v-alert v-if="!authStore.isAdmin" type="error" class="mb-4">
+        <v-alert v-if="!authStore.isAdmin" class="mb-4" type="error">
           Access denied. Admin privileges required.
         </v-alert>
 
         <template v-else>
           <!-- Loading state -->
           <v-card v-if="loading" class="pa-8 text-center">
-            <v-progress-circular indeterminate color="primary" size="64" />
+            <v-progress-circular color="primary" indeterminate size="64" />
           </v-card>
 
           <!-- Error state -->
-          <v-alert v-else-if="error" type="error" class="mb-4">
+          <v-alert v-else-if="error" class="mb-4" type="error">
             {{ error }}
             <template #append>
               <v-btn variant="text" @click="fetchDeletedPosts">Retry</v-btn>
@@ -28,7 +28,7 @@
 
           <!-- Empty state -->
           <v-card v-else-if="posts.length === 0" class="pa-8 text-center">
-            <v-icon size="80" color="grey-lighten-1" class="mb-4">mdi-delete-empty</v-icon>
+            <v-icon class="mb-4" color="grey-lighten-1" size="80">mdi-delete-empty</v-icon>
             <h3 class="text-h6 text-grey">No deleted posts</h3>
             <p class="text-body-2 text-grey-darken-1">
               Posts that are deleted will appear here for restoration.
@@ -38,10 +38,10 @@
           <!-- Deleted posts table -->
           <v-card v-else>
             <v-data-table
+              class="elevation-1"
               :headers="headers"
               :items="posts"
               :items-per-page="10"
-              class="elevation-1"
             >
               <template #item.title="{ item }">
                 <div class="d-flex align-center">
@@ -56,10 +56,10 @@
               <template #item.actions="{ item }">
                 <v-btn
                   color="success"
-                  variant="tonal"
-                  size="small"
-                  prepend-icon="mdi-restore"
                   :loading="restoreLoading[item.postId]"
+                  prepend-icon="mdi-restore"
+                  size="small"
+                  variant="tonal"
                   @click="restorePost(item.postId)"
                 >
                   Restore
@@ -74,71 +74,71 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { listDeletedPosts, restorePost as apiRestorePost, type DeletedPostResponse } from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
+  import { onMounted, reactive, ref } from 'vue'
+  import { restorePost as apiRestorePost, type DeletedPostResponse, listDeletedPosts } from '@/api/client'
+  import { useAuthStore } from '@/stores/auth'
 
-const authStore = useAuthStore()
+  const authStore = useAuthStore()
 
-const posts = ref<DeletedPostResponse[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
-const restoreLoading = reactive<Record<number, boolean>>({})
+  const posts = ref<DeletedPostResponse[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  const restoreLoading = reactive<Record<number, boolean>>({})
 
-const headers = [
-  { title: 'ID', key: 'postId', width: '80px' },
-  { title: 'Title', key: 'title' },
-  { title: 'Author', key: 'username' },
-  { title: 'Created', key: 'createdAt' },
-  { title: 'Deleted', key: 'deletedAt' },
-  { title: 'Actions', key: 'actions', width: '140px', sortable: false },
-]
+  const headers = [
+    { title: 'ID', key: 'postId', width: '80px' },
+    { title: 'Title', key: 'title' },
+    { title: 'Author', key: 'username' },
+    { title: 'Created', key: 'createdAt' },
+    { title: 'Deleted', key: 'deletedAt' },
+    { title: 'Actions', key: 'actions', width: '140px', sortable: false },
+  ]
 
-const formatDate = (timestamp: number): string => {
-  return new Date(timestamp * 1000).toLocaleString()
-}
+  function formatDate (timestamp: number): string {
+    return new Date(timestamp * 1000).toLocaleString()
+  }
 
-const fetchDeletedPosts = async (): Promise<void> => {
-  loading.value = true
-  error.value = null
+  async function fetchDeletedPosts (): Promise<void> {
+    loading.value = true
+    error.value = null
 
-  try {
-    const { data, error: apiError } = await listDeletedPosts()
-    if (data) {
-      posts.value = data.posts
-    } else {
+    try {
+      const { data, error: apiError } = await listDeletedPosts()
+      if (data) {
+        posts.value = data.posts
+      } else {
+        error.value = 'Failed to load deleted posts'
+        console.error('Failed to load deleted posts:', apiError)
+      }
+    } catch (error_) {
       error.value = 'Failed to load deleted posts'
-      console.error('Failed to load deleted posts:', apiError)
+      console.error('Failed to load deleted posts:', error_)
+    } finally {
+      loading.value = false
     }
-  } catch (e) {
-    error.value = 'Failed to load deleted posts'
-    console.error('Failed to load deleted posts:', e)
-  } finally {
-    loading.value = false
   }
-}
 
-const restorePost = async (postId: number): Promise<void> => {
-  restoreLoading[postId] = true
+  async function restorePost (postId: number): Promise<void> {
+    restoreLoading[postId] = true
 
-  try {
-    const { error: apiError } = await apiRestorePost({ path: { post_id: postId } })
+    try {
+      const { error: apiError } = await apiRestorePost({ path: { post_id: postId } })
 
-    if (!apiError) {
-      posts.value = posts.value.filter(p => p.postId !== postId)
-    } else {
-      console.error('Failed to restore post:', apiError)
+      if (apiError) {
+        console.error('Failed to restore post:', apiError)
+      } else {
+        posts.value = posts.value.filter(p => p.postId !== postId)
+      }
+    } catch (error_) {
+      console.error('Failed to restore post:', error_)
+    } finally {
+      restoreLoading[postId] = false
     }
-  } catch (e) {
-    console.error('Failed to restore post:', e)
-  } finally {
-    restoreLoading[postId] = false
   }
-}
 
-onMounted(() => {
-  if (authStore.isAdmin) {
-    fetchDeletedPosts()
-  }
-})
+  onMounted(() => {
+    if (authStore.isAdmin) {
+      fetchDeletedPosts()
+    }
+  })
 </script>

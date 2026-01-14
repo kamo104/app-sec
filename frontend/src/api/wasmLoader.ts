@@ -9,8 +9,10 @@ import init_translator from '@/wasm/translator.js'
 
 let initialized = false
 
-export async function initializeWasm(): Promise<void> {
-  if (initialized) return
+export async function initializeWasm (): Promise<void> {
+  if (initialized) {
+    return
+  }
 
   await Promise.all([
     init_validator(),

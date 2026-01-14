@@ -1,11 +1,11 @@
 <template>
   <v-btn
-    type="submit"
-    color="primary"
-    size="large"
     block
-    :loading="loading"
+    color="primary"
     :disabled="loading || disabled"
+    :loading="loading"
+    size="large"
+    type="submit"
     @click="handleClick"
   >
     {{ label }}
@@ -13,19 +13,19 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
-  label: string
-  loading?: boolean
-  disabled?: boolean
-}>()
+  const props = defineProps<{
+    label: string
+    loading?: boolean
+    disabled?: boolean
+  }>()
 
-const emit = defineEmits<{
-  click: []
-}>()
+  const emit = defineEmits<{
+    click: []
+  }>()
 
-const handleClick = () => {
-  emit('click')
-}
+  function handleClick () {
+    emit('click')
+  }
 </script>
 
 <style scoped>

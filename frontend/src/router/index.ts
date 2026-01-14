@@ -4,9 +4,9 @@
  * Automatic routes for `./src/pages/*.vue`
  */
 
+import { setupLayouts } from 'virtual:generated-layouts'
 // Composables
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
 import { useAuthStore } from '@/stores/auth'
 
@@ -20,7 +20,7 @@ declare module 'vue-router' {
 }
 
 // Configure route metadata
-const configureRoutes = (routes: RouteRecordRaw[]): RouteRecordRaw[] => {
+function configureRoutes (routes: RouteRecordRaw[]): RouteRecordRaw[] {
   return routes.map(route => {
     // Guest-only routes (redirect to home if already logged in)
     if (['/login', '/register', '/forgot-password'].includes(route.path)) {
@@ -51,6 +51,11 @@ const router = createRouter({
   routes: setupLayouts(configureRoutes(routes)),
 })
 
+router.addRoute({
+  path: '/:pathMatch(.*)*',
+  redirect: '/',
+})
+
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
@@ -78,12 +83,10 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Check if route is guest-only (login, register, etc.)
-  if (to.meta.guestOnly) {
-    if (authStore.isAuthenticated && authStore.isSessionValid()) {
-      // Already logged in with valid session, redirect to home
-      next('/')
-      return
-    }
+  if (to.meta.guestOnly && authStore.isAuthenticated && authStore.isSessionValid()) {
+    // Already logged in with valid session, redirect to home
+    next('/')
+    return
   }
 
   // Allow navigation

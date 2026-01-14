@@ -8,18 +8,18 @@
         </h1>
 
         <!-- Access denied for non-admins -->
-        <v-alert v-if="!authStore.isAdmin" type="error" class="mb-4">
+        <v-alert v-if="!authStore.isAdmin" class="mb-4" type="error">
           Access denied. Admin privileges required.
         </v-alert>
 
         <template v-else>
           <!-- Loading state -->
           <v-card v-if="loading" class="pa-8 text-center">
-            <v-progress-circular indeterminate color="primary" size="64" />
+            <v-progress-circular color="primary" indeterminate size="64" />
           </v-card>
 
           <!-- Error state -->
-          <v-alert v-else-if="error" type="error" class="mb-4">
+          <v-alert v-else-if="error" class="mb-4" type="error">
             {{ error }}
             <template #append>
               <v-btn variant="text" @click="fetchUsers">Retry</v-btn>
@@ -29,33 +29,31 @@
           <!-- Users table -->
           <v-card v-else>
             <v-data-table
+              class="elevation-1"
               :headers="headers"
               :items="users"
               :items-per-page="10"
-              class="elevation-1"
             >
               <template #item.role="{ item }">
                 <v-select
-                  :model-value="item.role"
-                  :items="roleOptions"
                   density="compact"
-                  variant="outlined"
+                  :disabled="String(item.userId) === authStore.user?.username || roleLoading[item.userId]"
                   hide-details
-                  :disabled="item.userId === authStore.user?.username || roleLoading[item.userId]"
+                  :items="roleOptions"
+                  :model-value="item.role"
                   style="max-width: 120px;"
-                  @update:model-value="(newRole: string) => updateRole(item.userId, newRole as 'user' | 'admin')"
+                  variant="outlined"
+                  @update:model-value="(newRole: string) => updateRole(String(item.userId), newRole as 'user' | 'admin')"
                 />
               </template>
 
-
-
               <template #item.actions="{ item }">
                 <v-btn
-                  icon="mdi-delete"
-                  variant="text"
                   color="error"
+                  :disabled="String(item.userId) === authStore.user?.username"
+                  icon="mdi-delete"
                   size="small"
-                  :disabled="item.userId === authStore.user?.username"
+                  variant="text"
                   @click="confirmDelete(item)"
                 />
               </template>
@@ -76,7 +74,7 @@
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="deleteLoading" @click="deleteUserConfirmed">
+          <v-btn color="error" :loading="deleteLoading" variant="flat" @click="deleteUserConfirmed">
             Delete
           </v-btn>
         </v-card-actions>
@@ -86,108 +84,106 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { listUsers, updateUserRole, deleteUser as apiDeleteUser, type UserInfoResponse } from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
+  import { onMounted, reactive, ref } from 'vue'
+  import { deleteUser as apiDeleteUser, listUsers, updateUserRole, type UserInfoResponse } from '@/api/client'
+  import { useAuthStore } from '@/stores/auth'
 
-const authStore = useAuthStore()
+  const authStore = useAuthStore()
 
-const users = ref<UserInfoResponse[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
-const roleLoading = reactive<Record<number, boolean>>({})
-const deleteDialog = ref(false)
-const deleteLoading = ref(false)
-const userToDelete = ref<UserInfoResponse | null>(null)
+  const users = ref<UserInfoResponse[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  const roleLoading = reactive<Record<string | number, boolean>>({})
+  const deleteDialog = ref(false)
+  const deleteLoading = ref(false)
+  const userToDelete = ref<UserInfoResponse | null>(null)
 
-const headers = [
-  { title: 'ID', key: 'userId', width: '80px' },
-  { title: 'Username', key: 'username' },
-  { title: 'Email', key: 'email' },
-  { title: 'Role', key: 'role' },
-  { title: 'Actions', key: 'actions', width: '100px', sortable: false },
-]
+  const headers = [
+    { title: 'ID', key: 'userId', width: '80px' },
+    { title: 'Username', key: 'username' },
+    { title: 'Email', key: 'email' },
+    { title: 'Role', key: 'role' },
+    { title: 'Actions', key: 'actions', width: '100px', sortable: false },
+  ]
 
-const roleOptions = [
-  { title: 'User', value: 'user' },
-  { title: 'Admin', value: 'admin' },
-]
+  const roleOptions = [
+    { title: 'User', value: 'user' },
+    { title: 'Admin', value: 'admin' },
+  ]
 
+  async function fetchUsers (): Promise<void> {
+    loading.value = true
+    error.value = null
 
-
-const fetchUsers = async (): Promise<void> => {
-  loading.value = true
-  error.value = null
-
-  try {
-    const { data, error: apiError } = await listUsers()
-    if (data) {
-      users.value = data.users
-    } else {
-      error.value = 'Failed to load users'
-      console.error('Failed to load users:', apiError)
-    }
-  } catch (e) {
-    error.value = 'Failed to load users'
-    console.error('Failed to load users:', e)
-  } finally {
-    loading.value = false
-  }
-}
-
-const updateRole = async (userId: number, newRole: 'user' | 'admin'): Promise<void> => {
-  roleLoading[userId] = true
-
-  try {
-    const { error: apiError } = await updateUserRole({
-      path: { user_id: userId },
-      body: { role: newRole },
-    })
-
-    if (!apiError) {
-      const user = users.value.find(u => u.userId === userId)
-      if (user) {
-        user.role = newRole
+    try {
+      const { data, error: apiError } = await listUsers()
+      if (data) {
+        users.value = data.users
+      } else {
+        error.value = 'Failed to load users'
+        console.error('Failed to load users:', apiError)
       }
-    } else {
-      console.error('Failed to update role:', apiError)
+    } catch (error_) {
+      error.value = 'Failed to load users'
+      console.error('Failed to load users:', error_)
+    } finally {
+      loading.value = false
     }
-  } catch (e) {
-    console.error('Failed to update role:', e)
-  } finally {
-    roleLoading[userId] = false
   }
-}
 
-const confirmDelete = (user: UserInfoResponse): void => {
-  userToDelete.value = user
-  deleteDialog.value = true
-}
+  async function updateRole (userId: string, newRole: 'user' | 'admin'): Promise<void> {
+    roleLoading[userId] = true
 
-const deleteUserConfirmed = async (): Promise<void> => {
-  if (!userToDelete.value) return
+    try {
+      const { error: apiError } = await updateUserRole({
+        path: { user_id: Number(userId) },
+        body: { role: newRole },
+      })
 
-  deleteLoading.value = true
-
-  try {
-    const { error: apiError } = await apiDeleteUser({ path: { user_id: userToDelete.value.userId } })
-
-    if (!apiError) {
-      users.value = users.value.filter(u => u.userId !== userToDelete.value!.userId)
-      deleteDialog.value = false
-    } else {
-      console.error('Failed to delete user:', apiError)
+      if (apiError) {
+        console.error('Failed to update role:', apiError)
+      } else {
+        const user = users.value.find(u => String(u.userId) === userId)
+        if (user) {
+          user.role = newRole
+        }
+      }
+    } catch (error_) {
+      console.error('Failed to update role:', error_)
+    } finally {
+      roleLoading[userId] = false
     }
-  } catch (e) {
-    console.error('Failed to delete user:', e)
-  } finally {
-    deleteLoading.value = false
   }
-}
 
-onMounted(() => {
-  if (authStore.isAdmin) {
-    fetchUsers()
+  function confirmDelete (user: UserInfoResponse): void {
+    userToDelete.value = user
+    deleteDialog.value = true
   }
-})
+
+  async function deleteUserConfirmed (): Promise<void> {
+    if (!userToDelete.value) return
+
+    deleteLoading.value = true
+
+    try {
+      const { error: apiError } = await apiDeleteUser({ path: { user_id: Number(userToDelete.value!.userId) } })
+
+      if (apiError) {
+        console.error('Failed to delete user:', apiError)
+      } else {
+        users.value = users.value.filter(u => String(u.userId) !== String(userToDelete.value!.userId))
+        deleteDialog.value = false
+      }
+    } catch (error_) {
+      console.error('Failed to delete user:', error_)
+    } finally {
+      deleteLoading.value = false
+    }
+  }
+
+  onMounted(() => {
+    if (authStore.isAdmin) {
+      fetchUsers()
+    }
+  })
 </script>

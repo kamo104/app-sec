@@ -2,22 +2,22 @@
   <v-container class="py-4">
     <!-- Back button -->
     <v-btn
-      variant="text"
+      class="mb-4"
       color="primary"
       prepend-icon="mdi-arrow-left"
-      class="mb-4"
       to="/"
+      variant="text"
     >
       Back to Feed
     </v-btn>
 
     <!-- Loading state -->
-    <v-row v-if="loading" justify="center" class="py-8">
-      <v-progress-circular indeterminate color="primary" size="64" />
+    <v-row v-if="loading" class="py-8" justify="center">
+      <v-progress-circular color="primary" indeterminate size="64" />
     </v-row>
 
     <!-- Error state -->
-    <v-alert v-else-if="error" type="error" class="mb-4">
+    <v-alert v-else-if="error" class="mb-4" type="error">
       {{ error }}
       <template #append>
         <v-btn variant="text" @click="fetchPost">Retry</v-btn>
@@ -32,14 +32,14 @@
           <v-card>
             <!-- Post image -->
             <v-img
-              :src="post.imageUrl"
-              max-height="600"
-              contain
               class="bg-grey-lighten-3"
+              contain
+              max-height="600"
+              :src="post.imageUrl"
             >
               <template #placeholder>
-                <v-row class="fill-height ma-0" align="center" justify="center">
-                  <v-progress-circular indeterminate color="grey-lighten-1" />
+                <v-row align="center" class="fill-height ma-0" justify="center">
+                  <v-progress-circular color="grey-lighten-1" indeterminate />
                 </v-row>
               </template>
             </v-img>
@@ -62,7 +62,7 @@
             <!-- Actions bar -->
             <v-card-actions>
               <!-- Rating buttons -->
-              <v-btn-group variant="outlined" divided>
+              <v-btn-group divided variant="outlined">
                 <v-btn
                   :color="post.userRating === 1 ? 'success' : undefined"
                   :disabled="!authStore.isAuthenticated || ratingLoading"
@@ -71,7 +71,7 @@
                   <v-icon start>mdi-thumb-up</v-icon>
                   Upvote
                 </v-btn>
-                <v-btn disabled variant="text" class="px-2">
+                <v-btn class="px-2" disabled variant="text">
                   {{ post.score }}
                 </v-btn>
                 <v-btn
@@ -89,18 +89,18 @@
               <!-- Owner/Admin actions -->
               <template v-if="canEdit">
                 <v-btn
-                  variant="text"
                   color="primary"
                   prepend-icon="mdi-pencil"
                   :to="`/posts/${post.postId}/edit`"
+                  variant="text"
                 >
                   Edit
                 </v-btn>
                 <v-btn
-                  variant="text"
                   color="error"
-                  prepend-icon="mdi-delete"
                   :loading="deleteLoading"
+                  prepend-icon="mdi-delete"
+                  variant="text"
                   @click="confirmDelete"
                 >
                   Delete
@@ -122,18 +122,18 @@
             <v-card-text v-if="authStore.isAuthenticated">
               <v-textarea
                 v-model="newComment"
-                variant="outlined"
-                label="Add a comment..."
-                rows="2"
+                counter
                 :disabled="commentLoading"
                 :error-messages="commentError"
-                counter
+                label="Add a comment..."
                 maxlength="1000"
+                rows="2"
+                variant="outlined"
               />
               <v-btn
                 color="primary"
-                :loading="commentLoading"
                 :disabled="!newComment.trim()"
+                :loading="commentLoading"
                 @click="submitComment"
               >
                 Post Comment
@@ -170,10 +170,10 @@
                 <template #append>
                   <v-btn
                     v-if="canDeleteComment(comment)"
-                    icon="mdi-delete"
-                    variant="text"
                     color="error"
+                    icon="mdi-delete"
                     size="small"
+                    variant="text"
                     @click="deleteComment(comment.commentId)"
                   />
                 </template>
@@ -234,7 +234,7 @@
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="deleteLoading" @click="deletePostConfirmed">
+          <v-btn color="error" :loading="deleteLoading" variant="flat" @click="deletePostConfirmed">
             Delete
           </v-btn>
         </v-card-actions>
@@ -244,203 +244,203 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import {
-  getPost,
-  listComments,
-  createComment,
-  deleteComment as apiDeleteComment,
-  ratePost as apiRatePost,
-  removeRating,
-  deletePost as apiDeletePost,
-  type PostResponse,
-  type CommentResponse,
-} from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
+  import { computed, onMounted, ref } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
+  import {
+    deleteComment as apiDeleteComment,
+    deletePost as apiDeletePost,
+    ratePost as apiRatePost,
+    type CommentResponse,
+    createComment,
+    getPost,
+    listComments,
+    type PostResponse,
+    removeRating,
+  } from '@/api/client'
+  import { useAuthStore } from '@/stores/auth'
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
+  const route = useRoute()
+  const router = useRouter()
+  const authStore = useAuthStore()
 
-const postId = computed(() => {
-  const id = route.params.id
-  return typeof id === 'string' ? Number(id) : 0
-})
+  const postId = computed(() => {
+    const id = (route.params as { id?: string }).id
+    return id ? Number(id) : 0
+  })
 
-const post = ref<PostResponse | null>(null)
-const comments = ref<CommentResponse[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+  const post = ref<PostResponse | null>(null)
+  const comments = ref<CommentResponse[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-const newComment = ref('')
-const commentLoading = ref(false)
-const commentError = ref<string | null>(null)
+  const newComment = ref('')
+  const commentLoading = ref(false)
+  const commentError = ref<string | null>(null)
 
-const ratingLoading = ref(false)
-const deleteLoading = ref(false)
-const deleteDialog = ref(false)
+  const ratingLoading = ref(false)
+  const deleteLoading = ref(false)
+  const deleteDialog = ref(false)
 
-const canEdit = computed(() => {
-  if (!post.value || !authStore.user) return false
-  return post.value.userId === authStore.user.userId || authStore.isAdmin
-})
+  const canEdit = computed(() => {
+    if (!post.value || !authStore.user) return false
+    return post.value.username === authStore.user.username || authStore.isAdmin
+  })
 
-const canDeleteComment = (comment: CommentResponse): boolean => {
-  if (!authStore.user) return false
-  return comment.username === authStore.user.username || authStore.isAdmin
-}
+  function canDeleteComment (comment: CommentResponse): boolean {
+    if (!authStore.user) return false
+    return comment.username === authStore.user.username || authStore.isAdmin
+  }
 
-const formatDate = (timestamp: number): string => {
-  const date = new Date(timestamp * 1000)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
+  function formatDate (timestamp: number): string {
+    const date = new Date(timestamp * 1000)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60_000)
+    const diffHours = Math.floor(diffMs / 3_600_000)
+    const diffDays = Math.floor(diffMs / 86_400_000)
 
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
-}
+    if (diffMins < 1) return 'just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString()
+  }
 
-const fetchPost = async (): Promise<void> => {
-  loading.value = true
-  error.value = null
+  async function fetchPost (): Promise<void> {
+    loading.value = true
+    error.value = null
 
-  try {
-    const { data, error: apiError } = await getPost({ path: { post_id: postId.value } })
-    if (data) {
-      post.value = data
-    } else {
+    try {
+      const { data, error: apiError } = await getPost({ path: { post_id: postId.value } })
+      if (data) {
+        post.value = data
+      } else {
+        error.value = 'Failed to load post'
+        console.error('Failed to load post:', apiError)
+      }
+    } catch (error_) {
       error.value = 'Failed to load post'
-      console.error('Failed to load post:', apiError)
+      console.error('Failed to load post:', error_)
+    } finally {
+      loading.value = false
     }
-  } catch (e) {
-    error.value = 'Failed to load post'
-    console.error('Failed to load post:', e)
-  } finally {
-    loading.value = false
   }
-}
 
-const fetchComments = async (): Promise<void> => {
-  try {
-    const { data } = await listComments({ path: { post_id: postId.value } })
-    if (data) {
-      comments.value = data.comments
-    }
-  } catch (e) {
-    console.error('Failed to load comments:', e)
-  }
-}
-
-const submitComment = async (): Promise<void> => {
-  if (!newComment.value.trim()) return
-
-  commentLoading.value = true
-  commentError.value = null
-
-  try {
-    const { data, error: apiError } = await createComment({
-      path: { post_id: postId.value },
-      body: { content: newComment.value.trim() },
-    })
-
-    if (data) {
-      newComment.value = ''
-      await fetchComments()
-      if (post.value) {
-        post.value.commentCount++
+  async function fetchComments (): Promise<void> {
+    try {
+      const { data } = await listComments({ path: { post_id: postId.value } })
+      if (data) {
+        comments.value = data.comments
       }
-    } else {
-      commentError.value = 'Failed to post comment'
-      console.error('Failed to post comment:', apiError)
+    } catch (error_) {
+      console.error('Failed to load comments:', error_)
     }
-  } catch (e) {
-    commentError.value = 'Failed to post comment'
-    console.error('Failed to post comment:', e)
-  } finally {
-    commentLoading.value = false
   }
-}
 
-const deleteComment = async (commentId: number): Promise<void> => {
-  try {
-    const { error: apiError } = await apiDeleteComment({ path: { comment_id: commentId } })
-    if (!apiError) {
-      comments.value = comments.value.filter(c => c.commentId !== commentId)
-      if (post.value) {
-        post.value.commentCount--
-      }
-    }
-  } catch (e) {
-    console.error('Failed to delete comment:', e)
-  }
-}
+  async function submitComment (): Promise<void> {
+    if (!newComment.value.trim()) return
 
-const ratePost = async (value: 1 | -1): Promise<void> => {
-  if (!post.value) return
+    commentLoading.value = true
+    commentError.value = null
 
-  ratingLoading.value = true
-
-  try {
-    // If clicking same rating, remove it
-    if (post.value.userRating === value) {
-      const { error: apiError } = await removeRating({ path: { post_id: postId.value } })
-      if (!apiError) {
-        post.value.score -= value
-        post.value.userRating = null
-      }
-    } else {
-      const { error: apiError } = await apiRatePost({
+    try {
+      const { data, error: apiError } = await createComment({
         path: { post_id: postId.value },
-        body: { value },
+        body: { content: newComment.value.trim() },
       })
-      if (!apiError) {
-        // Adjust score based on previous rating
-        if (post.value.userRating !== null && post.value.userRating !== undefined) {
-          post.value.score -= post.value.userRating
+
+      if (data) {
+        newComment.value = ''
+        await fetchComments()
+        if (post.value) {
+          post.value.commentCount++
         }
-        post.value.score += value
-        post.value.userRating = value
+      } else {
+        commentError.value = 'Failed to post comment'
+        console.error('Failed to post comment:', apiError)
       }
+    } catch (error_) {
+      commentError.value = 'Failed to post comment'
+      console.error('Failed to post comment:', error_)
+    } finally {
+      commentLoading.value = false
     }
-  } catch (e) {
-    console.error('Failed to rate post:', e)
-  } finally {
-    ratingLoading.value = false
   }
-}
 
-const confirmDelete = (): void => {
-  deleteDialog.value = true
-}
-
-const deletePostConfirmed = async (): Promise<void> => {
-  if (!post.value) return
-
-  deleteLoading.value = true
-
-  try {
-    const { error: apiError } = await apiDeletePost({ path: { post_id: postId.value } })
-    if (!apiError) {
-      router.push('/')
-    } else {
-      console.error('Failed to delete post:', apiError)
+  async function deleteComment (commentId: number): Promise<void> {
+    try {
+      const { error: apiError } = await apiDeleteComment({ path: { comment_id: commentId } })
+      if (!apiError) {
+        comments.value = comments.value.filter(c => c.commentId !== commentId)
+        if (post.value) {
+          post.value.commentCount--
+        }
+      }
+    } catch (error_) {
+      console.error('Failed to delete comment:', error_)
     }
-  } catch (e) {
-    console.error('Failed to delete post:', e)
-  } finally {
-    deleteLoading.value = false
-    deleteDialog.value = false
   }
-}
 
-onMounted(() => {
-  fetchPost()
-  fetchComments()
-})
+  async function ratePost (value: 1 | -1): Promise<void> {
+    if (!post.value) return
+
+    ratingLoading.value = true
+
+    try {
+      // If clicking same rating, remove it
+      if (post.value.userRating === value) {
+        const { error: apiError } = await removeRating({ path: { post_id: postId.value } })
+        if (!apiError) {
+          post.value.score -= value
+          post.value.userRating = null
+        }
+      } else {
+        const { error: apiError } = await apiRatePost({
+          path: { post_id: postId.value },
+          body: { value },
+        })
+        if (!apiError) {
+          // Adjust score based on previous rating
+          if (post.value.userRating !== null && post.value.userRating !== undefined) {
+            post.value.score -= post.value.userRating
+          }
+          post.value.score += value
+          post.value.userRating = value
+        }
+      }
+    } catch (error_) {
+      console.error('Failed to rate post:', error_)
+    } finally {
+      ratingLoading.value = false
+    }
+  }
+
+  function confirmDelete (): void {
+    deleteDialog.value = true
+  }
+
+  async function deletePostConfirmed (): Promise<void> {
+    if (!post.value) return
+
+    deleteLoading.value = true
+
+    try {
+      const { error: apiError } = await apiDeletePost({ path: { post_id: postId.value } })
+      if (apiError) {
+        console.error('Failed to delete post:', apiError)
+      } else {
+        router.push('/')
+      }
+    } catch (error_) {
+      console.error('Failed to delete post:', error_)
+    } finally {
+      deleteLoading.value = false
+      deleteDialog.value = false
+    }
+  }
+
+  onMounted(() => {
+    fetchPost()
+    fetchComments()
+  })
 </script>

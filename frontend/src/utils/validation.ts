@@ -4,17 +4,17 @@
  */
 
 import {
-  validate_field,
-  validate_password_detailed,
-  validate_image_size,
-  validate_image_mime,
-  get_post_title_max_length,
-  get_post_description_max_length,
-  get_image_allowed_mime_types,
-  type ValidationFieldError,
-  type ValidationDetailedPasswordData,
   type FieldType,
+  get_image_allowed_mime_types,
+  get_post_description_max_length,
+  get_post_title_max_length,
+  validate_field,
+  validate_image_mime,
+  validate_image_size,
+  validate_password_detailed,
+  type ValidationDetailedPasswordData,
   type ValidationErrorCode,
+  type ValidationFieldError,
 } from '@/wasm/field-validator.js'
 import { translate_field_validation_error } from '@/wasm/translator.js'
 

@@ -22,7 +22,7 @@ export const PAGINATION = {
 // API constants
 export const API = {
   MAX_RETRIES: 3,
-  TIMEOUT: 30000, // 30 seconds
+  TIMEOUT: 30_000, // 30 seconds
   BASE_URL: import.meta.env.VITE_API_BASE_URL || '/api',
 } as const
 

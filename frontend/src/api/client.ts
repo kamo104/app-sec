@@ -4,13 +4,13 @@
  * Configures the generated OpenAPI client with base URL and credentials.
  */
 
-import { client } from '@/generated/api-client/sdk.gen';
+import { client } from '@/generated/api-client/sdk.gen'
 
 // Configure the client
 client.setConfig({
   baseUrl: 'http://localhost:4000',
   credentials: 'include',
-});
+})
 
 // Re-export everything from the generated client for convenience
-export * from '@/generated/api-client';
+export * from '@/generated/api-client'
