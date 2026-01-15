@@ -20,6 +20,8 @@ Move to config.toml:
   - DB_KEY_ENV_VAR (add _NAME)
   - CLEANUP_INTERVAL_SECONDS
 
+Move away from using clap and cli argument parsing in favor of config.toml.
+
 Add ssl cert handling. (ca.crt, privkey.pem) (use use axum_server::tls_rustls::RustlsConfig; to implement it in the backend)
 Configure HSTS.
 Don't hardcode localhost in the frontend - just make requests to the same site it's served from.
