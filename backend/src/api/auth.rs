@@ -53,41 +53,50 @@ pub async fn refresh_session(
     debug!("Refreshing session for user: {}", auth.user.username);
 
     let new_expiry = OffsetDateTime::now_utc() + time::Duration::days(SESSION_DURATION_DAYS);
-
-    match db
-        .user_sessions_table
-        .update_expiry(&auth.session.session_hash, new_expiry)
-        .await
-    {
-        Ok(_) => {
-            debug!(
-                "Session refreshed successfully for user: {}",
-                auth.user.username
-            );
-            let cookie =
-                create_session_cookie(generate_session_token(), Some(new_expiry), db.is_dev);
-            cookies.add(cookie);
-            (
-                StatusCode::OK,
-                Json(AuthSessionResponse {
-                    username: auth.user.username,
-                    email: auth.user.email,
-                    role: auth.user.role,
-                    session_expires_at: new_expiry.unix_timestamp(),
-                    session_created_at: auth.session.session_created_at.unix_timestamp(),
-                }),
-            )
-                .into_response()
-        }
+    let token = generate_session_token();
+    let token_hash = match hash_token(token.as_str()) {
+        Ok(hash) => hash,
         Err(e) => {
-            error!("Failed to refresh session: {:?}", e);
-            (
+            error!("Failed to hash token: {:?}", e);
+            return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(AuthErrorResponse {
                     error: AuthError::Internal,
                 }),
             )
-                .into_response()
+                .into_response();
         }
-    }
+    };
+    if let Err(e) = db
+        .user_sessions_table
+        .update_session(&auth.session.session_hash, new_expiry, token_hash.as_str())
+        .await
+    {
+        error!("Failed to refresh session: {:?}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(AuthErrorResponse {
+                error: AuthError::Internal,
+            }),
+        )
+            .into_response();
+    };
+
+    debug!(
+        "Session refreshed successfully for user: {}",
+        auth.user.username
+    );
+    let cookie = create_session_cookie(token, Some(new_expiry), db.is_dev);
+    cookies.add(cookie);
+    (
+        StatusCode::OK,
+        Json(AuthSessionResponse {
+            username: auth.user.username,
+            email: auth.user.email,
+            role: auth.user.role,
+            session_expires_at: new_expiry.unix_timestamp(),
+            session_created_at: auth.session.session_created_at.unix_timestamp(),
+        }),
+    )
+        .into_response()
 }

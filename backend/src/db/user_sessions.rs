@@ -101,16 +101,18 @@ impl UserSessionsTable {
         Ok(())
     }
 
-    pub async fn update_expiry(
+    pub async fn update_session(
         &self,
         session_hash: &str,
         new_expiry: OffsetDateTime,
+        new_session_hash: &str,
     ) -> Result<()> {
         sqlx::query(formatcp!(
-            "UPDATE {} SET session_expiry = $1 WHERE session_hash = $2",
+            "UPDATE {} SET session_expiry = $1, session_hash = $2 WHERE session_hash = $3",
             UserSessionsTable::TABLE_NAME
         ))
         .bind(new_expiry)
+        .bind(new_session_hash)
         .bind(session_hash)
         .execute(&self.conn_pool)
         .await?;
