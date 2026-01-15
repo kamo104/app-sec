@@ -1,6 +1,6 @@
 <template>
   <v-app-bar density="compact" flat>
-    <v-container class="d-flex align-center">
+    <v-container fluid class="d-flex align-center pl-4 pr-4">
       <!-- Logo/Brand -->
       <router-link class="text-decoration-none d-flex align-center" to="/">
         <v-icon class="mr-2" color="primary" size="28">mdi-shark-fin</v-icon>
@@ -91,7 +91,7 @@
     <router-view />
   </v-main>
 
-  <AppFooter />
+  <!-- <AppFooter /> -->
 </template>
 
 <script lang="ts" setup>
