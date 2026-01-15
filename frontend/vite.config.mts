@@ -14,44 +14,42 @@ import Layouts from 'vite-plugin-vue-layouts-next'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // Custom plugin to build WebAssembly modules before build
-function wasmPlugin () {
-  return {
-    name: 'wasm-builder',
-    buildStart () {
-      const wasmDir = './src/wasm'
-      if (!existsSync(wasmDir)) {
-        mkdirSync(wasmDir, { recursive: true })
-      }
+// function wasmPlugin () {
+//   return {
+//     name: 'wasm-builder',
+//     buildStart () {
+//       const wasmDir = './src/wasm'
+//       if (!existsSync(wasmDir)) {
+//         mkdirSync(wasmDir, { recursive: true })
+//       }
 
-      try {
-        console.log('Building WebAssembly field validator...')
-        // Use wasm-pack to build the field-validator library
-        execSync(
-          'cd ../field-validator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name field-validator --release --features wasm --quiet',
-          { stdio: 'inherit' },
-        )
+//       try {
+//         console.log('Building WebAssembly field validator...')
+//         // Use wasm-pack to build the field-validator library
+//         execSync(
+//           'cd ../field-validator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name field-validator --release --features wasm --quiet',
+//           { stdio: 'inherit' },
+//         )
 
-        console.log('Building WebAssembly translator...')
-        // Use wasm-pack to build the translator library
-        execSync(
-          'cd ../translator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name translator --release --features wasm --quiet',
-          { stdio: 'inherit' },
-        )
+//         console.log('Building WebAssembly translator...')
+//         // Use wasm-pack to build the translator library
+//         execSync(
+//           'cd ../translator && wasm-pack build --target web --out-dir ../frontend/src/wasm --out-name translator --release --features wasm --quiet',
+//           { stdio: 'inherit' },
+//         )
 
-        // Remove unnecessary files
-        execSync('rm -f ../frontend/src/wasm/package.json ../frontend/src/wasm/.gitignore ../frontend/src/wasm/README.md', { stdio: 'ignore' })
-        console.log('WebAssembly modules built successfully')
-      } catch (error) {
-        console.warn('Could not build WebAssembly module:', (error as Error).message)
-      }
-    },
-  }
-}
+//         console.log('WebAssembly modules built successfully')
+//       } catch (error) {
+//         console.warn('Could not build WebAssembly module:', (error as Error).message)
+//       }
+//     },
+//   }
+// }
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    wasmPlugin(),
+    // wasmPlugin(),
     VueRouter({
       dts: 'src/typed-router.d.ts',
     }),
