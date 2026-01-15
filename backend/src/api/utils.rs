@@ -21,7 +21,7 @@ pub fn create_session_cookie(
     cookie.set_path("/");
     cookie.set_http_only(true);
     cookie.set_secure(!is_dev);
-    cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
+    cookie.set_same_site(tower_cookies::cookie::SameSite::Strict);
     if let Some(expiry) = expires_at {
         cookie.set_expires(Some(expiry.into()));
     }

@@ -6,7 +6,7 @@ use tracing::{debug, error};
 
 use super::auth_extractor::AuthenticatedUser;
 use super::utils::{SESSION_DURATION_DAYS, create_session_cookie};
-use crate::db::{DBHandle, hash_token};
+use crate::db::{DBHandle, generate_session_token, hash_token};
 use api_types::{AuthError, AuthErrorResponse, AuthSessionResponse};
 
 // Note: utoipa proc macros require literal integers for status codes.
@@ -52,33 +52,11 @@ pub async fn refresh_session(
 ) -> impl IntoResponse {
     debug!("Refreshing session for user: {}", auth.user.username);
 
-    let token = match cookies.get("session_token") {
-        Some(t) => t,
-        None => {
-            error!("No session token found in refresh request");
-            return (StatusCode::UNAUTHORIZED, Json(AuthErrorResponse::default())).into_response();
-        }
-    };
-
-    let session_hash = match hash_token(token.value()) {
-        Ok(hash) => hash,
-        Err(e) => {
-            error!("Failed to hash session token: {:?}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(AuthErrorResponse {
-                    error: AuthError::Internal,
-                }),
-            )
-                .into_response();
-        }
-    };
-
     let new_expiry = OffsetDateTime::now_utc() + time::Duration::days(SESSION_DURATION_DAYS);
 
     match db
         .user_sessions_table
-        .update_expiry(&session_hash, new_expiry)
+        .update_expiry(&auth.session.session_hash, new_expiry)
         .await
     {
         Ok(_) => {
@@ -86,11 +64,9 @@ pub async fn refresh_session(
                 "Session refreshed successfully for user: {}",
                 auth.user.username
             );
-
             let cookie =
-                create_session_cookie(token.value().to_string(), Some(new_expiry), db.is_dev);
+                create_session_cookie(generate_session_token(), Some(new_expiry), db.is_dev);
             cookies.add(cookie);
-
             (
                 StatusCode::OK,
                 Json(AuthSessionResponse {
