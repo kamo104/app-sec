@@ -11,14 +11,15 @@ use tower_cookies::Cookies;
 use tracing::{debug, error};
 
 use super::auth_extractor::AuthenticatedUser;
-use crate::db::{DBHandle, Post, hash_token};
+use crate::{
+    config::Config,
+    db::{DBHandle, Post, hash_token},
+};
 use api_types::{
     AuthErrorResponse, CreatePostMultipart, CreatePostResponse, PaginationQuery, PostError,
     PostErrorResponse, PostListResponse, PostResponse, SearchQuery, UpdatePostRequest,
     ValidationErrorData,
 };
-
-const UPLOADS_DIR: &str = "uploads";
 
 /// Try to get user_id from session cookie without requiring authentication
 async fn get_optional_user_id(db: &DBHandle, cookies: &Cookies) -> Option<i64> {
@@ -233,6 +234,7 @@ pub async fn get_post(
 )]
 pub async fn create_post(
     State(db): State<Arc<DBHandle>>,
+    State(config): State<Config>,
     auth: AuthenticatedUser,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
@@ -329,7 +331,7 @@ pub async fn create_post(
     );
 
     // Create uploads directory if it doesn't exist
-    let uploads_path = std::path::Path::new(UPLOADS_DIR);
+    let uploads_path = std::path::Path::new(config.server.uploads_folder.as_str());
     if !uploads_path.exists() {
         if let Err(e) = std::fs::create_dir_all(uploads_path) {
             error!("Failed to create uploads directory: {:?}", e);
@@ -523,7 +525,11 @@ pub async fn delete_post(
     ),
     tag = "posts"
 )]
-pub async fn get_post_image(State(db): State<Arc<DBHandle>>, Path(post_id): Path<i64>) -> Response {
+pub async fn get_post_image(
+    State(db): State<Arc<DBHandle>>,
+    State(config): State<Config>,
+    Path(post_id): Path<i64>,
+) -> Response {
     // Only serve images for non-deleted posts
     let post = match db.posts_table.get_visible_by_id(post_id).await {
         Ok(p) => p,
@@ -536,7 +542,8 @@ pub async fn get_post_image(State(db): State<Arc<DBHandle>>, Path(post_id): Path
         }
     };
 
-    let file_path = std::path::Path::new(UPLOADS_DIR).join(&post.image_path);
+    let file_path =
+        std::path::Path::new(config.server.uploads_folder.as_str()).join(&post.image_path);
 
     match std::fs::read(&file_path) {
         Ok(data) => {

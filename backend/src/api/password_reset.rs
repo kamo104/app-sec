@@ -3,7 +3,8 @@ use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
 
-use super::utils::{BASE_URL_DEV, BASE_URL_PROD, PASSWORD_RESET_TOKEN_DURATION_HOURS};
+use super::utils::get_base_url;
+use crate::config::Config;
 use crate::db::{DBHandle, generate_verification_token, hash_token};
 use crate::email::EmailSender;
 use api_types::{
@@ -25,6 +26,7 @@ use api_types::{
 )]
 pub async fn request_password_reset(
     State(db): State<Arc<DBHandle>>,
+    State(config): State<Config>,
     Json(payload): Json<PasswordResetRequest>,
 ) -> impl IntoResponse {
     debug!("Received password reset request for '{}'", payload.email);
@@ -50,8 +52,8 @@ pub async fn request_password_reset(
         }
     };
 
-    let expires_at =
-        OffsetDateTime::now_utc() + time::Duration::hours(PASSWORD_RESET_TOKEN_DURATION_HOURS);
+    let expires_at = OffsetDateTime::now_utc()
+        + time::Duration::hours(config.token.password_reset_duration_hours);
 
     if let Err(e) = db
         .password_reset_tokens_table
@@ -71,13 +73,9 @@ pub async fn request_password_reset(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    let base_url = if db.is_dev {
-        BASE_URL_DEV
-    } else {
-        BASE_URL_PROD
-    };
+    let base_url = get_base_url(&config);
     let reset_link = format!("{}/reset-password?token={}", base_url, token);
-    let email_sender = EmailSender::new_mailhog();
+    let email_sender = EmailSender::new(&config);
 
     if let Err(e) = email_sender
         .send_password_reset_email(&user.email, &reset_link)

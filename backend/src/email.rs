@@ -2,9 +2,7 @@ use lettre::message::header::ContentType;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use tracing::{debug, error};
 
-const DEFAULT_SMTP_HOST: &str = "127.0.0.1";
-const SMTP_PORT: u16 = 1025;
-const SMTP_HOST_ENV_VAR: &str = "SMTP_HOST";
+use crate::config::Config;
 
 pub struct EmailSender {
     transport: AsyncSmtpTransport<Tokio1Executor>,
@@ -12,18 +10,17 @@ pub struct EmailSender {
 }
 
 impl EmailSender {
-    pub fn new_mailhog() -> Self {
-        let smtp_host =
-            std::env::var(SMTP_HOST_ENV_VAR).unwrap_or_else(|_| DEFAULT_SMTP_HOST.to_string());
+    pub fn new(config: &Config) -> Self {
+        let smtp_host = config.mail.smtp_host.clone();
         let transport = AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_host)
             .unwrap()
-            .port(SMTP_PORT)
+            .port(config.mail.smtp_port)
             .tls(lettre::transport::smtp::client::Tls::None)
             .build();
 
         Self {
             transport,
-            from_email: "noreply@appsec.local".to_string(),
+            from_email: config.mail.from_email.clone(),
         }
     }
 

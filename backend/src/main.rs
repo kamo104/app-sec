@@ -1,12 +1,11 @@
 use axum::{
-    Json, Router,
+    Router,
     body::Body,
     extract::{
-        DefaultBodyLimit,
+        DefaultBodyLimit, FromRef,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::{Request, StatusCode},
-    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::any,
 };
@@ -28,7 +27,7 @@ use tower_http::{
 use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_swagger_ui::SwaggerUi;
 
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::ops::ControlFlow;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -41,33 +40,12 @@ use futures_util::{sink::SinkExt, stream::StreamExt};
 
 use tracing::{debug, info, warn};
 
-use clap::Parser;
-
 mod api;
+mod config;
 mod db;
 mod email;
+use config::{Config, load_config};
 use db::DBHandle;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(long, default_value_t = Ipv4Addr::new(127, 0, 0, 1))]
-    web_bind_addr: Ipv4Addr,
-    #[arg(long, default_value_t = 4000)]
-    web_port: u16,
-    #[arg(
-        long,
-        default_value_t = false,
-        help = "Run in development mode (uses data_dev.db without encryption, no keyring required)"
-    )]
-    dev: bool,
-    #[arg(
-        long,
-        default_value_t = 10 * 1024 * 1024,
-        help = "Maximum request body size in bytes (default: 10MB)"
-    )]
-    max_body_size: usize,
-}
 
 static DB_HANDLE: OnceCell<Arc<DBHandle>> = OnceCell::const_new();
 
@@ -135,6 +113,12 @@ impl Service<Request<Body>> for SpaFallbackService {
     }
 }
 
+#[derive(Clone)]
+struct AppState {
+    db: Arc<DBHandle>,
+    config: Config,
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
@@ -146,18 +130,20 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let args = Args::parse();
+    let config = load_config().expect("Failed to load config.toml");
 
     let assets_dir = std::env::var("ASSETS_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./dist"));
 
     // get the db handle
-    let handle = if args.dev {
+    let handle = if config.server.dev_mode {
         info!("Running in development mode");
-        DBHandle::open_dev().await.unwrap()
+        DBHandle::open_dev(&config).await.unwrap()
     } else {
-        DBHandle::open("data.db").await.unwrap()
+        DBHandle::open(&config.database.prod_path, &config)
+            .await
+            .unwrap()
     };
     DB_HANDLE.set(handle).unwrap();
 
@@ -165,7 +151,30 @@ async fn main() {
     let db_handle = DB_HANDLE.get().unwrap().clone();
 
     // Start the cleanup task for expired sessions and tokens
-    let _cleanup_handle = db_handle.clone().start_cleanup_task();
+    let _cleanup_handle = db_handle.clone().start_cleanup_task(config.clone());
+
+    #[derive(Clone)]
+    struct AppState {
+        db: Arc<DBHandle>,
+        config: Config,
+    }
+
+    impl FromRef<AppState> for Arc<DBHandle> {
+        fn from_ref(input: &AppState) -> Self {
+            input.db.clone()
+        }
+    }
+
+    impl FromRef<AppState> for Config {
+        fn from_ref(input: &AppState) -> Self {
+            input.config.clone()
+        }
+    }
+
+    let app_state = AppState {
+        db: db_handle,
+        config: config.clone(),
+    };
 
     // Build OpenAPI router with all API routes
     let (api_router, openapi) = OpenApiRouter::with_openapi(
@@ -221,7 +230,7 @@ async fn main() {
         .route("/ws", any(ws_upgrade_handler));
 
     // Add OpenAPI and Swagger UI in dev mode
-    if args.dev {
+    if config.server.dev_mode {
         app = app.merge(SwaggerUi::new("/api/docs").url("/api/openapi.json", openapi.clone()));
         info!("OpenAPI spec available at /api/openapi.json");
         info!("Swagger UI available at /api/docs");
@@ -230,8 +239,8 @@ async fn main() {
     let app = app
         // SPA fallback - serve index.html for all other routes
         .fallback_service(SpaFallbackService::new(assets_dir))
-        // Add DB state
-        .with_state(db_handle)
+        // Add app state
+        .with_state(app_state)
         // Cookie management layer - must be before other layers
         .layer(CookieManagerLayer::new())
         // CORS layer - allow all origins in dev mode
@@ -241,17 +250,19 @@ async fn main() {
                 .allow_headers(Any)
                 .allow_origin(Any),
         )
-        .layer(DefaultBodyLimit::max(args.max_body_size))
+        .layer(DefaultBodyLimit::max(config.server.max_body_size))
         // logging
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
 
-    let listener =
-        tokio::net::TcpListener::bind(SocketAddr::new(args.web_bind_addr.into(), args.web_port))
-            .await
-            .unwrap();
+    let listener = tokio::net::TcpListener::bind(SocketAddr::new(
+        config.server.bind_addr.into(),
+        config.server.port,
+    ))
+    .await
+    .unwrap();
     debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(
         listener,

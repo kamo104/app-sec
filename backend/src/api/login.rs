@@ -4,7 +4,8 @@ use std::sync::Arc;
 use tower_cookies::Cookies;
 use tracing::{debug, error};
 
-use super::utils::{SESSION_DURATION_DAYS, create_session_cookie};
+use super::utils::create_session_cookie;
+use crate::config::Config;
 use crate::db::{DBHandle, UserSession, generate_session_id, generate_session_token, hash_token};
 use api_types::{LoginError, LoginErrorResponse, LoginRequest, LoginResponse, ValidationErrorData};
 
@@ -24,6 +25,7 @@ use api_types::{LoginError, LoginErrorResponse, LoginRequest, LoginResponse, Val
 )]
 pub async fn login_user(
     State(db): State<Arc<DBHandle>>,
+    State(config): State<Config>,
     cookies: Cookies,
     Json(payload): Json<LoginRequest>,
 ) -> impl IntoResponse {
@@ -97,7 +99,7 @@ pub async fn login_user(
         Ok(true) => {
             debug!("Login successful for '{}'", payload.username);
 
-            let session_token = generate_session_token();
+            let session_token = generate_session_token(config.session.token_bytes);
             let session_hash = match hash_token(&session_token) {
                 Ok(hash) => hash,
                 Err(e) => {
@@ -114,7 +116,7 @@ pub async fn login_user(
             };
 
             let now = OffsetDateTime::now_utc();
-            let expiry = now + time::Duration::days(SESSION_DURATION_DAYS);
+            let expiry = now + time::Duration::days(config.session.duration_days);
             let session = UserSession {
                 user_id: user.user_id,
                 session_id: generate_session_id(),

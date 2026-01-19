@@ -3,7 +3,8 @@ use sqlx::types::time::OffsetDateTime;
 use std::sync::Arc;
 use tracing::{debug, error};
 
-use super::utils::{BASE_URL_DEV, BASE_URL_PROD, EMAIL_VERIFICATION_TOKEN_DURATION_HOURS};
+use super::utils::get_base_url;
+use crate::config::Config;
 use crate::db::{DBHandle, UserLogin, generate_verification_token, hash_token};
 use crate::email::EmailSender;
 use api_types::{
@@ -26,6 +27,7 @@ use api_types::{
 )]
 pub async fn register_user(
     State(db): State<Arc<DBHandle>>,
+    State(config): State<Config>,
     Json(payload): Json<RegistrationRequest>,
 ) -> impl IntoResponse {
     debug!(
@@ -215,7 +217,7 @@ pub async fn register_user(
             };
 
             let expires_at = OffsetDateTime::now_utc()
-                + time::Duration::hours(EMAIL_VERIFICATION_TOKEN_DURATION_HOURS);
+                + time::Duration::hours(config.token.email_verification_duration_hours);
 
             match db
                 .email_verification_tokens_table
@@ -225,15 +227,11 @@ pub async fn register_user(
                 Ok(_) => {
                     debug!("Verification token stored for user_id: {}", user_id);
 
-                    let base_url = if db.is_dev {
-                        BASE_URL_DEV
-                    } else {
-                        BASE_URL_PROD
-                    };
+                    let base_url = get_base_url(&config);
 
                     let verification_link = format!("{}/verify-email?token={}", base_url, token);
 
-                    let email_sender = EmailSender::new_mailhog();
+                    let email_sender = EmailSender::new(&config);
                     if let Err(e) = email_sender
                         .send_verification_email(&payload.email, &verification_link)
                         .await

@@ -29,18 +29,9 @@ pub use user_data::UserDataTable;
 pub use user_login::{UserLogin, UserLoginTable};
 pub use user_sessions::{UserSession, UserSessionsTable};
 
-const KEYRING_SERVICE_NAME: &str = "APPSEC_DB_KEY";
-const KEYRING_USERNAME: &str = "APPSEC";
-const KEYRING_DB_KEY_LEN: usize = 32;
-const DB_KEY_ENV_VAR: &str = "APPSEC_DB_KEY";
-
-const DEV_DATABASE_PATH: &str = "data_dev.db";
+use crate::config::Config;
 
 const CONFIRMATION_TOKEN_BYTES: usize = 32;
-
-pub const SESSION_TOKEN_BYTES: usize = 32;
-
-pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600;
 
 pub fn generate_verification_token() -> String {
     let mut token_bytes = [0u8; CONFIRMATION_TOKEN_BYTES];
@@ -48,10 +39,10 @@ pub fn generate_verification_token() -> String {
     hex::encode(token_bytes)
 }
 
-pub fn generate_session_token() -> String {
-    let mut token_bytes = [0u8; SESSION_TOKEN_BYTES];
-    OsRng.try_fill_bytes(&mut token_bytes).unwrap();
-    hex::encode(token_bytes)
+pub fn generate_session_token(token_bytes: usize) -> String {
+    let mut token_bytes_vec = vec![0u8; token_bytes];
+    OsRng.try_fill_bytes(&mut token_bytes_vec).unwrap();
+    hex::encode(token_bytes_vec)
 }
 
 pub fn generate_session_id() -> String {
@@ -101,47 +92,54 @@ impl DBHandle {
         Ok(())
     }
 
-    pub async fn open(database_path: &str) -> Result<Arc<Self>> {
-        DBHandle::open_with_opts(database_path, None, false).await
+    pub async fn open(database_path: &str, config: &Config) -> Result<Arc<Self>> {
+        DBHandle::open_with_opts(database_path, None, false, config).await
     }
 
-    pub async fn open_dev() -> Result<Arc<Self>> {
-        let opts = SqliteConnectOptions::from_str(DEV_DATABASE_PATH)
+    pub async fn open_dev(config: &Config) -> Result<Arc<Self>> {
+        let opts = SqliteConnectOptions::from_str(&config.database.dev_path)
             .unwrap()
             .pragma("foreign_keys", "ON")
             .create_if_missing(true);
 
-        DBHandle::open_with_opts(DEV_DATABASE_PATH, Some(opts), true).await
+        DBHandle::open_with_opts(&config.database.dev_path, Some(opts), true, config).await
     }
 
     pub async fn open_with_opts(
         database_path: &str,
         opts_override: Option<SqliteConnectOptions>,
         is_dev: bool,
+        config: &Config,
     ) -> Result<Arc<Self>> {
-        let mut secret_key = String::with_capacity(KEYRING_DB_KEY_LEN);
+        let mut secret_key = String::with_capacity(config.database.db_key_length);
         if opts_override.is_none() {
+            // Clone values needed for the blocking task
+            let keyring_service_name = config.database.keyring_service_name.clone();
+            let keyring_username = config.database.keyring_username.clone();
+            let db_key_env_var_name = config.database.db_key_env_var_name.clone();
+            let db_key_length = config.database.db_key_length;
+
             // Try environment variable first (for Docker/container deployments)
             // Fall back to system keyring if not set
-            secret_key = match std::env::var(DB_KEY_ENV_VAR) {
-                Ok(key) if key.len() == KEYRING_DB_KEY_LEN * 2 => {
+            secret_key = match std::env::var(&db_key_env_var_name) {
+                Ok(key) if key.len() == db_key_length * 2 => {
                     // Key from env var should be hex-encoded (64 chars for 32 bytes)
                     format!("\"x'{}'\"", key.to_uppercase())
                 }
                 _ => {
                     // Fall back to keyring
-                    tokio::task::spawn_blocking(|| -> Result<String> {
-                        let keyring_entry = Entry::new(KEYRING_SERVICE_NAME, KEYRING_USERNAME)?;
+                    tokio::task::spawn_blocking(move || -> Result<String> {
+                        let keyring_entry = Entry::new(&keyring_service_name, &keyring_username)?;
                         let keyring_secret = keyring_entry.get_secret()?;
-                        let secret = if keyring_secret.len() != KEYRING_DB_KEY_LEN {
-                            let mut key = vec![0u8; KEYRING_DB_KEY_LEN];
+                        let secret = if keyring_secret.len() != db_key_length {
+                            let mut key = vec![0u8; db_key_length];
                             OsRng.try_fill_bytes(&mut key).unwrap();
                             keyring_entry.set_secret(&key)?;
                             key
                         } else {
                             keyring_secret
                         };
-                        let mut key_str = String::with_capacity(KEYRING_DB_KEY_LEN * 2);
+                        let mut key_str = String::with_capacity(db_key_length * 2);
                         for byte in secret {
                             write!(key_str, "{:02X}", byte)?;
                         }
@@ -205,12 +203,12 @@ impl DBHandle {
         Ok(())
     }
 
-    pub fn start_cleanup_task(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
+    pub fn start_cleanup_task(self: Arc<Self>, config: Config) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            let interval_duration = std::time::Duration::from_secs(CLEANUP_INTERVAL_SECONDS);
+            let interval_duration = std::time::Duration::from_secs(config.cleanup.interval_seconds);
             tracing::info!(
                 "Starting cleanup task with interval of {} seconds",
-                CLEANUP_INTERVAL_SECONDS
+                config.cleanup.interval_seconds
             );
 
             loop {

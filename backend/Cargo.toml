@@ -43,7 +43,7 @@ rand_core.workspace = true
 
 # System
 keyring.workspace = true
-clap.workspace = true
+config.workspace = true
 
 # Utilities
 time.workspace = true

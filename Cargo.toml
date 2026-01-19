@@ -73,6 +73,8 @@ enum-primitive-derive = "0.3"
 num_enum = "0.7"
 tokio-tungstenite = "0.28"
 mime_guess = "2.0"
+toml = "0.8"
+config = "0.14"
 
 # Logging
 tracing = { version = "0.1", features = ["std", "max_level_debug", "release_max_level_warn"] }

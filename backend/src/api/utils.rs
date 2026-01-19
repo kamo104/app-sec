@@ -1,16 +1,7 @@
-use konst::{primitive::parse_i64, unwrap_ctx};
 use sqlx::types::time::OffsetDateTime;
 use tower_cookies::Cookie;
 
-// Configuration loaded from .env at compile time via build.rs
-pub const SESSION_DURATION_DAYS: i64 = unwrap_ctx!(parse_i64(env!("SESSION_DURATION_DAYS")));
-pub const EMAIL_VERIFICATION_TOKEN_DURATION_HOURS: i64 =
-    unwrap_ctx!(parse_i64(env!("EMAIL_VERIFICATION_TOKEN_DURATION_HOURS")));
-pub const PASSWORD_RESET_TOKEN_DURATION_HOURS: i64 =
-    unwrap_ctx!(parse_i64(env!("PASSWORD_RESET_TOKEN_DURATION_HOURS")));
-
-pub const BASE_URL_DEV: &str = env!("BASE_URL_DEV");
-pub const BASE_URL_PROD: &str = env!("BASE_URL_PROD");
+use crate::config::Config;
 
 pub fn create_session_cookie(
     value: String,
@@ -26,4 +17,12 @@ pub fn create_session_cookie(
         cookie.set_expires(Some(expiry.into()));
     }
     cookie
+}
+
+pub fn get_base_url(config: &Config) -> String {
+    if config.server.dev_mode {
+        config.urls.base_url_dev.clone()
+    } else {
+        config.urls.base_url_prod.clone()
+    }
 }

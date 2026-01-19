@@ -5,7 +5,8 @@ use tower_cookies::Cookies;
 use tracing::{debug, error};
 
 use super::auth_extractor::AuthenticatedUser;
-use super::utils::{SESSION_DURATION_DAYS, create_session_cookie};
+use super::utils::create_session_cookie;
+use crate::config::Config;
 use crate::db::{DBHandle, generate_session_token, hash_token};
 use api_types::{AuthError, AuthErrorResponse, AuthSessionResponse};
 
@@ -47,13 +48,14 @@ pub async fn auth_check(auth: AuthenticatedUser) -> impl IntoResponse {
 )]
 pub async fn refresh_session(
     State(db): State<Arc<DBHandle>>,
+    State(config): State<Config>,
     auth: AuthenticatedUser,
     cookies: Cookies,
 ) -> impl IntoResponse {
     debug!("Refreshing session for user: {}", auth.user.username);
 
-    let new_expiry = OffsetDateTime::now_utc() + time::Duration::days(SESSION_DURATION_DAYS);
-    let token = generate_session_token();
+    let new_expiry = OffsetDateTime::now_utc() + time::Duration::days(config.session.duration_days);
+    let token = generate_session_token(config.session.token_bytes);
     let token_hash = match hash_token(token.as_str()) {
         Ok(hash) => hash,
         Err(e) => {
