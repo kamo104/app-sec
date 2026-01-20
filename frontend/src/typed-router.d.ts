@@ -25,6 +25,7 @@ declare module 'vue-router/auto-routes' {
     '/forgot-password': RouteRecordInfo<'/forgot-password', '/forgot-password', Record<never, never>, Record<never, never>>,
     '/login': RouteRecordInfo<'/login', '/login', Record<never, never>, Record<never, never>>,
     '/posts/[id]': RouteRecordInfo<'/posts/[id]', '/posts/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
+    '/posts/[id].edit': RouteRecordInfo<'/posts/[id].edit', '/posts/:id/edit', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     '/posts/new': RouteRecordInfo<'/posts/new', '/posts/new', Record<never, never>, Record<never, never>>,
     '/register': RouteRecordInfo<'/register', '/register', Record<never, never>, Record<never, never>>,
     '/reset-password': RouteRecordInfo<'/reset-password', '/reset-password', Record<never, never>, Record<never, never>>,
@@ -68,6 +69,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/posts/[id].vue': {
       routes: '/posts/[id]'
+      views: never
+    }
+    'src/pages/posts/[id].edit.vue': {
+      routes: '/posts/[id].edit'
       views: never
     }
     'src/pages/posts/new.vue': {

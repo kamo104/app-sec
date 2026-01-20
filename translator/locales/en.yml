@@ -58,6 +58,9 @@ FIELD_TYPE_UNSPECIFIED_INVALID_FORMAT: "This field has an invalid format"
 INVALID_IMAGE: "Invalid image format or size. Please upload a valid JPEG, PNG, GIF, or WebP image under 5MB."
 NOT_FOUND: "The requested resource was not found"
 IMAGE_REQUIRED: "Image is required"
+POST_UPDATED: "Post updated successfully"
+POST_NOT_FOUND: "Post not found"
+FORBIDDEN: "You do not have permission to perform this action"
 
 # Validation errors - Post Title
 POST_TITLE_REQUIRED: "Title is required"
