@@ -1,8 +1,11 @@
 Make it so that when the first user is created - make him an admin and inform him about it. Don't require e-mail confirmation for this user.
 
-_4_draft sequence diagrams
-_5_draft 
+_4_draft sequence diagram
+_4_final
+_5_draft
+_5_final
 
+# jak bd czas:
 sequence diagrams - numeracja requestów
 account activation seqence diagram - confirmation mail sent to client should be marked with a cloud.
 
@@ -31,5 +34,5 @@ Don't hardcode localhost in the frontend - just make requests to the same site i
 Implement the Change password functionality with an e-mail confirmation.
 Add security logging to the database for important actions like banning users, posts, login, register, sent emails, password change requests, etc. - Maybe a second DB would be better here?
 Add soft delete for users.
-Translations in the frontend....
+Use translations in the frontend wherever possible.
 
