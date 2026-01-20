@@ -37,7 +37,7 @@ Its main goals are:
   \item Verify email is confirmed before allowing login.
   \item Generate 32-byte cryptographically secure session tokens.
   \item Store session token hashes in the database with expiry timestamps.
-  \item Set HTTP-only, Secure (in production), SameSite=Lax cookies.
+  \item Set HTTP-only, Secure (in production), SameSite=Strict cookies.
   \item Provide session validation endpoint for frontend auth state.
   \item Support session refresh to extend session lifetime.
   \item Invalidate sessions on logout by removing from database and clearing cookie.

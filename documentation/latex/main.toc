@@ -1,0 +1,117 @@
+\contentsline {section}{\numberline {1}Kamil Grzymkowski (151908), Application Security}{5}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Document Version Notice}{5}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Exercise Description}{5}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Component Description}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Purpose}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Responsibilities}{6}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Registration}{6}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Login and Session Management}{6}{subsubsection.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Password Reset}{6}{subsubsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.3}Security Assumptions}{6}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Component Requirements}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Functional Requirements}{7}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}FR-1: User Registration}{7}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}FR-2: Email Verification}{7}{subsubsection.3.1.2}%
+\contentsline {subsubsection}{\numberline {3.1.3}FR-3: Input Validation}{7}{subsubsection.3.1.3}%
+\contentsline {subsubsection}{\numberline {3.1.4}FR-4: Error Handling}{7}{subsubsection.3.1.4}%
+\contentsline {subsubsection}{\numberline {3.1.5}FR-5: Token Lifecycle}{8}{subsubsection.3.1.5}%
+\contentsline {subsubsection}{\numberline {3.1.6}FR-6: User Login}{8}{subsubsection.3.1.6}%
+\contentsline {subsubsection}{\numberline {3.1.7}FR-7: Session Management}{8}{subsubsection.3.1.7}%
+\contentsline {subsubsection}{\numberline {3.1.8}FR-8: User Logout}{8}{subsubsection.3.1.8}%
+\contentsline {subsubsection}{\numberline {3.1.9}FR-9: Password Reset Request}{9}{subsubsection.3.1.9}%
+\contentsline {subsubsection}{\numberline {3.1.10}FR-10: Password Reset Completion}{9}{subsubsection.3.1.10}%
+\contentsline {subsection}{\numberline {3.2}Non-Functional Requirements}{9}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}NFR-1: Security}{9}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}NFR-2: Reliability}{10}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}NFR-3: Usability}{10}{subsubsection.3.2.3}%
+\contentsline {subsubsection}{\numberline {3.2.4}NFR-4: Performance}{10}{subsubsection.3.2.4}%
+\contentsline {section}{\numberline {4}Component Architecture}{10}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Technology Stack}{10}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}OpenAPI and Client Generation}{11}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}High-Level Architecture Diagram}{12}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Database Structure}{13}{section.5}%
+\contentsline {subsection}{\numberline {5.1}User Login Table (\texttt {user\_login})}{13}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}User Sessions Table (\texttt {user\_sessions})}{13}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}User Data Table (\texttt {user\_data})}{14}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Email Verification Tokens Table (\texttt {email\_verification\_tokens})}{14}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Password Reset Tokens Table (\texttt {password\_reset\_tokens})}{14}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Database Configuration}{15}{subsection.5.6}%
+\contentsline {section}{\numberline {6}UML Sequence Diagrams}{16}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Registration Flow Sequence Diagram}{16}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Verification / Activation Flow Sequence Diagram}{17}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Login Flow Sequence Diagram}{18}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Security Mechanisms}{19}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Password Security}{19}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Token Security}{19}{subsection.7.2}%
+\contentsline {subsubsection}{\numberline {7.2.1}Email Verification Tokens}{19}{subsubsection.7.2.1}%
+\contentsline {subsubsection}{\numberline {7.2.2}Session Tokens}{19}{subsubsection.7.2.2}%
+\contentsline {subsubsection}{\numberline {7.2.3}Password Reset Tokens}{19}{subsubsection.7.2.3}%
+\contentsline {subsection}{\numberline {7.3}Session Management Security}{19}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Transport Layer Security (TLS)}{20}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}HTTP Strict Transport Security (HSTS)}{20}{subsection.7.5}%
+\contentsline {subsection}{\numberline {7.6}Cross-Origin Resource Sharing (CORS)}{20}{subsection.7.6}%
+\contentsline {subsection}{\numberline {7.7}Role-Based Access Control}{20}{subsection.7.7}%
+\contentsline {subsection}{\numberline {7.8}Database Encryption}{21}{subsection.7.8}%
+\contentsline {subsection}{\numberline {7.9}Anti-Enumeration Measures}{21}{subsection.7.9}%
+\contentsline {subsection}{\numberline {7.10}Error Handling}{21}{subsection.7.10}%
+\contentsline {subsection}{\numberline {7.11}Automatic Cleanup}{21}{subsection.7.11}%
+\contentsline {subsection}{\numberline {7.12}Input Validation}{21}{subsection.7.12}%
+\contentsline {subsection}{\numberline {7.13}Future Enhancements}{22}{subsection.7.13}%
+\contentsline {section}{\numberline {8}API Reference}{22}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Endpoints Overview}{22}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}\texttt {POST /api/register}}{22}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}\texttt {POST /api/verify-email}}{23}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}\texttt {POST /api/login}}{24}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}\texttt {POST /api/logout}}{24}{subsection.8.5}%
+\contentsline {subsection}{\numberline {8.6}\texttt {GET /api/auth/check}}{25}{subsection.8.6}%
+\contentsline {subsection}{\numberline {8.7}\texttt {POST /api/auth/refresh}}{25}{subsection.8.7}%
+\contentsline {subsection}{\numberline {8.8}\texttt {POST /api/request-password-reset}}{26}{subsection.8.8}%
+\contentsline {subsection}{\numberline {8.9}\texttt {POST /api/complete-password-reset}}{26}{subsection.8.9}%
+\contentsline {subsection}{\numberline {8.10}\texttt {GET /api/health}}{27}{subsection.8.10}%
+\contentsline {subsection}{\numberline {8.11}Common Error Codes}{27}{subsection.8.11}%
+\contentsline {subsection}{\numberline {8.12}Validation Error Codes}{27}{subsection.8.12}%
+\contentsline {subsection}{\numberline {8.13}Type Definitions}{27}{subsection.8.13}%
+\contentsline {section}{\numberline {9}Implementation Details}{28}{section.9}%
+\contentsline {subsection}{\numberline {9.1}User Interface - Registration}{28}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}User Interface - Login}{31}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}User Interface - Password Reset}{34}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Frontend Client Generation}{36}{subsection.9.4}%
+\contentsline {subsection}{\numberline {9.5}Registration Flow Implementation}{37}{subsection.9.5}%
+\contentsline {subsection}{\numberline {9.6}Email Verification Implementation}{37}{subsection.9.6}%
+\contentsline {subsection}{\numberline {9.7}Password Strength Validation}{38}{subsection.9.7}%
+\contentsline {subsection}{\numberline {9.8}Session Management Implementation}{38}{subsection.9.8}%
+\contentsline {subsection}{\numberline {9.9}Backend Implementation Examples}{38}{subsection.9.9}%
+\contentsline {subsubsection}{\numberline {9.9.1}Password Strength Calculation (Rust)}{38}{subsubsection.9.9.1}%
+\contentsline {subsubsection}{\numberline {9.9.2}Login Handler with Session Creation (Rust)}{39}{subsubsection.9.9.2}%
+\contentsline {subsubsection}{\numberline {9.9.3}Session Database Operations (Rust)}{40}{subsubsection.9.9.3}%
+\contentsline {subsection}{\numberline {9.10}Implementation Files}{40}{subsection.9.10}%
+\contentsline {subsubsection}{\numberline {9.10.1}Backend Files}{40}{subsubsection.9.10.1}%
+\contentsline {subsubsection}{\numberline {9.10.2}Frontend Files}{42}{subsubsection.9.10.2}%
+\contentsline {subsubsection}{\numberline {9.10.3}Generated Files (Auto-Generated)}{42}{subsubsection.9.10.3}%
+\contentsline {subsubsection}{\numberline {9.10.4}Shared Crates}{43}{subsubsection.9.10.4}%
+\contentsline {subsubsection}{\numberline {9.10.5}Build and Configuration Files}{43}{subsubsection.9.10.5}%
+\contentsline {section}{\numberline {10}Building and Running}{43}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Build Process}{43}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Development Mode}{44}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Production Mode}{45}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Configuration}{45}{subsection.10.4}%
+\contentsline {subsection}{\numberline {10.5}Docker Deployment}{46}{subsection.10.5}%
+\contentsline {subsubsection}{\numberline {10.5.1}Prerequisites}{46}{subsubsection.10.5.1}%
+\contentsline {subsubsection}{\numberline {10.5.2}Generate TLS Certificates}{46}{subsubsection.10.5.2}%
+\contentsline {subsubsection}{\numberline {10.5.3}Set Environment Variables}{46}{subsubsection.10.5.3}%
+\contentsline {subsubsection}{\numberline {10.5.4}Docker Compose Configuration}{46}{subsubsection.10.5.4}%
+\contentsline {subsubsection}{\numberline {10.5.5}Build and Run}{47}{subsubsection.10.5.5}%
+\contentsline {subsubsection}{\numberline {10.5.6}Verify Deployment}{47}{subsubsection.10.5.6}%
+\contentsline {subsubsection}{\numberline {10.5.7}Accessing the Application}{48}{subsubsection.10.5.7}%
+\contentsline {subsection}{\numberline {10.6}Production Deployment Checklist}{48}{subsection.10.6}%
+\contentsline {section}{\numberline {11}Conclusions}{48}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Key Implementation Choices}{48}{subsection.11.1}%
+\contentsline {subsubsection}{\numberline {11.1.1}Password Security}{48}{subsubsection.11.1.1}%
+\contentsline {subsubsection}{\numberline {11.1.2}Token Management}{48}{subsubsection.11.1.2}%
+\contentsline {subsubsection}{\numberline {11.1.3}Session Security}{48}{subsubsection.11.1.3}%
+\contentsline {subsubsection}{\numberline {11.1.4}Cross-Platform Validation}{49}{subsubsection.11.1.4}%
+\contentsline {subsubsection}{\numberline {11.1.5}Anti-Enumeration Measures}{49}{subsubsection.11.1.5}%
+\contentsline {subsection}{\numberline {11.2}Security Mechanisms Summary}{49}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Future Improvements}{49}{subsection.11.3}%
+\contentsline {subsection}{\numberline {11.4}Lessons Learned}{49}{subsection.11.4}%
+\contentsline {section}{\numberline {12}Version History}{50}{section.12}%

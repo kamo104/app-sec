@@ -105,7 +105,7 @@
 \begin{itemize}[leftmargin=*,nosep]
   \item Sessions are stored server-side with token hash as primary key.
   \item Session tokens are 32 bytes of cryptographically secure random data.
-  \item Cookies are HTTP-only, Secure (in production), SameSite=Lax.
+  \item Cookies are HTTP-only, Secure (in production), SameSite=Strict.
   \item Session duration is configurable (default: 7 days).
   \item Frontend can check session validity via \texttt{GET /api/auth/check}.
   \item Frontend can refresh session via \texttt{POST /api/auth/refresh}.

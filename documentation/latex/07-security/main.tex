@@ -33,7 +33,7 @@ This section describes the security measures implemented in the authentication m
   \item Stored in HTTP-only cookies (inaccessible to JavaScript).
   \item Only SHA256 hashes stored in database.
   \item Cookies set with \texttt{Secure} flag in production (HTTPS only).
-  \item \texttt{SameSite=Lax} prevents CSRF on state-changing requests.
+  \item \texttt{SameSite=Strict} prevents CSRF attacks by blocking cross-site cookie transmission.
   \item Configurable duration (\texttt{SESSION\_DURATION\_DAYS}, default 7).
   \item Users can have multiple active sessions (multi-device).
   \item Session refresh extends expiry without generating new token.
@@ -58,12 +58,92 @@ This section describes the security measures implemented in the authentication m
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item \texttt{HttpOnly}: Prevents XSS attacks from accessing token.
     \item \texttt{Secure}: Cookie only sent over HTTPS (production).
-    \item \texttt{SameSite=Lax}: Prevents CSRF on POST/PUT/DELETE.
+    \item \texttt{SameSite=Strict}: Prevents CSRF by blocking cross-site requests.
     \item \texttt{Path=/}: Cookie sent with all requests to origin.
   \end{itemize}
   \item Logout invalidates session server-side and clears cookie.
   \item Expired sessions cannot be used (server validates expiry).
 \end{itemize}
+
+\begin{newcontent}
+\subsection{Transport Layer Security (TLS)}
+
+The application supports HTTPS with TLS 1.3 for secure communication:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item TLS termination handled by \texttt{axum-server} with \texttt{rustls} backend.
+  \item Uses the \texttt{ring} cryptographic provider for TLS operations.
+  \item Certificate and key paths configurable via \texttt{config.toml}:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{tls.enabled}: Toggle TLS on/off.
+    \item \texttt{tls.cert\_path}: Path to PEM certificate file.
+    \item \texttt{tls.key\_path}: Path to PEM private key file.
+  \end{itemize}
+  \item Self-signed certificates can be generated for development using the included \texttt{generate-certs.sh} script.
+  \item Production deployments should use certificates from a trusted CA (e.g., Let's Encrypt).
+\end{itemize}
+
+\subsection{HTTP Strict Transport Security (HSTS)}
+
+HSTS ensures browsers always use HTTPS for the application:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Implemented as Axum middleware that adds the \texttt{Strict-Transport-Security} header.
+  \item Configurable via \texttt{config.toml}:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{security.hsts\_enabled}: Toggle HSTS on/off.
+    \item \texttt{security.hsts\_max\_age\_seconds}: Cache duration (default: 31536000 = 1 year).
+    \item \texttt{security.hsts\_include\_subdomains}: Apply to all subdomains.
+    \item \texttt{security.hsts\_preload}: Enable for HSTS preload list submission.
+  \end{itemize}
+  \item Example header: \texttt{Strict-Transport-Security: max-age=31536000; includeSubDomains}
+  \item Only meaningful when TLS is enabled; browsers ignore HSTS over HTTP.
+\end{itemize}
+
+\subsection{Cross-Origin Resource Sharing (CORS)}
+
+CORS policy restricts which origins can access the API:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Development mode: Allows \texttt{http://localhost:*} origins for local development.
+  \item Production mode: Only allows origins specified in \texttt{security.cors\_allowed\_origins}.
+  \item Credentials (\texttt{allow\_credentials: true}) enabled for cookie-based authentication.
+  \item Allowed methods: GET, POST, PUT, DELETE.
+  \item Allowed headers: Content-Type, Authorization.
+  \item Exposed headers: Set-Cookie (for session management).
+  \item Implementation uses \texttt{tower-http::cors::CorsLayer}.
+\end{itemize}
+
+\subsection{Role-Based Access Control}
+
+The application implements a simple role-based access control system:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Two roles: \texttt{User} (default) and \texttt{Admin}.
+  \item First registered user automatically becomes Admin.
+  \item Admin capabilities:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item View all users.
+    \item Change user roles.
+    \item Delete users.
+    \item View and restore deleted posts.
+  \end{itemize}
+  \item Role stored in \texttt{user\_login.role} column.
+  \item Protected endpoints use \texttt{AdminUser} extractor for authorization.
+\end{itemize}
+
+\subsection{Database Encryption}
+
+Production database uses SQLCipher for at-rest encryption:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Encryption key sourced from environment variable (\texttt{APPSEC\_DB\_KEY}).
+  \item Key must be 64 hex characters (32 bytes).
+  \item Falls back to system keyring if environment variable not set.
+  \item Development mode uses unencrypted database for easier debugging.
+  \item Key format: \texttt{"x'<HEX\_KEY>'"} passed as PRAGMA.
+\end{itemize}
+\end{newcontent}
 
 \subsection{Anti-Enumeration Measures}
 
@@ -115,5 +195,4 @@ This section describes the security measures implemented in the authentication m
   \item Device/session management (view and revoke sessions).
   \item Security event logging (failed logins, password resets).
   \item Multi-factor authentication (MFA/2FA).
-  \item HSTS header for transport security.
 \end{itemize}

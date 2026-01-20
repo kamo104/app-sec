@@ -52,3 +52,159 @@ In production mode:
   \item OpenAPI endpoints disabled
   \item HTTPS required for all traffic
 \end{itemize}
+
+\begin{newcontent}
+\subsection{Configuration}
+
+The application is configured via \texttt{config.toml} in the working directory. Key sections:
+
+\begin{verbatim}
+[server]
+bind_addr = "0.0.0.0"      # Listen on all interfaces
+port = 4000
+dev_mode = false           # Production mode
+max_body_size = 10485760   # 10MB
+
+[database]
+prod_path = "/app/data/data.db"
+db_key_env_var_name = "APPSEC_DB_KEY"
+
+[tls]
+enabled = true
+cert_path = "/app/certs/cert.pem"
+key_path = "/app/certs/key.pem"
+
+[security]
+hsts_enabled = true
+hsts_max_age_seconds = 31536000  # 1 year
+hsts_include_subdomains = true
+cors_allowed_origins = "https://example.com"
+
+[mail]
+smtp_host = "mailhog"
+smtp_port = 1025
+from_email = "noreply@example.com"
+\end{verbatim}
+
+\subsection{Docker Deployment}
+
+The application includes Docker support for containerized deployment.
+
+\subsubsection{Prerequisites}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Docker and Docker Compose installed
+  \item TLS certificates (self-signed for testing or CA-signed for production)
+\end{itemize}
+
+\subsubsection{Generate TLS Certificates}
+
+For local testing, generate self-signed certificates:
+
+\begin{verbatim}
+# Using the provided script
+./generate-certs.sh
+
+# Or manually with OpenSSL
+openssl req -x509 -newkey rsa:4096 \
+    -keyout certs/key.pem \
+    -out certs/cert.pem \
+    -days 365 -nodes \
+    -subj "/CN=localhost/O=AppSec/C=US" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+\end{verbatim}
+
+\subsubsection{Set Environment Variables}
+
+Create a \texttt{.env} file with the database encryption key:
+
+\begin{verbatim}
+# Generate a 64-character hex key (32 bytes)
+echo "APPSEC_DB_KEY=$(openssl rand -hex 32)" > .env
+\end{verbatim}
+
+\subsubsection{Docker Compose Configuration}
+
+The \texttt{docker-compose.yml} defines the application stack:
+
+\begin{verbatim}
+services:
+  app:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - APPSEC_DB_KEY=${APPSEC_DB_KEY}
+    volumes:
+      - app-data:/app/data
+      - ./certs:/app/certs:ro
+    depends_on:
+      - mailhog
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP
+
+volumes:
+  app-data:
+\end{verbatim}
+
+\subsubsection{Build and Run}
+
+\begin{verbatim}
+# Build the Docker image
+docker-compose build
+
+# Start the containers
+docker-compose up -d
+
+# View logs
+docker-compose logs -f app
+
+# Stop the containers
+docker-compose down
+
+# Stop and remove volumes (clears database)
+docker-compose down -v
+\end{verbatim}
+
+\subsubsection{Verify Deployment}
+
+Test the deployment with curl:
+
+\begin{verbatim}
+# Test HTTPS (use -k to accept self-signed cert)
+curl -k https://localhost:4000/api/health
+
+# Check HSTS header
+curl -k -I https://localhost:4000/api/health
+
+# Expected header:
+# strict-transport-security: max-age=31536000; includeSubDomains
+\end{verbatim}
+
+\subsubsection{Accessing the Application}
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Application: \texttt{https://localhost:4000}
+  \item MailHog UI: \texttt{http://localhost:8025} (for viewing test emails)
+\end{itemize}
+
+\subsection{Production Deployment Checklist}
+
+Before deploying to production:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Use CA-signed TLS certificates (e.g., Let's Encrypt).
+  \item Set a strong, randomly generated \texttt{APPSEC\_DB\_KEY}.
+  \item Configure \texttt{cors\_allowed\_origins} with your domain.
+  \item Update \texttt{base\_url\_prod} in config to your domain.
+  \item Configure a real SMTP server for email delivery.
+  \item Enable \texttt{hsts\_preload} only if submitting to the HSTS preload list.
+  \item Set up persistent storage for \texttt{/app/data} volume.
+  \item Configure reverse proxy (nginx, Caddy) if needed.
+  \item Set up monitoring and logging.
+\end{itemize}
+\end{newcontent}

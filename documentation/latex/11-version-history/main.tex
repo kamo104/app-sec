@@ -11,8 +11,23 @@
 1.2 & 2026-01-11 & Final report with full implementation details \\
 2.0 & 2026-01-12 & Added login, session management, and password reset (draft) \\
 2.1 & 2026-01-20 & Final report with screenshots, implementation details, and conclusions \\
+3.0 & 2026-01-20 & Added TLS, HSTS, CORS, Docker deployment, first-user admin \\
 \bottomrule
 \end{longtable}
+
+\begin{newcontent}
+\noindent\textbf{Version 3.0 Changes:}
+\begin{itemize}[leftmargin=*,nosep]
+  \item TLS/HTTPS support with configurable certificates
+  \item HSTS (HTTP Strict Transport Security) middleware
+  \item Production-safe CORS configuration
+  \item First registered user automatically becomes admin
+  \item Docker deployment with docker-compose
+  \item Configuration via config.toml file
+  \item Database encryption key from environment variable
+  \item Updated SameSite cookie attribute to Strict
+\end{itemize}
+\end{newcontent}
 
 \vspace{1em}
 

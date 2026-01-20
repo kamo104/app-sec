@@ -13,7 +13,7 @@ Argon2 was chosen as the password hashing algorithm due to its memory-hard prope
 All tokens (email verification, session, password reset) use 32 bytes of cryptographically secure random data. Only SHA256 hashes are stored in the database, ensuring that even database breaches do not expose usable tokens. This approach follows the principle of storing only what is necessary for verification.
 
 \subsubsection{Session Security}
-Cookie-based sessions with HTTP-only and Secure flags prevent common attacks like XSS token theft. Server-side session storage means sensitive data never leaves the server, and the SameSite=Lax attribute provides CSRF protection for state-changing requests. The automatic session refresh mechanism maintains user experience while ensuring sessions remain valid.
+Cookie-based sessions with HTTP-only and Secure flags prevent common attacks like XSS token theft. Server-side session storage means sensitive data never leaves the server, and the SameSite=Strict attribute provides strong CSRF protection by blocking cross-site cookie transmission. The automatic session refresh mechanism maintains user experience while ensuring sessions remain valid.
 
 \subsubsection{Cross-Platform Validation}
 The shared validation logic compiled to both WebAssembly (frontend) and native Rust (backend) ensures consistency and reduces code duplication. This approach allows real-time client-side validation for better user experience while maintaining authoritative server-side validation for security.
@@ -46,7 +46,6 @@ While the current implementation provides a solid security foundation, several e
   \item \textbf{Multi-Factor Authentication}: Add TOTP-based or email-based second factor
   \item \textbf{Device Management}: Allow users to view and revoke active sessions
   \item \textbf{Security Logging}: Comprehensive logging of security events for audit and monitoring
-  \item \textbf{HSTS}: HTTP Strict Transport Security header for enhanced transport security
 \end{itemize}
 
 \subsection{Lessons Learned}
