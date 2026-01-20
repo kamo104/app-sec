@@ -51,6 +51,10 @@ export type CommentResponse = {
     commentId: number;
     content: string;
     createdAt: number;
+    /**
+     * Whether the comment author's account has been deleted.
+     */
+    isUserDeleted: boolean;
     postId: number;
     userId: number;
     username: string;
@@ -102,6 +106,10 @@ export type CreatePostResponse = {
  */
 export type DeletedPostResponse = {
     deletedAt: number;
+    /**
+     * Whether the post author's account has been deleted.
+     */
+    isUserDeleted: boolean;
     postId: number;
     title: string;
     userId: number;
@@ -212,6 +220,10 @@ export type PostResponse = {
     createdAt: number;
     description?: (string) | null;
     imageUrl: string;
+    /**
+     * Whether the post author's account has been deleted.
+     */
+    isUserDeleted: boolean;
     postId: number;
     score: number;
     title: string;
@@ -307,6 +319,7 @@ export type UpdateUserRoleRequest = {
 export type UserInfoResponse = {
     email: string;
     emailVerified: boolean;
+    isDeleted: boolean;
     role: UserRole;
     userId: number;
     username: string;
