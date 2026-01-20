@@ -13,7 +13,7 @@ This document describes the content for each UML sequence diagram needed for the
 ### Flow
 
 1. **User** enters username and password, clicks Login
-2. **Frontend** validates username format (WASM)
+2. **Frontend** validates username format (UsernameField component, format only - no length check for login)
 3. **Frontend** sends `POST /api/login` with `{username, password}`
 4. **Backend** validates username format
 5. **Backend** queries Database for user by username
@@ -27,7 +27,7 @@ This document describes the content for each UML sequence diagram needed for the
 10. **Backend** generates session_id
 11. **Backend** inserts session into `user_sessions` table with expiry
 12. **Backend** creates HTTP-only cookie with session token
-13. **Backend** returns 200 with `{username, email, sessionExpiresAt, sessionCreatedAt}`
+13. **Backend** returns 200 with `{username, email, role, sessionExpiresAt, sessionCreatedAt}`
 14. **Frontend** stores user data in auth store
 15. **Frontend** stores session info in localStorage
 16. **Frontend** schedules session refresh timer
