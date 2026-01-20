@@ -36,6 +36,7 @@ pub async fn list_users(State(db): State<Arc<DBHandle>>, _admin: AdminUser) -> i
                     email: u.email,
                     role: u.role,
                     email_verified: u.email_verified,
+                    is_deleted: u.deleted_at.is_some(),
                 })
                 .collect();
 
@@ -81,7 +82,7 @@ pub async fn update_user_role(
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    // Verify user exists
+    // Verify user exists and is not deleted
     if db.user_login_table.get_by_user_id(user_id).await.is_err() {
         return StatusCode::NOT_FOUND.into_response();
     }
@@ -120,7 +121,7 @@ pub async fn delete_user(
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    // Verify user exists
+    // Verify user exists and is not already deleted
     if db.user_login_table.get_by_user_id(user_id).await.is_err() {
         return StatusCode::NOT_FOUND.into_response();
     }
@@ -163,13 +164,20 @@ pub async fn list_deleted_posts(
             let mut responses = Vec::with_capacity(posts.len());
 
             for post in &posts {
-                match db.user_login_table.get_by_user_id(post.user_id).await {
+                match db
+                    .user_login_table
+                    .get_by_user_id_include_deleted(post.user_id)
+                    .await
+                {
                     Ok(user) => {
                         if let Some(deleted_at) = post.deleted_at {
+                            let is_user_deleted = user.deleted_at.is_some();
+
                             responses.push(DeletedPostResponse {
                                 post_id: post.post_id,
                                 user_id: post.user_id,
                                 username: user.username,
+                                is_user_deleted,
                                 title: post.title.clone(),
                                 deleted_at: deleted_at.unix_timestamp(),
                             });

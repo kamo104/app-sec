@@ -39,7 +39,10 @@ async fn build_post_response(
     post: &Post,
     user_id: Option<i64>,
 ) -> Result<PostResponse, anyhow::Error> {
-    let user = db.user_login_table.get_by_user_id(post.user_id).await?;
+    let user = db
+        .user_login_table
+        .get_by_user_id_include_deleted(post.user_id)
+        .await?;
     let score = db.ratings_table.get_score(post.post_id).await?;
     let comment_count = db.comments_table.count_by_post_id(post.post_id).await?;
     let user_rating = match user_id {
@@ -47,10 +50,13 @@ async fn build_post_response(
         None => None,
     };
 
+    let is_user_deleted = user.deleted_at.is_some();
+
     Ok(PostResponse {
         post_id: post.post_id,
         user_id: post.user_id,
         username: user.username,
+        is_user_deleted,
         title: post.title.clone(),
         description: post.description.clone(),
         image_url: format!("/api/posts/{}/image", post.post_id),

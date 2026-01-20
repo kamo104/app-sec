@@ -199,6 +199,8 @@ pub struct PostResponse {
     pub post_id: i64,
     pub user_id: i64,
     pub username: String,
+    /// Whether the post author's account has been deleted.
+    pub is_user_deleted: bool,
     pub title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -270,6 +272,8 @@ pub struct CommentResponse {
     pub post_id: i64,
     pub user_id: i64,
     pub username: String,
+    /// Whether the comment author's account has been deleted.
+    pub is_user_deleted: bool,
     pub content: String,
     pub created_at: i64,
 }
@@ -362,6 +366,7 @@ pub struct UserInfoResponse {
     pub email: String,
     pub role: UserRole,
     pub email_verified: bool,
+    pub is_deleted: bool,
 }
 
 /// User list response for admin.
@@ -380,6 +385,8 @@ pub struct DeletedPostResponse {
     pub post_id: i64,
     pub user_id: i64,
     pub username: String,
+    /// Whether the post author's account has been deleted.
+    pub is_user_deleted: bool,
     pub title: String,
     pub deleted_at: i64,
 }

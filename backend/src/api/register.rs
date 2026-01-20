@@ -181,6 +181,7 @@ pub async fn register_user(
         email_verified_at: None,
         password_reset: false,
         role,
+        deleted_at: None,
     };
 
     match db.user_login_table.new_user(&user_login).await {

@@ -16,6 +16,8 @@
 \texttt{email\_verified} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: 0=false, 1=true \\
 \texttt{email\_verified\_at} & INTEGER & NULLABLE & Unix timestamp when verified \\
 \texttt{password\_reset} & INTEGER & NOT NULL, DEFAULT 0 & Boolean: password reset in progress \\
+\texttt{role} & INTEGER & NOT NULL, DEFAULT 0 & 0=User, 1=Admin \\
+\texttt{deleted\_at} & INTEGER & NULLABLE & Unix timestamp when soft-deleted \\
 \bottomrule
 \end{tabularx}
 
@@ -26,6 +28,9 @@ Constraints and notes:
   \item \texttt{email\_verified} must be true before user can log in.
   \item \texttt{password} can be NULL when a password reset is in progress.
   \item \texttt{password\_reset} flag indicates a reset token has been issued.
+  \item \texttt{role} determines access level (0=User, 1=Admin).
+  \item \texttt{deleted\_at} enables soft delete; non-NULL means user is deleted.
+  \item Authentication queries filter by \texttt{deleted\_at IS NULL} to exclude deleted users.
 \end{itemize}
 
 \subsection{User Sessions Table (\texttt{user\_sessions})}

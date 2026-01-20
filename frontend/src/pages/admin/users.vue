@@ -34,10 +34,17 @@
               :items="users"
               :items-per-page="10"
             >
+              <template #item.username="{ item }">
+                <span v-if="item.isDeleted" class="text-grey">
+                  {{ translate('DELETED_USER', undefined) }}
+                </span>
+                <span v-else>{{ item.username }}</span>
+              </template>
+
               <template #item.role="{ item }">
                 <v-select
                   density="compact"
-                  :disabled="String(item.userId) === authStore.user?.username || roleLoading[item.userId]"
+                  :disabled="item.isDeleted || String(item.userId) === authStore.user?.username || roleLoading[item.userId]"
                   hide-details
                   :items="roleOptions"
                   :model-value="item.role"
@@ -50,7 +57,7 @@
               <template #item.actions="{ item }">
                 <v-btn
                   color="error"
-                  :disabled="String(item.userId) === authStore.user?.username"
+                  :disabled="item.isDeleted || String(item.userId) === authStore.user?.username"
                   icon="mdi-delete"
                   size="small"
                   variant="text"
@@ -87,6 +94,7 @@
   import { onMounted, reactive, ref } from 'vue'
   import { deleteUser as apiDeleteUser, listUsers, updateUserRole, type UserInfoResponse } from '@/api/client'
   import { useAuthStore } from '@/stores/auth'
+  import { translate } from '@/wasm/translator.js'
 
   const authStore = useAuthStore()
 
@@ -171,7 +179,11 @@
       if (apiError) {
         console.error('Failed to delete user:', apiError)
       } else {
-        users.value = users.value.filter(u => String(u.userId) !== String(userToDelete.value!.userId))
+        // Mark the user as deleted instead of removing from the list
+        const user = users.value.find(u => String(u.userId) === String(userToDelete.value!.userId))
+        if (user) {
+          user.isDeleted = true
+        }
         deleteDialog.value = false
       }
     } catch (error_) {

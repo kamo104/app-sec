@@ -87,7 +87,10 @@
           </v-card-title>
 
           <v-card-subtitle class="pb-2">
-            {{ t('by_author', { author: post.username }) }}
+            <span v-if="post.isUserDeleted" class="text-grey font-italic">
+              {{ t('by_author', { author: translate('DELETED_USER', undefined) }) }}
+            </span>
+            <span v-else>{{ t('by_author', { author: post.username }) }}</span>
           </v-card-subtitle>
 
           <v-spacer />
@@ -126,7 +129,7 @@
   import { listPosts, type PostResponse, searchPosts } from '@/api/client'
   import { useAuthStore } from '@/stores/auth'
   import { PAGINATION } from '@/utils/constants'
-  import { translate_error_code } from '@/wasm/translator.js'
+  import { translate, translate_error_code } from '@/wasm/translator.js'
 
   const authStore = useAuthStore()
   const route = useRoute()

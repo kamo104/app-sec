@@ -61,13 +61,20 @@ pub async fn list_comments(
             let mut responses = Vec::with_capacity(comments.len());
 
             for comment in &comments {
-                match db.user_login_table.get_by_user_id(comment.user_id).await {
+                match db
+                    .user_login_table
+                    .get_by_user_id_include_deleted(comment.user_id)
+                    .await
+                {
                     Ok(user) => {
+                        let is_user_deleted = user.deleted_at.is_some();
+
                         responses.push(CommentResponse {
                             comment_id: comment.comment_id,
                             post_id: comment.post_id,
                             user_id: comment.user_id,
                             username: user.username,
+                            is_user_deleted,
                             content: comment.content.clone(),
                             created_at: comment.created_at.unix_timestamp(),
                         });

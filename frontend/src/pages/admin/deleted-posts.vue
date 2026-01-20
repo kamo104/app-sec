@@ -49,6 +49,13 @@
                 </div>
               </template>
 
+              <template #item.username="{ item }">
+                <span v-if="item.isUserDeleted" class="text-grey font-italic">
+                  {{ translate('DELETED_USER', undefined) }}
+                </span>
+                <span v-else>{{ item.username }}</span>
+              </template>
+
               <template #item.deletedAt="{ item }">
                 {{ formatDate(item.deletedAt) }}
               </template>
@@ -77,6 +84,7 @@
   import { onMounted, reactive, ref } from 'vue'
   import { restorePost as apiRestorePost, type DeletedPostResponse, listDeletedPosts } from '@/api/client'
   import { useAuthStore } from '@/stores/auth'
+  import { translate } from '@/wasm/translator.js'
 
   const authStore = useAuthStore()
 

@@ -125,11 +125,26 @@ The application implements a simple role-based access control system:
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item View all users.
     \item Change user roles.
-    \item Delete users.
+    \item Delete users (soft delete).
     \item View and restore deleted posts.
   \end{itemize}
   \item Role stored in \texttt{user\_login.role} column.
   \item Protected endpoints use \texttt{AdminUser} extractor for authorization.
+\end{itemize}
+
+\subsection{User Soft Delete}
+
+When an admin deletes a user, the system uses soft delete for security and audit purposes:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item Users are not removed from the database; instead, \texttt{deleted\_at} timestamp is set.
+  \item Soft-deleted users cannot log in (authentication queries filter by \texttt{deleted\_at IS NULL}).
+  \item Existing sessions of deleted users are invalidated (session validation checks user status).
+  \item Posts and comments by deleted users display ``Deleted User'' instead of the username.
+  \item This protects against inappropriate usernames remaining visible after account deletion.
+  \item Username and email of deleted users remain reserved (prevents re-registration).
+  \item Admin user list shows deleted users with visual indication for audit purposes.
+  \item API responses include \texttt{isUserDeleted} boolean flag for frontend styling.
 \end{itemize}
 
 \subsection{Database Encryption}

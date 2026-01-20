@@ -12,10 +12,21 @@
 2.0 & 2026-01-12 & Added login, session management, and password reset (draft) \\
 2.1 & 2026-01-20 & Final report with screenshots, implementation details, and conclusions \\
 3.0 & 2026-01-20 & Added TLS, HSTS, CORS, Docker deployment, first-user admin \\
+3.1 & 2026-01-20 & Added user soft delete functionality \\
 \bottomrule
 \end{longtable}
 
 \begin{newcontent}
+\noindent\textbf{Version 3.1 Changes:}
+\begin{itemize}[leftmargin=*,nosep]
+  \item User soft delete instead of hard delete
+  \item Deleted users cannot log in (sessions invalidated)
+  \item Posts and comments by deleted users show ``Deleted User''
+  \item Admin user list shows deleted status for audit
+  \item API responses include \texttt{isUserDeleted} flag for frontend styling
+  \item Database schema updated with \texttt{deleted\_at} column
+\end{itemize}
+
 \noindent\textbf{Version 3.0 Changes:}
 \begin{itemize}[leftmargin=*,nosep]
   \item TLS/HTTPS support with configurable certificates

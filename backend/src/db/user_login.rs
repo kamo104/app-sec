@@ -22,6 +22,7 @@ pub struct UserLogin {
     pub email_verified_at: Option<OffsetDateTime>,
     pub password_reset: bool,
     pub role: UserRole,
+    pub deleted_at: Option<OffsetDateTime>,
 }
 
 #[derive(Debug)]
@@ -40,7 +41,8 @@ impl UserLoginTable {
             email_verified INTEGER NOT NULL DEFAULT 0, \
             email_verified_at INTEGER, \
             password_reset INTEGER NOT NULL DEFAULT 0, \
-            role INTEGER NOT NULL DEFAULT 0\
+            role INTEGER NOT NULL DEFAULT 0, \
+            deleted_at INTEGER\
         )",
         UserLoginTable::TABLE_NAME,
     );
@@ -65,12 +67,14 @@ impl UserLoginTable {
                 email_verified, \
                 email_verified_at, \
                 password_reset, \
-                role\
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7) \
+                role, \
+                deleted_at\
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) \
                 ON CONFLICT(username) DO \
                 UPDATE SET email = excluded.email, password = excluded.password, \
                 email_verified = excluded.email_verified, email_verified_at = excluded.email_verified_at, \
-                password_reset = excluded.password_reset, role = excluded.role \
+                password_reset = excluded.password_reset, role = excluded.role, \
+                deleted_at = excluded.deleted_at \
                 RETURNING user_id",
             UserLoginTable::TABLE_NAME
         ))
@@ -81,6 +85,7 @@ impl UserLoginTable {
         .bind(row.email_verified_at)
         .bind(row.password_reset)
         .bind(row.role)
+        .bind(row.deleted_at)
         .fetch_one(&self.conn_pool)
         .await?;
         Ok(result.get("user_id"))
@@ -129,7 +134,7 @@ impl UserLoginTable {
         username: &str,
     ) -> std::result::Result<UserLogin, sqlx::Error> {
         let out = sqlx::query_as::<_, UserLogin>(formatcp!(
-            "SELECT * FROM {} WHERE username = $1",
+            "SELECT * FROM {} WHERE username = $1 AND deleted_at IS NULL",
             UserLoginTable::TABLE_NAME
         ))
         .bind(username)
@@ -140,7 +145,7 @@ impl UserLoginTable {
 
     pub async fn get_by_email(&self, email: &str) -> std::result::Result<UserLogin, sqlx::Error> {
         let out = sqlx::query_as::<_, UserLogin>(formatcp!(
-            "SELECT * FROM {} WHERE email = $1",
+            "SELECT * FROM {} WHERE email = $1 AND deleted_at IS NULL",
             UserLoginTable::TABLE_NAME
         ))
         .bind(email)
@@ -155,7 +160,7 @@ impl UserLoginTable {
         username: &str,
     ) -> std::result::Result<i64, sqlx::Error> {
         let row = sqlx::query(formatcp!(
-            "SELECT user_id FROM {} WHERE username = $1",
+            "SELECT user_id FROM {} WHERE username = $1 AND deleted_at IS NULL",
             UserLoginTable::TABLE_NAME
         ))
         .bind(username)
@@ -165,6 +170,21 @@ impl UserLoginTable {
     }
 
     pub async fn get_by_user_id(
+        &self,
+        user_id: i64,
+    ) -> std::result::Result<UserLogin, sqlx::Error> {
+        let out = sqlx::query_as::<_, UserLogin>(formatcp!(
+            "SELECT * FROM {} WHERE user_id = $1 AND deleted_at IS NULL",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(user_id)
+        .fetch_one(&self.conn_pool)
+        .await?;
+        Ok(out)
+    }
+
+    /// Get user by ID including deleted users (for admin purposes).
+    pub async fn get_by_user_id_include_deleted(
         &self,
         user_id: i64,
     ) -> std::result::Result<UserLogin, sqlx::Error> {
@@ -180,7 +200,7 @@ impl UserLoginTable {
 
     pub async fn is_password_correct(&self, username: &str, password: &str) -> Result<bool> {
         let ul = sqlx::query_as::<_, UserLogin>(formatcp!(
-            "SELECT * FROM {} WHERE username = $1",
+            "SELECT * FROM {} WHERE username = $1 AND deleted_at IS NULL",
             UserLoginTable::TABLE_NAME
         ))
         .bind(username)
@@ -316,9 +336,10 @@ impl UserLoginTable {
 
     pub async fn delete_by_user_id(&self, user_id: i64) -> Result<()> {
         sqlx::query(formatcp!(
-            "DELETE FROM {} WHERE user_id = $1",
+            "UPDATE {} SET deleted_at = $1 WHERE user_id = $2",
             UserLoginTable::TABLE_NAME
         ))
+        .bind(OffsetDateTime::now_utc())
         .bind(user_id)
         .execute(&self.conn_pool)
         .await?;

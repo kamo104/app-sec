@@ -49,7 +49,10 @@
             </v-card-title>
 
             <v-card-subtitle class="pb-2">
-              Posted by <strong>{{ post.username }}</strong> {{ formatDate(post.createdAt) }}
+              Posted by
+              <strong v-if="post.isUserDeleted" class="text-grey font-italic">{{ translate('DELETED_USER', undefined) }}</strong>
+              <strong v-else>{{ post.username }}</strong>
+              {{ formatDate(post.createdAt) }}
               <span v-if="post.updatedAt"> (edited)</span>
             </v-card-subtitle>
 
@@ -153,13 +156,14 @@
                 class="py-3"
               >
                 <template #prepend>
-                  <v-avatar color="primary" size="40">
-                    <span class="text-h6">{{ comment.username.charAt(0).toUpperCase() }}</span>
+                  <v-avatar :color="comment.isUserDeleted ? 'grey' : 'primary'" size="40">
+                    <span class="text-h6">{{ comment.isUserDeleted ? '?' : comment.username.charAt(0).toUpperCase() }}</span>
                   </v-avatar>
                 </template>
 
                 <v-list-item-title class="font-weight-medium">
-                  {{ comment.username }}
+                  <span v-if="comment.isUserDeleted" class="text-grey font-italic">{{ translate('DELETED_USER', undefined) }}</span>
+                  <span v-else>{{ comment.username }}</span>
                   <span class="text-caption text-grey ml-2">{{ formatDate(comment.createdAt) }}</span>
                 </v-list-item-title>
 
@@ -195,7 +199,10 @@
                   <v-icon>mdi-account</v-icon>
                 </template>
                 <v-list-item-title>Author</v-list-item-title>
-                <v-list-item-subtitle>{{ post.username }}</v-list-item-subtitle>
+                <v-list-item-subtitle v-if="post.isUserDeleted" class="text-grey font-italic">
+                  {{ translate('DELETED_USER', undefined) }}
+                </v-list-item-subtitle>
+                <v-list-item-subtitle v-else>{{ post.username }}</v-list-item-subtitle>
               </v-list-item>
               <v-list-item>
                 <template #prepend>
@@ -258,6 +265,7 @@
     removeRating,
   } from '@/api/client'
   import { useAuthStore } from '@/stores/auth'
+  import { translate } from '@/wasm/translator.js'
 
   const route = useRoute()
   const router = useRouter()
