@@ -2,6 +2,7 @@
 **/node_modules
 **/build
 **/target
+**/uploads
 
 **/data_dev.db
 **/data.db
