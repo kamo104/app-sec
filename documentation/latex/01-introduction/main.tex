@@ -18,9 +18,7 @@
 
 \subsection{Document Version Notice}
 
-\begin{newcontent}
-\textbf{Version 2.0 Update}: This document has been updated to include login, session management, and password reset functionality. New content is indicated by a blue sidebar on the left margin, making it easy to identify additions since version 1.x (registration module only).
-\end{newcontent}
+\textbf{Version 2.1 (Final)}: This document includes the complete authentication module with registration, login, session management, and password reset functionality. This is the final version with implementation screenshots and conclusions.
 
 \subsection{Exercise Description}
 
@@ -28,11 +26,9 @@ This exercise demonstrates a complete secure authentication module implementing 
 
 \begin{itemize}[leftmargin=*,nosep]
   \item \textbf{User Registration}: Secure registration with client-side and server-side validation, password strength scoring (0--7 scale), and email verification workflow
-  \begin{newcontent}
   \item \textbf{User Login}: Authentication with username/password, cookie-based session tokens, and email verification enforcement
   \item \textbf{Session Management}: Secure HTTP-only cookies, configurable session duration, automatic session refresh, and server-side session storage
   \item \textbf{Password Reset}: Secure token-based password reset via email with automatic token expiry
-  \end{newcontent}
   \item \textbf{Security Features}: Argon2 password hashing, SHA256 token hashing, defense against enumeration attacks, and automatic cleanup of expired data
   \item \textbf{Shared Validation}: Cross-platform validation logic compiled to WebAssembly for frontend and native Rust for backend
 \end{itemize}

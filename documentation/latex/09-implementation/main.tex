@@ -40,55 +40,53 @@ This section provides implementation details including code examples, screenshot
     \label{fig:validation-errors}
 \end{figure}
 
-% BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
-% \begin{newcontent}
-% \subsection{User Interface - Login}
-%
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=1\textwidth]{09-implementation/login-form.png}
-%     \caption{Login form with username and password fields. Includes ``Remember me'' checkbox and link to forgot password page.}
-%     \label{fig:login-form}
-% \end{figure}
-%
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=1\textwidth]{09-implementation/login-success.png}
-%     \caption{Successful login showing redirect to home page with user session information displayed.}
-%     \label{fig:login-success}
-% \end{figure}
-%
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=1\textwidth]{09-implementation/login-error.png}
-%     \caption{Login error displaying translated error message for invalid credentials or unverified email.}
-%     \label{fig:login-error}
-% \end{figure}
-%
-% \subsection{User Interface - Password Reset}
-%
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=1\textwidth]{09-implementation/forgot-password.png}
-%     \caption{Forgot password page where users enter their email address to request a password reset link.}
-%     \label{fig:forgot-password}
-% \end{figure}
-%
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=1\textwidth]{09-implementation/reset-password.png}
-%     \caption{Password reset form where users enter their new password after clicking the reset link from email.}
-%     \label{fig:reset-password}
-% \end{figure}
-%
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=1\textwidth]{09-implementation/reset-success.png}
-%     \caption{Successful password reset confirmation with link to login page.}
-%     \label{fig:reset-success}
-% \end{figure}
-% \end{newcontent}
-% END COMMENTED OUT FOR DRAFT
+\begin{newcontent}
+\subsection{User Interface - Login}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{09-implementation/login-form.png}
+    \caption{Login form with username and password fields. Includes ``Remember me'' checkbox and link to forgot password page.}
+    \label{fig:login-form}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{09-implementation/login-success.png}
+    \caption{Successful login showing redirect to home page with user session information displayed.}
+    \label{fig:login-success}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{09-implementation/login-error.png}
+    \caption{Login error displaying translated error message for invalid credentials or unverified email.}
+    \label{fig:login-error}
+\end{figure}
+
+\subsection{User Interface - Password Reset}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{09-implementation/forgot-password.png}
+    \caption{Forgot password page where users enter their email address to request a password reset link.}
+    \label{fig:forgot-password}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{09-implementation/reset-password.png}
+    \caption{Password reset form where users enter their new password after clicking the reset link from email.}
+    \label{fig:reset-password}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{09-implementation/reset-success.png}
+    \caption{Successful password reset confirmation with link to login page.}
+    \label{fig:reset-success}
+\end{figure}
+\end{newcontent}
 
 \subsection{Frontend Client Generation}
 
@@ -204,26 +202,151 @@ const result = JSON.parse(validate_password_detailed(password));
 // +1 for special character
 \end{lstlisting}
 
-% BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
-% \begin{newcontent}
-% \subsection{Session Management Implementation}
-%
-% Frontend session handling (\texttt{frontend/src/stores/auth.ts}):
-%
-% \begin{lstlisting}[language=Java]
-% // On login success
-% authStore.setUser(data)  // Stores user in state and localStorage
-%
-% // Session refresh scheduling
-% const sessionLifetime = sessionExpiresAt - sessionCreatedAt
-% const refreshAt = sessionCreatedAt + (sessionLifetime / 2)
-% // Timer calls POST /api/auth/refresh at 50% of session lifetime
-%
-% // On logout
-% authStore.clearUser()  // Clears state and localStorage
-% \end{lstlisting}
-% \end{newcontent}
-% END COMMENTED OUT FOR DRAFT
+\begin{newcontent}
+\subsection{Session Management Implementation}
+
+Frontend session handling (\texttt{frontend/src/stores/auth.ts}):
+
+\begin{lstlisting}[language=Java]
+// On login success
+authStore.setUser(data)  // Stores user in state and localStorage
+
+// Session refresh scheduling
+const sessionLifetime = sessionExpiresAt - sessionCreatedAt
+const refreshAt = sessionCreatedAt + (sessionLifetime / 2)
+// Timer calls POST /api/auth/refresh at 50% of session lifetime
+
+// On logout
+authStore.clearUser()  // Clears state and localStorage
+\end{lstlisting}
+\end{newcontent}
+
+\begin{newcontent}
+\subsection{Backend Implementation Examples}
+
+\subsubsection{Password Strength Calculation (Rust)}
+
+The \texttt{validate\_password\_detailed} function in \texttt{field-validator/src/lib.rs} calculates password strength:
+
+\begin{lstlisting}[language=C,basicstyle=\ttfamily\footnotesize]
+pub fn validate_password_detailed(password: &str) -> String {
+    let validation_errors = validate_password(password);
+
+    // Calculate score based on various factors
+    let mut score = 0u32;
+    let len = password.len();
+
+    let mut has_upper = false;
+    let mut has_lower = false;
+    let mut has_digit = false;
+    let mut has_special = false;
+
+    for c in password.chars() {
+        has_upper |= c.is_uppercase();
+        has_lower |= c.is_lowercase();
+        has_digit |= c.is_numeric();
+        has_special |= !c.is_alphanumeric();
+    }
+
+    score += (len >= 8) as u32;   // +1 for length >= 8
+    score += (len >= 12) as u32;  // +1 for length >= 12
+    score += (len >= 16) as u32;  // +1 for length >= 16
+    score += has_upper as u32;    // +1 for uppercase
+    score += has_lower as u32;    // +1 for lowercase
+    score += has_digit as u32;    // +1 for digit
+    score += has_special as u32;  // +1 for special char
+
+    let strength = match score {
+        ..=PASSWORD_SCORE_WEAK_MAX => PasswordStrength::Weak,
+        ..=PASSWORD_SCORE_MEDIUM_MAX => PasswordStrength::Medium,
+        ..=PASSWORD_SCORE_STRONG_MAX => PasswordStrength::Strong,
+        _ => PasswordStrength::Cia,
+    };
+    // Return JSON with errors, strength, and score
+    serde_json::to_string(&ValidationDetailedPasswordData::new(
+        validation_errors, strength, score
+    )).unwrap_or_default()
+}
+\end{lstlisting}
+
+\subsubsection{Login Handler with Session Creation (Rust)}
+
+Key parts of the login handler in \texttt{backend/src/api/login.rs} showing session token generation and cookie setting:
+
+\begin{lstlisting}[language=C,basicstyle=\ttfamily\footnotesize]
+// After successful password verification...
+let session_token = generate_session_token(config.session.token_bytes);
+let session_hash = hash_token(&session_token)?;  // SHA256 hash for storage
+
+let now = OffsetDateTime::now_utc();
+let expiry = now + time::Duration::days(config.session.duration_days);
+let session = UserSession {
+    user_id: user.user_id,
+    session_id: generate_session_id(),
+    session_hash,  // Only hash stored in database
+    session_expiry: expiry,
+    session_created_at: now,
+};
+
+db.user_sessions_table.insert(&session).await?;
+
+// Set HTTP-only cookie with the actual token (not hash)
+let cookie = create_session_cookie(session_token, Some(expiry), db.is_dev);
+cookies.add(cookie);
+
+// Return session metadata (timestamps for client-side refresh scheduling)
+LoginResponse {
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    session_expires_at: expiry.unix_timestamp(),
+    session_created_at: now.unix_timestamp(),
+}
+\end{lstlisting}
+
+\subsubsection{Session Database Operations (Rust)}
+
+The \texttt{UserSession} struct and key operations from \texttt{backend/src/db/user\_sessions.rs}:
+
+\begin{lstlisting}[language=C,basicstyle=\ttfamily\footnotesize]
+#[derive(FromRow, Clone, Debug)]
+pub struct UserSession {
+    pub user_id: i64,
+    pub session_id: String,
+    pub session_hash: String,        // SHA256 hash of session token
+    pub session_expiry: OffsetDateTime,
+    pub session_created_at: OffsetDateTime,
+}
+
+impl UserSessionsTable {
+    pub async fn insert(&self, row: &UserSession) -> Result<()> {
+        sqlx::query("INSERT INTO user_sessions (...) VALUES ($1, $2, $3, $4, $5)")
+            .bind(row.user_id)
+            .bind(&row.session_id)
+            .bind(&row.session_hash)
+            .bind(row.session_expiry)
+            .bind(row.session_created_at)
+            .execute(&self.conn_pool).await?;
+        Ok(())
+    }
+
+    pub async fn get_by_hash(&self, session_hash: &str)
+        -> Result<UserSession, sqlx::Error>
+    {
+        sqlx::query_as::<_, UserSession>(
+            "SELECT * FROM user_sessions WHERE session_hash = $1"
+        ).bind(session_hash).fetch_one(&self.conn_pool).await
+    }
+
+    pub async fn cleanup_expired_sessions(&self) -> Result<()> {
+        sqlx::query("DELETE FROM user_sessions WHERE session_expiry < $1")
+            .bind(OffsetDateTime::now_utc())
+            .execute(&self.conn_pool).await?;
+        Ok(())
+    }
+}
+\end{lstlisting}
+\end{newcontent}
 
 \subsection{Implementation Files}
 
@@ -249,46 +372,44 @@ const result = JSON.parse(validate_password_detailed(password));
     \item \texttt{POST /api/verify-email} handler with \texttt{\#[utoipa::path()]} annotation.
     \item Verifies token and marks user as verified.
   \end{itemize}
-  % BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
-  % \begin{newcontent}
-  % \item \texttt{backend/src/api/login.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item \texttt{POST /api/login} handler.
-  %   \item Validates credentials, checks email verification.
-  %   \item Creates session and sets HTTP-only cookie.
-  % \end{itemize}
-  % \item \texttt{backend/src/api/logout.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item \texttt{POST /api/logout} handler.
-  %   \item Deletes session from database.
-  %   \item Clears session cookie.
-  % \end{itemize}
-  % \item \texttt{backend/src/api/auth.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item \texttt{GET /api/auth/check} -- Validates session and returns user info.
-  %   \item \texttt{POST /api/auth/refresh} -- Extends session lifetime.
-  % \end{itemize}
-  % \item \texttt{backend/src/api/auth\_extractor.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Axum extractor for session validation.
-  %   \item Reads session token from cookie.
-  %   \item Validates against database.
-  % \end{itemize}
-  % \item \texttt{backend/src/api/password\_reset.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item \texttt{POST /api/request-password-reset} -- Generates reset token.
-  %   \item \texttt{POST /api/complete-password-reset} -- Validates token and updates password.
-  % \end{itemize}
-  % \item \texttt{backend/src/db/user\_sessions.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Session table operations: create, lookup, delete, refresh.
-  % \end{itemize}
-  % \item \texttt{backend/src/db/password\_reset\_tokens.rs}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Reset token table operations: create (UPSERT), lookup, delete.
-  % \end{itemize}
-  % \end{newcontent}
-  % END COMMENTED OUT FOR DRAFT
+\begin{newcontent}
+  \item \texttt{backend/src/api/login.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{POST /api/login} handler.
+    \item Validates credentials, checks email verification.
+    \item Creates session and sets HTTP-only cookie.
+  \end{itemize}
+  \item \texttt{backend/src/api/logout.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{POST /api/logout} handler.
+    \item Deletes session from database.
+    \item Clears session cookie.
+  \end{itemize}
+  \item \texttt{backend/src/api/auth.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{GET /api/auth/check} -- Validates session and returns user info.
+    \item \texttt{POST /api/auth/refresh} -- Extends session lifetime.
+  \end{itemize}
+  \item \texttt{backend/src/api/auth\_extractor.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Axum extractor for session validation.
+    \item Reads session token from cookie.
+    \item Validates against database.
+  \end{itemize}
+  \item \texttt{backend/src/api/password\_reset.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{POST /api/request-password-reset} -- Generates reset token.
+    \item \texttt{POST /api/complete-password-reset} -- Validates token and updates password.
+  \end{itemize}
+  \item \texttt{backend/src/db/user\_sessions.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Session table operations: create, lookup, delete, refresh.
+  \end{itemize}
+  \item \texttt{backend/src/db/password\_reset\_tokens.rs}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Reset token table operations: create (UPSERT), lookup, delete.
+  \end{itemize}
+\end{newcontent}
   \item \texttt{backend/src/api/utils.rs}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Configuration constants from \texttt{build.rs}.
@@ -335,34 +456,32 @@ const result = JSON.parse(validate_password_detailed(password));
     \item Uses generated \texttt{verifyEmail()} from API client.
     \item Extracts token from URL and calls API.
   \end{itemize}
-  % BEGIN COMMENTED OUT FOR DRAFT - Uncomment for final version
-  % \begin{newcontent}
-  % \item \texttt{frontend/src/pages/login.vue}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Login page with username/password form.
-  %   \item Handles session storage on success.
-  %   \item Displays login errors with translation.
-  % \end{itemize}
-  % \item \texttt{frontend/src/pages/forgot-password.vue}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Password reset request page.
-  %   \item Email input with validation.
-  %   \item Always shows success message (security).
-  % \end{itemize}
-  % \item \texttt{frontend/src/pages/reset-password.vue}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Password reset completion page.
-  %   \item Extracts token from URL.
-  %   \item New password input with strength validation.
-  % \end{itemize}
-  % \item \texttt{frontend/src/stores/auth.ts}
-  % \begin{itemize}[leftmargin=1.5em,nosep]
-  %   \item Pinia store for authentication state.
-  %   \item Manages user session data.
-  %   \item Handles session refresh scheduling.
-  % \end{itemize}
-  % \end{newcontent}
-  % END COMMENTED OUT FOR DRAFT
+\begin{newcontent}
+  \item \texttt{frontend/src/pages/login.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Login page with username/password form.
+    \item Handles session storage on success.
+    \item Displays login errors with translation.
+  \end{itemize}
+  \item \texttt{frontend/src/pages/forgot-password.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Password reset request page.
+    \item Email input with validation.
+    \item Always shows success message (security).
+  \end{itemize}
+  \item \texttt{frontend/src/pages/reset-password.vue}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Password reset completion page.
+    \item Extracts token from URL.
+    \item New password input with strength validation.
+  \end{itemize}
+  \item \texttt{frontend/src/stores/auth.ts}
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item Pinia store for authentication state.
+    \item Manages user session data.
+    \item Handles session refresh scheduling.
+  \end{itemize}
+\end{newcontent}
   \item \texttt{frontend/src/components/auth/UsernameField.vue}
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item Username input with WASM validation.

@@ -1,0 +1,64 @@
+% Conclusions
+\section{Conclusions}
+
+\begin{newcontent}
+This project successfully implements a complete authentication module with secure user registration, login, session management, and password reset functionality. The implementation follows modern web security best practices and demonstrates a practical approach to building secure authentication systems.
+
+\subsection{Key Implementation Choices}
+
+\subsubsection{Password Security}
+Argon2 was chosen as the password hashing algorithm due to its memory-hard properties, which provide strong resistance against GPU-based and ASIC-based attacks. The algorithm parameters are configured to balance security with acceptable response times. Password complexity requirements enforce a minimum of 8 characters with uppercase, lowercase, digit, and special character, while the strength scoring system (0--7) provides immediate user feedback.
+
+\subsubsection{Token Management}
+All tokens (email verification, session, password reset) use 32 bytes of cryptographically secure random data. Only SHA256 hashes are stored in the database, ensuring that even database breaches do not expose usable tokens. This approach follows the principle of storing only what is necessary for verification.
+
+\subsubsection{Session Security}
+Cookie-based sessions with HTTP-only and Secure flags prevent common attacks like XSS token theft. Server-side session storage means sensitive data never leaves the server, and the SameSite=Lax attribute provides CSRF protection for state-changing requests. The automatic session refresh mechanism maintains user experience while ensuring sessions remain valid.
+
+\subsubsection{Cross-Platform Validation}
+The shared validation logic compiled to both WebAssembly (frontend) and native Rust (backend) ensures consistency and reduces code duplication. This approach allows real-time client-side validation for better user experience while maintaining authoritative server-side validation for security.
+
+\subsubsection{Anti-Enumeration Measures}
+The password reset endpoint always returns success regardless of whether the email exists, preventing attackers from enumerating valid accounts. Login failures use a generic ``invalid credentials'' message for both wrong username and wrong password cases.
+
+\subsection{Security Mechanisms Summary}
+
+The authentication module implements the following security mechanisms:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{Defense in Depth}: Multiple layers of validation (frontend WASM, backend Rust) and security controls
+  \item \textbf{Secure Storage}: Argon2 password hashing, SHA256 token hashing, SQLCipher database encryption
+  \item \textbf{Transport Security}: HTTPS requirement in production, Secure cookie flags
+  \item \textbf{Session Protection}: HTTP-only cookies, server-side storage, automatic expiry and cleanup
+  \item \textbf{Input Validation}: Strict validation rules for all user inputs on both client and server
+  \item \textbf{Error Handling}: Typed error codes with translation support, no internal details exposed
+  \item \textbf{Automatic Cleanup}: Hourly removal of expired tokens, sessions, and unverified users
+\end{itemize}
+
+\subsection{Future Improvements}
+
+While the current implementation provides a solid security foundation, several enhancements could further improve the system:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{Rate Limiting}: Implement rate limiting on authentication endpoints to prevent brute-force attacks
+  \item \textbf{Account Lockout}: Temporary account lockout after multiple failed login attempts
+  \item \textbf{CAPTCHA}: Integration of CAPTCHA for bot mitigation on registration and login
+  \item \textbf{Multi-Factor Authentication}: Add TOTP-based or email-based second factor
+  \item \textbf{Device Management}: Allow users to view and revoke active sessions
+  \item \textbf{Security Logging}: Comprehensive logging of security events for audit and monitoring
+  \item \textbf{HSTS}: HTTP Strict Transport Security header for enhanced transport security
+\end{itemize}
+
+\subsection{Lessons Learned}
+
+The development process highlighted several important considerations:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{Type Safety}: Using Rust's type system and shared crates across frontend (WASM) and backend significantly reduced bugs and ensured consistency.
+  \item \textbf{OpenAPI Integration}: Generating TypeScript clients from the OpenAPI specification eliminated manual API synchronization and reduced integration errors.
+  \item \textbf{Security vs. Usability}: Balancing security requirements with user experience required careful consideration, such as the trade-off between enumeration protection and helpful error messages during registration.
+  \item \textbf{Token Lifecycle}: Proper token management including generation, storage, validation, and cleanup is crucial for maintaining system security over time.
+\end{enumerate}
+
+The authentication module demonstrates that modern web security practices can be implemented effectively without sacrificing developer experience or user usability, provided careful attention is paid to security requirements throughout the design and implementation process.
+\end{newcontent}

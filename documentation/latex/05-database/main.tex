@@ -28,7 +28,6 @@ Constraints and notes:
   \item \texttt{password\_reset} flag indicates a reset token has been issued.
 \end{itemize}
 
-\begin{newcontent}
 \subsection{User Sessions Table (\texttt{user\_sessions})}
 
 \begin{tabularx}{\textwidth}{@{}L{3.5cm} L{1.5cm} L{4cm} X@{}}
@@ -52,7 +51,6 @@ Constraints and notes:
   \item Cascading delete removes sessions when user is deleted.
   \item Expired sessions are cleaned up hourly.
 \end{itemize}
-\end{newcontent}
 
 \subsection{User Data Table (\texttt{user\_data})}
 
@@ -97,7 +95,6 @@ Constraints and guarantees:
   \item Hourly cleanup task deletes expired tokens and associated unverified users.
 \end{itemize}
 
-\begin{newcontent}
 \subsection{Password Reset Tokens Table (\texttt{password\_reset\_tokens})}
 
 \begin{tabularx}{\textwidth}{@{}L{3.5cm} L{1.5cm} L{4cm} X@{}}
@@ -122,7 +119,6 @@ Constraints and guarantees:
   \item Cascading delete removes token when user is deleted.
   \item Hourly cleanup task deletes expired tokens.
 \end{itemize}
-\end{newcontent}
 
 \subsection{Database Configuration}
 
