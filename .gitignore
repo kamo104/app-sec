@@ -5,3 +5,9 @@
 
 **/data_dev.db
 **/data.db
+
+# TLS certificates (generated locally for testing)
+certs/*.pem
+
+# Environment files with secrets
+.env

@@ -49,13 +49,26 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 RUN useradd -m -u 1000 -s /bin/bash appuser
 
 WORKDIR /app
+
+# Copy built artifacts
 COPY --from=builder /app/target/release/appsec-server ./appsec-server
 COPY --from=builder /app/frontend/dist ./dist
 
-RUN chown -R appuser:appuser /app
+# Copy production config as config.toml
+COPY --from=builder /app/config-prod.toml ./config.toml
+
+# Create directories for data, uploads, and certs
+RUN mkdir -p /app/data /app/uploads /app/certs && \
+    chown -R appuser:appuser /app
+
 USER appuser
 
+# Expose HTTPS port
 EXPOSE 4000
+
+# Environment variables
 ENV RUST_LOG=info
 ENV ASSETS_DIR=/app/dist
-CMD ["./appsec-server", "--web-bind-addr", "0.0.0.0", "--web-port", "4000"]
+
+# Run the server (config.toml is read from /app)
+CMD ["./appsec-server"]

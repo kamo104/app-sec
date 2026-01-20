@@ -5,16 +5,19 @@ services:
       - "4000:4000"
     environment:
       - APPSEC_DB_KEY=${APPSEC_DB_KEY}
-      - SMTP_HOST=mailhog
     volumes:
       - app-data:/app/data
+      - ./certs:/app/certs:ro
     depends_on:
       - mailhog
 
   mailhog:
     image: mailhog/mailhog:latest
     ports:
+      # Web UI for viewing emails
       - "8025:8025"
+      # SMTP port (internal only, accessible via service name)
+      - "1025:1025"
 
 volumes:
   app-data:

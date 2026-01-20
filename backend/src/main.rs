@@ -123,6 +123,11 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
+    // Install rustls crypto provider before any TLS operations
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
