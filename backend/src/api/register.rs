@@ -149,6 +149,29 @@ pub async fn register_user(
         }
     };
 
+    // Check if this is the first user - if so, make them an admin
+    let is_first_user = match db.user_login_table.is_empty().await {
+        Ok(empty) => empty,
+        Err(e) => {
+            debug!("Failed to check if database is empty: {:?}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RegisterErrorResponse {
+                    error: RegisterError::Internal,
+                    validation: None,
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    let role = if is_first_user {
+        debug!("First user registration - assigning admin role");
+        UserRole::Admin
+    } else {
+        UserRole::User
+    };
+
     let user_login = UserLogin {
         user_id: 0,
         username: payload.username.clone(),
@@ -157,7 +180,7 @@ pub async fn register_user(
         email_verified: false,
         email_verified_at: None,
         password_reset: false,
-        role: UserRole::User,
+        role,
     };
 
     match db.user_login_table.new_user(&user_login).await {

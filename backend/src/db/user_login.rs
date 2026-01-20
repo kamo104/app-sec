@@ -334,4 +334,16 @@ impl UserLoginTable {
         .await?;
         Ok(users)
     }
+
+    /// Returns true if no users exist in the database
+    pub async fn is_empty(&self) -> Result<bool> {
+        let row = sqlx::query(formatcp!(
+            "SELECT COUNT(*) as count FROM {}",
+            UserLoginTable::TABLE_NAME
+        ))
+        .fetch_one(&self.conn_pool)
+        .await?;
+        let count: i64 = row.get("count");
+        Ok(count == 0)
+    }
 }

@@ -105,7 +105,7 @@ fi
 
 # Fetch fresh OpenAPI spec from backend
 print_status "Fetching OpenAPI spec from backend..."
-./target/release/appsec-server --dev > /tmp/backend.log 2>&1 &
+./target/release/appsec-server > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 disown $BACKEND_PID 2>/dev/null || true
 

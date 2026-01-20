@@ -64,4 +64,4 @@ watchexec \
     --debounce 1000 \
     --on-busy-update restart \
     --stop-signal SIGTERM \
-    -- bash -c './build.sh --skip-docs && cd backend && cargo run -- --dev'
+    -- bash -c './build.sh --skip-docs && cargo run -p appsec-server'
