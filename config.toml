@@ -33,3 +33,25 @@ from_email = "noreply@appsec.local"
 [urls]
 base_url_dev = "http://localhost:4000"
 base_url_prod = "https://example.com"
+
+[tls]
+# Enable TLS (HTTPS) - should be true in production
+enabled = false
+# Path to the certificate file (PEM format)
+cert_path = "certs/cert.pem"
+# Path to the private key file (PEM format)
+key_path = "certs/key.pem"
+
+[security]
+# Enable HSTS (HTTP Strict Transport Security) - requires TLS
+hsts_enabled = false
+# HSTS max-age in seconds (1 year = 31536000, 2 years = 63072000)
+hsts_max_age_seconds = 31536000
+# Include subdomains in HSTS policy
+hsts_include_subdomains = true
+# Enable HSTS preload (only enable if you plan to submit to preload list)
+hsts_preload = false
+# Allowed origins for CORS (comma-separated)
+# Empty string = same-origin only in production, permissive in dev mode
+# Example: "https://example.com,https://www.example.com"
+cors_allowed_origins = ""

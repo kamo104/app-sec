@@ -11,6 +11,8 @@ pub struct Config {
     pub cleanup: CleanupConfig,
     pub mail: MailConfig,
     pub urls: UrlsConfig,
+    pub tls: TlsConfig,
+    pub security: SecurityConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -61,6 +63,30 @@ pub struct MailConfig {
 pub struct UrlsConfig {
     pub base_url_dev: String,
     pub base_url_prod: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TlsConfig {
+    /// Enable TLS (HTTPS) - should be true in production
+    pub enabled: bool,
+    /// Path to the certificate file (PEM format)
+    pub cert_path: String,
+    /// Path to the private key file (PEM format)
+    pub key_path: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SecurityConfig {
+    /// Enable HSTS (HTTP Strict Transport Security)
+    pub hsts_enabled: bool,
+    /// HSTS max-age in seconds (default: 1 year = 31536000)
+    pub hsts_max_age_seconds: u64,
+    /// Include subdomains in HSTS
+    pub hsts_include_subdomains: bool,
+    /// Enable HSTS preload
+    pub hsts_preload: bool,
+    /// Allowed origins for CORS (comma-separated, empty = allow same origin only in prod)
+    pub cors_allowed_origins: String,
 }
 
 pub fn load_config() -> Result<Config> {

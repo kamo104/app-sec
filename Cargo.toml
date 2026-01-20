@@ -43,6 +43,7 @@ futures-util = { version = "0.3", features = ["sink", "std"] }
 # Web framework
 axum = { version = "0.8", features = ["ws", "macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
 tower = "0.5"
 tower-cookies = { version = "0.11", features = ["private", "signed"] }
 tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }

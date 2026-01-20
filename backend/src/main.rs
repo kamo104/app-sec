@@ -5,11 +5,13 @@ use axum::{
         DefaultBodyLimit, FromRef,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
-    http::{Request, StatusCode},
+    http::{Request, StatusCode, header},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::any,
 };
 use axum_extra::TypedHeader;
+use axum_server::tls_rustls::RustlsConfig;
 use std::convert::Infallible;
 use std::future::Future;
 use std::path::PathBuf;
@@ -20,7 +22,7 @@ use tokio::sync::OnceCell;
 use tower::Service;
 use tower_cookies::CookieManagerLayer;
 use tower_http::{
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
@@ -38,7 +40,7 @@ use axum::extract::connect_info::ConnectInfo;
 //allows to split the websocket stream into separate TX and RX branches
 use futures_util::{sink::SinkExt, stream::StreamExt};
 
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 mod api;
 mod config;
@@ -236,20 +238,19 @@ async fn main() {
         info!("Swagger UI available at /api/docs");
     }
 
-    let app = app
+    // Build CORS layer based on configuration
+    let cors_layer = build_cors_layer(&config);
+
+    // Build the app with all layers
+    let mut app = app
         // SPA fallback - serve index.html for all other routes
         .fallback_service(SpaFallbackService::new(assets_dir))
         // Add app state
         .with_state(app_state)
         // Cookie management layer - must be before other layers
         .layer(CookieManagerLayer::new())
-        // CORS layer - allow all origins in dev mode
-        .layer(
-            CorsLayer::new()
-                .allow_methods(Any)
-                .allow_headers(Any)
-                .allow_origin(Any),
-        )
+        // CORS layer
+        .layer(cors_layer)
         .layer(DefaultBodyLimit::max(config.server.max_body_size))
         // logging
         .layer(
@@ -257,19 +258,154 @@ async fn main() {
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
 
-    let listener = tokio::net::TcpListener::bind(SocketAddr::new(
-        config.server.bind_addr.into(),
-        config.server.port,
-    ))
-    .await
-    .unwrap();
-    debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+    // Add HSTS middleware if enabled (only makes sense with TLS)
+    if config.security.hsts_enabled {
+        let security_config = config.security.clone();
+        info!(
+            "HSTS enabled: max-age={}, includeSubDomains={}, preload={}",
+            security_config.hsts_max_age_seconds,
+            security_config.hsts_include_subdomains,
+            security_config.hsts_preload
+        );
+        app = app.layer(middleware::from_fn(move |req, next| {
+            hsts_middleware(req, next, security_config.clone())
+        }));
+    }
+
+    let addr = SocketAddr::new(config.server.bind_addr.into(), config.server.port);
+
+    // Start server with or without TLS
+    if config.tls.enabled {
+        info!("Starting HTTPS server on {}", addr);
+        info!(
+            "Using cert: {}, key: {}",
+            config.tls.cert_path, config.tls.key_path
+        );
+
+        let tls_config =
+            match RustlsConfig::from_pem_file(&config.tls.cert_path, &config.tls.key_path).await {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    error!("Failed to load TLS certificates: {:?}", e);
+                    error!(
+                        "Cert path: {}, Key path: {}",
+                        config.tls.cert_path, config.tls.key_path
+                    );
+                    panic!("TLS configuration failed");
+                }
+            };
+
+        axum_server::bind_rustls(addr, tls_config)
+            .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+            .await
+            .unwrap();
+    } else {
+        if !config.server.dev_mode {
+            warn!("TLS is disabled in production mode - this is insecure!");
+        }
+        debug!("Starting HTTP server on {}", addr);
+
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        debug!("listening on {}", listener.local_addr().unwrap());
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
+    }
+}
+
+/// Build CORS layer based on configuration
+fn build_cors_layer(config: &Config) -> CorsLayer {
+    use tower_http::cors::AllowOrigin;
+
+    // Common allowed methods
+    let allowed_methods = [
+        axum::http::Method::GET,
+        axum::http::Method::POST,
+        axum::http::Method::PUT,
+        axum::http::Method::DELETE,
+        axum::http::Method::PATCH,
+        axum::http::Method::OPTIONS,
+    ];
+
+    // Common allowed headers
+    let allowed_headers = [
+        header::CONTENT_TYPE,
+        header::AUTHORIZATION,
+        header::ACCEPT,
+        header::ORIGIN,
+        header::COOKIE,
+        header::HeaderName::from_static("x-requested-with"),
+    ];
+
+    if config.server.dev_mode {
+        // In dev mode, allow localhost origins for easier testing
+        // Note: allow_credentials(true) is incompatible with allow_origin(Any)
+        info!("CORS: Permissive mode (dev) - allowing localhost origins");
+        CorsLayer::new()
+            .allow_methods(allowed_methods)
+            .allow_headers(allowed_headers)
+            .allow_origin(AllowOrigin::predicate(|origin, _req| {
+                // Allow any localhost origin in dev mode
+                origin.as_bytes().starts_with(b"http://localhost")
+                    || origin.as_bytes().starts_with(b"http://127.0.0.1")
+                    || origin.as_bytes().starts_with(b"https://localhost")
+                    || origin.as_bytes().starts_with(b"https://127.0.0.1")
+            }))
+            .allow_credentials(true)
+    } else if config.security.cors_allowed_origins.is_empty() {
+        // In production with no configured origins, use restrictive defaults (same-origin)
+        info!("CORS: Restrictive mode (same-origin only)");
+        CorsLayer::new()
+            .allow_methods(allowed_methods)
+            .allow_headers(allowed_headers)
+            .allow_credentials(true)
+    } else {
+        // Parse configured origins
+        let origins: Vec<_> = config
+            .security
+            .cors_allowed_origins
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+
+        info!("CORS: Configured origins: {:?}", origins);
+
+        CorsLayer::new()
+            .allow_methods(allowed_methods)
+            .allow_headers(allowed_headers)
+            .allow_origin(AllowOrigin::list(origins))
+            .allow_credentials(true)
+    }
+}
+
+/// HSTS middleware - adds Strict-Transport-Security header
+async fn hsts_middleware(
+    req: Request<Body>,
+    next: Next,
+    security_config: config::SecurityConfig,
+) -> Response {
+    let mut response = next.run(req).await;
+
+    // Build HSTS header value
+    let mut hsts_value = format!("max-age={}", security_config.hsts_max_age_seconds);
+    if security_config.hsts_include_subdomains {
+        hsts_value.push_str("; includeSubDomains");
+    }
+    if security_config.hsts_preload {
+        hsts_value.push_str("; preload");
+    }
+
+    response.headers_mut().insert(
+        header::STRICT_TRANSPORT_SECURITY,
+        hsts_value.parse().unwrap(),
+    );
+
+    response
 }
 
 /// The handler for the HTTP request (this gets called when the HTTP request lands at the start

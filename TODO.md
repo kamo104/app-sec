@@ -1,12 +1,3 @@
-prio::critical:
-  - Make it so that when the first user is created - make him an admin.
-  - Don't hardcode the localhost endpoint in the frontend - just make requests to the same site it's served from.
-
-prio::high:
-  - Add ssl cert handling. (ca.crt, privkey.pem) (use use axum_server::tls_rustls::RustlsConfig; to implement it in the backend)
-  - Configure HSTS.
-  - Configure CORS securely.
-
 prio::medium:
   - Add soft delete for users.
 
