@@ -1,3 +1,5 @@
+The paths are still being duplicated only now in the ApiDoc derive and in the router. The routes can all be declared with a comma as well like so: 'OpenApiRouter::new().routes(routes!(get_user, post_user));'. Is there any way of declaring the api functions in a single place?
+
 prio::critical:
   - Update the documentation/latex/10-usage/main.tex to match the new code.
 

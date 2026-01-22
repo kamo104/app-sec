@@ -6,7 +6,7 @@
 # Path to the SQLite database file
 path = "data.db"
 # Enable database encryption (SQLCipher) - recommended for production
-encrypt = false
+encrypt = true
 # Encryption key (64 hex chars = 32 bytes). Can be set via APPSEC__DATABASE__KEY env var
 # If not set, falls back to system keyring (auto-generates key on first run)
 # key = ""
@@ -46,16 +46,16 @@ base_url = "http://localhost:4000"
 
 [tls]
 # Enable TLS (HTTPS) - recommended for production
-enabled = false
+enabled = true
 cert_path = "certs/cert.pem"
 key_path = "certs/key.pem"
 
 [security]
 # Enable HSTS (HTTP Strict Transport Security) - requires TLS
-hsts_enabled = false
+hsts_enabled = true
 hsts_max_age_seconds = 31536000
 hsts_include_subdomains = true
-hsts_preload = false
+hsts_preload = true
 # Allowed origins for CORS (comma-separated)
 # If empty, defaults to base_url
 # Example: "https://example.com,https://www.example.com"
