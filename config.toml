@@ -1,22 +1,26 @@
-# Production configuration for Docker deployment
-# This file is copied as config.toml in the Docker image
+# Application Configuration
+# Environment variables can override any setting using APPSEC__ prefix
+# Example: APPSEC__SERVER__PORT=8080 overrides [server] port
 
 [database]
-prod_path = "/app/data/data.db"
-dev_path = "/app/data/data_dev.db"
+# Path to the SQLite database file
+path = "data.db"
+# Enable database encryption (SQLCipher) - recommended for production
+encrypt = false
+# Encryption key (64 hex chars = 32 bytes). Can be set via APPSEC__DATABASE__KEY env var
+# If not set, falls back to system keyring (auto-generates key on first run)
+# key = ""
 keyring_service_name = "APPSEC_DB_KEY"
 keyring_username = "APPSEC"
-db_key_env_var_name = "APPSEC_DB_KEY"
 db_key_length = 32
 
 [server]
-# Bind to all interfaces in Docker
-bind_addr = "0.0.0.0"
+bind_addr = "127.0.0.1"
 port = 4000
-# IMPORTANT: Set to false for production
-dev_mode = false
+# Enable OpenAPI documentation at /api/docs
+openapi = true
 max_body_size = 10485760
-uploads_folder = "/app/uploads"
+uploads_folder = "uploads"
 
 [session]
 duration_days = 7
@@ -31,40 +35,37 @@ confirmation_bytes = 32
 interval_seconds = 3600
 
 [mail]
-# Use Docker service name for SMTP
-smtp_host = "mailhog"
+smtp_host = "127.0.0.1"
 smtp_port = 1025
 from_email = "noreply@appsec.local"
 
 [urls]
-base_url_dev = "http://localhost:4000"
-# Update this to your actual domain in production
-base_url_prod = "https://localhost:4000"
+# Base URL for generating links (e.g., email verification, password reset)
+# Also used as default CORS allowed origin
+base_url = "http://localhost:4000"
 
 [tls]
-# Enable TLS for production
-enabled = true
-# Paths inside the Docker container
-cert_path = "/app/certs/cert.pem"
-key_path = "/app/certs/key.pem"
+# Enable TLS (HTTPS) - recommended for production
+enabled = false
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
 
 [security]
-# Enable HSTS for production (requires TLS)
-hsts_enabled = true
-# 1 year max-age
+# Enable HSTS (HTTP Strict Transport Security) - requires TLS
+hsts_enabled = false
 hsts_max_age_seconds = 31536000
 hsts_include_subdomains = true
-# Only enable preload if submitting to HSTS preload list
 hsts_preload = false
-# Allowed origins for CORS (empty = same-origin only)
-# For testing, allow the localhost origin
-cors_allowed_origins = "https://localhost:4000"
+# Allowed origins for CORS (comma-separated)
+# If empty, defaults to base_url
+# Example: "https://example.com,https://www.example.com"
+cors_allowed_origins = ""
 
 [admin]
 # Default admin credentials - created on first startup if no users exist
 # IMPORTANT: Change these values in production!
-# These can be overridden via environment variables:
+# Can be overridden via environment variables:
 #   APPSEC__ADMIN__USERNAME, APPSEC__ADMIN__EMAIL, APPSEC__ADMIN__PASSWORD
 username = "admin"
-email = "admin@appsec.local"
+email = "admin@localhost"
 password = "AdminPassword123!"

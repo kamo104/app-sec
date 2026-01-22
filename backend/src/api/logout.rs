@@ -23,7 +23,11 @@ pub async fn logout_user(State(db): State<Arc<DBHandle>>, cookies: Cookies) -> i
         }
     }
 
-    let cookie = create_session_cookie(String::new(), Some(OffsetDateTime::UNIX_EPOCH), db.is_dev);
+    let cookie = create_session_cookie(
+        String::new(),
+        Some(OffsetDateTime::UNIX_EPOCH),
+        db.tls_enabled,
+    );
 
     cookies.add(cookie);
 

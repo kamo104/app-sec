@@ -45,8 +45,8 @@ WORKDIR /app
 COPY --from=builder /app/target/release/appsec-server ./appsec-server
 COPY --from=builder /app/frontend/dist ./dist
 
-# Copy production config as config.toml
-COPY --from=builder /app/config-prod.toml ./config.toml
+# Copy config.toml (should be customized for production via volume mount or env vars)
+COPY --from=builder /app/config.toml ./config.toml
 
 # Create directories for data, uploads, and certs
 RUN mkdir -p /app/data /app/uploads /app/certs && \

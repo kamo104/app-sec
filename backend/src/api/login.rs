@@ -137,7 +137,7 @@ pub async fn login_user(
                     .into_response();
             }
 
-            let cookie = create_session_cookie(session_token, Some(expiry), db.is_dev);
+            let cookie = create_session_cookie(session_token, Some(expiry), db.tls_enabled);
 
             cookies.add(cookie);
 

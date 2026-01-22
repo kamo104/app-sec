@@ -144,15 +144,13 @@ async fn main() {
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("./dist"));
 
     // get the db handle
-    let handle = if config.server.dev_mode {
-        info!("Running in development mode");
-        DBHandle::open_dev(&config).await.unwrap()
-    } else {
-        DBHandle::open(&config.database.prod_path, &config)
-            .await
-            .unwrap()
-    };
+    let handle = DBHandle::open(&config).await.unwrap();
     DB_HANDLE.set(handle).unwrap();
+
+    info!(
+        "Database opened: path={}, encrypted={}",
+        config.database.path, config.database.encrypt
+    );
 
     // Duplicate DB handle for state
     let db_handle = DB_HANDLE.get().unwrap().clone();
@@ -237,8 +235,8 @@ async fn main() {
         .merge(api_router)
         .route("/ws", any(ws_upgrade_handler));
 
-    // Add OpenAPI and Swagger UI in dev mode
-    if config.server.dev_mode {
+    // Add OpenAPI and Swagger UI if enabled
+    if config.server.openapi {
         app = app.merge(SwaggerUi::new("/api/docs").url("/api/openapi.json", openapi.clone()));
         info!("OpenAPI spec available at /api/openapi.json");
         info!("Swagger UI available at /api/docs");
@@ -306,9 +304,7 @@ async fn main() {
             .await
             .unwrap();
     } else {
-        if !config.server.dev_mode {
-            warn!("TLS is disabled in production mode - this is insecure!");
-        }
+        warn!("TLS is disabled - cookies will not have Secure flag");
         debug!("Starting HTTP server on {}", addr);
 
         let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
@@ -346,47 +342,29 @@ fn build_cors_layer(config: &Config) -> CorsLayer {
         header::HeaderName::from_static("x-requested-with"),
     ];
 
-    if config.server.dev_mode {
-        // In dev mode, allow localhost origins for easier testing
-        // Note: allow_credentials(true) is incompatible with allow_origin(Any)
-        info!("CORS: Permissive mode (dev) - allowing localhost origins");
-        CorsLayer::new()
-            .allow_methods(allowed_methods)
-            .allow_headers(allowed_headers)
-            .allow_origin(AllowOrigin::predicate(|origin, _req| {
-                // Allow any localhost origin in dev mode
-                origin.as_bytes().starts_with(b"http://localhost")
-                    || origin.as_bytes().starts_with(b"http://127.0.0.1")
-                    || origin.as_bytes().starts_with(b"https://localhost")
-                    || origin.as_bytes().starts_with(b"https://127.0.0.1")
-            }))
-            .allow_credentials(true)
-    } else if config.security.cors_allowed_origins.is_empty() {
-        // In production with no configured origins, use restrictive defaults (same-origin)
-        info!("CORS: Restrictive mode (same-origin only)");
-        CorsLayer::new()
-            .allow_methods(allowed_methods)
-            .allow_headers(allowed_headers)
-            .allow_credentials(true)
+    // Determine allowed origins
+    let origins_config = if config.security.cors_allowed_origins.is_empty() {
+        // Default to base_url if cors_allowed_origins is not set
+        config.urls.base_url.clone()
     } else {
-        // Parse configured origins
-        let origins: Vec<_> = config
-            .security
-            .cors_allowed_origins
-            .split(',')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .filter_map(|s| s.parse().ok())
-            .collect();
+        config.security.cors_allowed_origins.clone()
+    };
 
-        info!("CORS: Configured origins: {:?}", origins);
+    // Parse configured origins
+    let origins: Vec<_> = origins_config
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| s.parse().ok())
+        .collect();
 
-        CorsLayer::new()
-            .allow_methods(allowed_methods)
-            .allow_headers(allowed_headers)
-            .allow_origin(AllowOrigin::list(origins))
-            .allow_credentials(true)
-    }
+    info!("CORS: Allowed origins: {:?}", origins);
+
+    CorsLayer::new()
+        .allow_methods(allowed_methods)
+        .allow_headers(allowed_headers)
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_credentials(true)
 }
 
 /// HSTS middleware - adds Strict-Transport-Security header

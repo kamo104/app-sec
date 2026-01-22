@@ -28,11 +28,16 @@ pub struct AdminConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
-    pub prod_path: String,
-    pub dev_path: String,
+    /// Path to the SQLite database file
+    pub path: String,
+    /// Whether to encrypt the database (uses SQLCipher)
+    pub encrypt: bool,
+    /// Database encryption key (hex-encoded, 64 chars for 32 bytes)
+    /// Can be set via APPSEC__DATABASE__KEY environment variable
+    /// Falls back to system keyring if not set
+    pub key: Option<String>,
     pub keyring_service_name: String,
     pub keyring_username: String,
-    pub db_key_env_var_name: String,
     pub db_key_length: usize,
 }
 
@@ -40,7 +45,8 @@ pub struct DatabaseConfig {
 pub struct ServerConfig {
     pub bind_addr: Ipv4Addr,
     pub port: u16,
-    pub dev_mode: bool,
+    /// Enable OpenAPI documentation and Swagger UI at /api/docs
+    pub openapi: bool,
     pub max_body_size: usize,
     pub uploads_folder: String,
 }
@@ -72,8 +78,8 @@ pub struct MailConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct UrlsConfig {
-    pub base_url_dev: String,
-    pub base_url_prod: String,
+    /// Base URL for generating links (e.g., email verification links)
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

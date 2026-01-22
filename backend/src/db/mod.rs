@@ -77,7 +77,8 @@ pub struct DBHandle {
     pub posts_table: PostsTable,
     pub comments_table: CommentsTable,
     pub ratings_table: RatingsTable,
-    pub is_dev: bool,
+    /// Whether TLS is enabled (used for cookie Secure flag)
+    pub tls_enabled: bool,
 }
 
 impl DBHandle {
@@ -93,70 +94,25 @@ impl DBHandle {
         Ok(())
     }
 
-    pub async fn open(database_path: &str, config: &Config) -> Result<Arc<Self>> {
-        DBHandle::open_with_opts(database_path, None, false, config).await
-    }
+    pub async fn open(config: &Config) -> Result<Arc<Self>> {
+        let database_path = &config.database.path;
+        let tls_enabled = config.tls.enabled;
 
-    pub async fn open_dev(config: &Config) -> Result<Arc<Self>> {
-        let opts = SqliteConnectOptions::from_str(&config.database.dev_path)
-            .unwrap()
-            .pragma("foreign_keys", "ON")
-            .create_if_missing(true);
+        let opts = if config.database.encrypt {
+            // Get encryption key from config or keyring
+            let secret_key = Self::get_encryption_key(config).await?;
 
-        DBHandle::open_with_opts(&config.database.dev_path, Some(opts), true, config).await
-    }
-
-    pub async fn open_with_opts(
-        database_path: &str,
-        opts_override: Option<SqliteConnectOptions>,
-        is_dev: bool,
-        config: &Config,
-    ) -> Result<Arc<Self>> {
-        let mut secret_key = String::with_capacity(config.database.db_key_length);
-        if opts_override.is_none() {
-            // Clone values needed for the blocking task
-            let keyring_service_name = config.database.keyring_service_name.clone();
-            let keyring_username = config.database.keyring_username.clone();
-            let db_key_env_var_name = config.database.db_key_env_var_name.clone();
-            let db_key_length = config.database.db_key_length;
-
-            // Try environment variable first (for Docker/container deployments)
-            // Fall back to system keyring if not set
-            secret_key = match std::env::var(&db_key_env_var_name) {
-                Ok(key) if key.len() == db_key_length * 2 => {
-                    // Key from env var should be hex-encoded (64 chars for 32 bytes)
-                    format!("\"x'{}'\"", key.to_uppercase())
-                }
-                _ => {
-                    // Fall back to keyring
-                    tokio::task::spawn_blocking(move || -> Result<String> {
-                        let keyring_entry = Entry::new(&keyring_service_name, &keyring_username)?;
-                        let keyring_secret = keyring_entry.get_secret()?;
-                        let secret = if keyring_secret.len() != db_key_length {
-                            let mut key = vec![0u8; db_key_length];
-                            OsRng.try_fill_bytes(&mut key).unwrap();
-                            keyring_entry.set_secret(&key)?;
-                            key
-                        } else {
-                            keyring_secret
-                        };
-                        let mut key_str = String::with_capacity(db_key_length * 2);
-                        for byte in secret {
-                            write!(key_str, "{:02X}", byte)?;
-                        }
-                        Ok(format!("\"x'{}'\"", key_str))
-                    })
-                    .await??
-                }
-            };
-        }
-        let opts = match opts_override {
-            Some(opts) => opts,
-            None => SqliteConnectOptions::from_str(database_path)
+            SqliteConnectOptions::from_str(database_path)
                 .unwrap()
-                .pragma("key", secret_key.to_owned())
+                .pragma("key", secret_key)
                 .pragma("foreign_keys", "ON")
-                .create_if_missing(true),
+                .create_if_missing(true)
+        } else {
+            // No encryption
+            SqliteConnectOptions::from_str(database_path)
+                .unwrap()
+                .pragma("foreign_keys", "ON")
+                .create_if_missing(true)
         };
 
         let conn_pool = SqlitePool::connect_with(opts).await?;
@@ -169,7 +125,7 @@ impl DBHandle {
             posts_table: PostsTable::new(conn_pool.clone()),
             comments_table: CommentsTable::new(conn_pool.clone()),
             ratings_table: RatingsTable::new(conn_pool.clone()),
-            is_dev,
+            tls_enabled,
         };
 
         db_handle.create_tables().await?;
@@ -178,6 +134,52 @@ impl DBHandle {
         db_handle.create_default_admin_if_empty(config).await?;
 
         Ok(Arc::new(db_handle))
+    }
+
+    /// Get the database encryption key from config or system keyring.
+    /// The key can be provided via:
+    /// 1. config.toml: database.key = "..."
+    /// 2. Environment variable: APPSEC__DATABASE__KEY=...
+    /// 3. System keyring (fallback, auto-generates if not present)
+    async fn get_encryption_key(config: &Config) -> Result<String> {
+        let db_key_length = config.database.db_key_length;
+
+        // Check if key is provided in config (includes env var override via config crate)
+        if let Some(ref key) = config.database.key {
+            if key.len() == db_key_length * 2 {
+                // Key should be hex-encoded (64 chars for 32 bytes)
+                return Ok(format!("\"x'{}'\"", key.to_uppercase()));
+            } else if !key.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "Invalid database key length: expected {} hex chars, got {}",
+                    db_key_length * 2,
+                    key.len()
+                ));
+            }
+        }
+
+        // Fall back to system keyring
+        let keyring_service_name = config.database.keyring_service_name.clone();
+        let keyring_username = config.database.keyring_username.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<String> {
+            let keyring_entry = Entry::new(&keyring_service_name, &keyring_username)?;
+            let keyring_secret = keyring_entry.get_secret()?;
+            let secret = if keyring_secret.len() != db_key_length {
+                let mut key = vec![0u8; db_key_length];
+                OsRng.try_fill_bytes(&mut key).unwrap();
+                keyring_entry.set_secret(&key)?;
+                key
+            } else {
+                keyring_secret
+            };
+            let mut key_str = String::with_capacity(db_key_length * 2);
+            for byte in secret {
+                write!(key_str, "{:02X}", byte)?;
+            }
+            Ok(format!("\"x'{}'\"", key_str))
+        })
+        .await?
     }
 
     pub async fn cleanup_expired_data(&self) -> Result<()> {

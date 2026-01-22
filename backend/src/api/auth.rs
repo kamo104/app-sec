@@ -88,7 +88,7 @@ pub async fn refresh_session(
         "Session refreshed successfully for user: {}",
         auth.user.username
     );
-    let cookie = create_session_cookie(token, Some(new_expiry), db.is_dev);
+    let cookie = create_session_cookie(token, Some(new_expiry), db.tls_enabled);
     cookies.add(cookie);
     (
         StatusCode::OK,
