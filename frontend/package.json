@@ -10,7 +10,6 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
     "lint": "eslint . --fix",
-    "generate:api": "openapi-ts --input src/generated/openapi.json --output src/generated/api-client --client @hey-api/client-fetch"
   },
   "dependencies": {
     "@fontsource/roboto": "5.2.7",

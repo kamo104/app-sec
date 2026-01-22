@@ -20,8 +20,7 @@ A web application demonstration focused on using good web security practices.
 
 - Rust 1.85+
 - wasm-pack
-- Deno (for OpenAPI client generation)
-- Node.js (for frontend build)
+- Deno
 
 ### Build
 

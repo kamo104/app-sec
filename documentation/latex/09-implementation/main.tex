@@ -93,7 +93,7 @@ curl -s http://localhost:4000/api/openapi.json \
 TypeScript client is generated using \texttt{@hey-api/openapi-ts}:
 
 \begin{verbatim}
-npx @hey-api/openapi-ts \
+deno run -A npm:@hey-api/openapi-ts \
   --input src/generated/openapi.json \
   --output src/generated/api-client \
   --client @hey-api/client-fetch
@@ -181,18 +181,6 @@ import { validate_password_detailed } from '@/wasm/field-validator';
 
 const result = JSON.parse(validate_password_detailed(password));
 
-// result.score: 0-7 (based on length and character types)
-// result.strength: "weak" | "medium" | "strong" | "cia"
-// result.errors: ["TOO_SHORT", "TOO_FEW_UPPERCASE_LETTERS", ...]
-
-// Score calculation:
-// +1 for length >= 8
-// +1 for length >= 12
-// +1 for length >= 16
-// +1 for uppercase letter
-// +1 for lowercase letter
-// +1 for digit
-// +1 for special character
 \end{lstlisting}
 
 \begin{newcontent}
