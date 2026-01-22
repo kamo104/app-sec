@@ -1,4 +1,5 @@
 use anyhow::Result;
+use api_types::UserRole;
 use core::fmt::Write;
 use keyring::Entry;
 use rand_core::{OsRng, TryRngCore};
@@ -172,6 +173,10 @@ impl DBHandle {
         };
 
         db_handle.create_tables().await?;
+
+        // Create default admin user if database is empty
+        db_handle.create_default_admin_if_empty(config).await?;
+
         Ok(Arc::new(db_handle))
     }
 
@@ -220,5 +225,68 @@ impl DBHandle {
                 }
             }
         })
+    }
+
+    /// Creates the default admin user if no users exist in the database.
+    /// The admin credentials are loaded from the configuration file.
+    async fn create_default_admin_if_empty(&self, config: &Config) -> Result<()> {
+        let is_empty = self.user_login_table.is_empty().await?;
+
+        if !is_empty {
+            tracing::debug!("Database has existing users, skipping default admin creation");
+            return Ok(());
+        }
+
+        tracing::info!("No users in database, creating default admin user");
+
+        // Validate admin credentials from config
+        let username_valid = field_validator::validate_username(&config.admin.username);
+        let email_valid = field_validator::validate_email(&config.admin.email);
+        let password_valid = field_validator::validate_password(&config.admin.password);
+
+        if !username_valid.is_valid() {
+            return Err(anyhow::anyhow!(
+                "Invalid admin username in config: {:?}",
+                username_valid
+            ));
+        }
+        if !email_valid.is_valid() {
+            return Err(anyhow::anyhow!(
+                "Invalid admin email in config: {:?}",
+                email_valid
+            ));
+        }
+        if !password_valid.is_valid() {
+            return Err(anyhow::anyhow!(
+                "Invalid admin password in config: {:?}",
+                password_valid
+            ));
+        }
+
+        let hashed_password = hash_password(&config.admin.password)?;
+
+        let admin_user = UserLogin {
+            user_id: 0,
+            username: config.admin.username.clone(),
+            email: config.admin.email.clone(),
+            password: Some(hashed_password),
+            email_verified: true, // Admin email is pre-verified
+            email_verified_at: Some(sqlx::types::time::OffsetDateTime::now_utc()),
+            password_reset: false,
+            role: UserRole::Admin,
+            deleted_at: None,
+        };
+
+        let user_id = self.user_login_table.new_user(&admin_user).await?;
+        tracing::info!(
+            "Created default admin user '{}' with id {}",
+            config.admin.username,
+            user_id
+        );
+
+        // Create user_data record for admin
+        self.user_data_table.insert(user_id).await?;
+
+        Ok(())
     }
 }

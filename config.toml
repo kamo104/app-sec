@@ -59,3 +59,12 @@ hsts_preload = false
 # Allowed origins for CORS (empty = same-origin only)
 # For testing, allow the localhost origin
 cors_allowed_origins = "https://localhost:4000"
+
+[admin]
+# Default admin credentials - created on first startup if no users exist
+# IMPORTANT: Change these values in production!
+# These can be overridden via environment variables:
+#   APPSEC__ADMIN__USERNAME, APPSEC__ADMIN__EMAIL, APPSEC__ADMIN__PASSWORD
+username = "admin"
+email = "admin@appsec.local"
+password = "AdminPassword123!"

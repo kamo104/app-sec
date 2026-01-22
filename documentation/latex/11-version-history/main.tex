@@ -11,12 +11,21 @@
 1.2 & 2026-01-11 & Final report with full implementation details \\
 2.0 & 2026-01-12 & Added login, session management, and password reset (draft) \\
 2.1 & 2026-01-20 & Final report with screenshots, implementation details, and conclusions \\
-3.0 & 2026-01-20 & Added TLS, HSTS, CORS, Docker deployment, first-user admin \\
+3.0 & 2026-01-20 & Added TLS, HSTS, CORS, Docker deployment \\
 3.1 & 2026-01-20 & Added user soft delete functionality \\
+3.2 & 2026-01-22 & Config-based default admin, removed first-user-is-admin \\
 \bottomrule
 \end{longtable}
 
 \begin{newcontent}
+\noindent\textbf{Version 3.2 Changes:}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Default admin user created from \texttt{config.toml} on first startup
+  \item Removed first-user-is-admin behavior for better security
+  \item Admin credentials can be overridden via environment variables
+  \item Default admin email is pre-verified upon creation
+\end{itemize}
+
 \noindent\textbf{Version 3.1 Changes:}
 \begin{itemize}[leftmargin=*,nosep]
   \item User soft delete instead of hard delete
@@ -32,7 +41,6 @@
   \item TLS/HTTPS support with configurable certificates
   \item HSTS (HTTP Strict Transport Security) middleware
   \item Production-safe CORS configuration
-  \item First registered user automatically becomes admin
   \item Docker deployment with docker-compose
   \item Configuration via config.toml file
   \item Database encryption key from environment variable
@@ -44,6 +52,6 @@
 
 \noindent
 \textbf{Document Generated}: 2025-12-23\\
-\textbf{Last Updated}: 2026-01-20\\
+\textbf{Last Updated}: 2026-01-22\\
 \textbf{Status}: Final\\
 \textbf{Review Status}: Complete

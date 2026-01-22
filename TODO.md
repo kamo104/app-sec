@@ -1,8 +1,9 @@
 prio::critical:
-  - Add a default admin variables - username, email, password - which gets loaded as an admin account if there's no users in the database. Remove the current default behaviour of adding admin privilages to the first user that is created. Update the latex documentation to include this behaviour.
   - merge the base_url_dev and base_url_prod into a single variable base_url.
   - remove the dev_mode variable and change it to individual variables: encrypt_database and openapi (false/true)
-  - Create a README.md that details how to host this app in the prod mode.
+  - prod_path and dev_path should be a single variable "path". 
+  - remove the db_key_env_var_name from config.toml (just rely on the default config crate behaviour)
+  - create a README.md that details how to host this app in the prod mode.
 
 prio::high:
   - There are inaccurate warning messages - when an admin is trying to delete a user - nothing should be shown. When an admin is deleting a post - there should be a warning with an information that the post will be banned (not deleted). When a user is deleting a post - there should be a warning that the post is going to be deleted permamently.

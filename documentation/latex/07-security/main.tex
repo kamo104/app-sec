@@ -120,7 +120,15 @@ The application implements a simple role-based access control system:
 
 \begin{itemize}[leftmargin=*,nosep]
   \item Two roles: \texttt{User} (default) and \texttt{Admin}.
-  \item First registered user automatically becomes Admin.
+  \item Default admin user is created from configuration on first startup (if no users exist in the database).
+  \item Admin credentials are configured in \texttt{config.toml} under the \texttt{[admin]} section:
+  \begin{itemize}[leftmargin=1.5em,nosep]
+    \item \texttt{admin.username}: Admin username.
+    \item \texttt{admin.email}: Admin email address.
+    \item \texttt{admin.password}: Admin password (should be changed in production).
+  \end{itemize}
+  \item Admin credentials can be overridden via environment variables with the \texttt{APPSEC\_\_ADMIN\_\_} prefix.
+  \item The admin user's email is pre-verified upon creation.
   \item Admin capabilities:
   \begin{itemize}[leftmargin=1.5em,nosep]
     \item View all users.

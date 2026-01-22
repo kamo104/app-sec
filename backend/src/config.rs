@@ -13,6 +13,17 @@ pub struct Config {
     pub urls: UrlsConfig,
     pub tls: TlsConfig,
     pub security: SecurityConfig,
+    pub admin: AdminConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AdminConfig {
+    /// Default admin username (created on first startup if no users exist)
+    pub username: String,
+    /// Default admin email
+    pub email: String,
+    /// Default admin password
+    pub password: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
