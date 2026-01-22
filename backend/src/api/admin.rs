@@ -136,6 +136,45 @@ pub async fn delete_user(
 }
 
 #[utoipa::path(
+    post,
+    path = "/api/admin/users/{user_id}/restore",
+    params(
+        ("user_id" = i64, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "User restored"),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Not authorized"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "admin"
+)]
+pub async fn restore_user(
+    State(db): State<Arc<DBHandle>>,
+    _admin: AdminUser,
+    Path(user_id): Path<i64>,
+) -> impl IntoResponse {
+    // Verify user exists (including deleted ones)
+    if db
+        .user_login_table
+        .get_by_user_id_include_deleted(user_id)
+        .await
+        .is_err()
+    {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    match db.user_login_table.restore_by_user_id(user_id).await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => {
+            error!("Failed to restore user: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+#[utoipa::path(
     get,
     path = "/api/admin/posts/deleted",
     params(

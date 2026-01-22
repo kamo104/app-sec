@@ -1,17 +1,22 @@
+# Production configuration for Docker deployment
+# This file is copied as config.toml in the Docker image
+
 [database]
-prod_path = "data.db"
-dev_path = "data_dev.db"
+prod_path = "/app/data/data.db"
+dev_path = "/app/data/data_dev.db"
 keyring_service_name = "APPSEC_DB_KEY"
 keyring_username = "APPSEC"
 db_key_env_var_name = "APPSEC_DB_KEY"
 db_key_length = 32
 
 [server]
-bind_addr = "127.0.0.1"
+# Bind to all interfaces in Docker
+bind_addr = "0.0.0.0"
 port = 4000
-dev_mode = true
+# IMPORTANT: Set to false for production
+dev_mode = false
 max_body_size = 10485760
-uploads_folder = "uploads"
+uploads_folder = "/app/uploads"
 
 [session]
 duration_days = 7
@@ -26,32 +31,31 @@ confirmation_bytes = 32
 interval_seconds = 3600
 
 [mail]
-smtp_host = "127.0.0.1"
+# Use Docker service name for SMTP
+smtp_host = "mailhog"
 smtp_port = 1025
 from_email = "noreply@appsec.local"
 
 [urls]
 base_url_dev = "http://localhost:4000"
-base_url_prod = "https://example.com"
+# Update this to your actual domain in production
+base_url_prod = "https://localhost:4000"
 
 [tls]
-# Enable TLS (HTTPS) - should be true in production
-enabled = false
-# Path to the certificate file (PEM format)
-cert_path = "certs/cert.pem"
-# Path to the private key file (PEM format)
-key_path = "certs/key.pem"
+# Enable TLS for production
+enabled = true
+# Paths inside the Docker container
+cert_path = "/app/certs/cert.pem"
+key_path = "/app/certs/key.pem"
 
 [security]
-# Enable HSTS (HTTP Strict Transport Security) - requires TLS
-hsts_enabled = false
-# HSTS max-age in seconds (1 year = 31536000, 2 years = 63072000)
+# Enable HSTS for production (requires TLS)
+hsts_enabled = true
+# 1 year max-age
 hsts_max_age_seconds = 31536000
-# Include subdomains in HSTS policy
 hsts_include_subdomains = true
-# Enable HSTS preload (only enable if you plan to submit to preload list)
+# Only enable preload if submitting to HSTS preload list
 hsts_preload = false
-# Allowed origins for CORS (comma-separated)
-# Empty string = same-origin only in production, permissive in dev mode
-# Example: "https://example.com,https://www.example.com"
-cors_allowed_origins = ""
+# Allowed origins for CORS (empty = same-origin only)
+# For testing, allow the localhost origin
+cors_allowed_origins = "https://localhost:4000"

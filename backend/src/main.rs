@@ -227,6 +227,7 @@ async fn main() {
     .routes(routes!(api::admin::list_users))
     .routes(routes!(api::admin::update_user_role))
     .routes(routes!(api::admin::delete_user))
+    .routes(routes!(api::admin::restore_user))
     .routes(routes!(api::admin::list_deleted_posts))
     .routes(routes!(api::admin::restore_post))
     .split_for_parts();

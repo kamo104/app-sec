@@ -417,6 +417,19 @@ export type DeleteUserResponse = (unknown);
 
 export type DeleteUserError = (unknown);
 
+export type RestoreUserData = {
+    path: {
+        /**
+         * User ID
+         */
+        user_id: number;
+    };
+};
+
+export type RestoreUserResponse = (unknown);
+
+export type RestoreUserError = (unknown);
+
 export type UpdateUserRoleData = {
     body: UpdateUserRoleRequest;
     path: {

@@ -346,6 +346,17 @@ impl UserLoginTable {
         Ok(())
     }
 
+    pub async fn restore_by_user_id(&self, user_id: i64) -> Result<()> {
+        sqlx::query(formatcp!(
+            "UPDATE {} SET deleted_at = NULL WHERE user_id = $1",
+            UserLoginTable::TABLE_NAME
+        ))
+        .bind(user_id)
+        .execute(&self.conn_pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn get_all_users(&self) -> Result<Vec<UserLogin>> {
         let users = sqlx::query_as::<_, UserLogin>(formatcp!(
             "SELECT * FROM {} ORDER BY user_id",

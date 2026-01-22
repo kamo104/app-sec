@@ -56,8 +56,18 @@
 
               <template #item.actions="{ item }">
                 <v-btn
+                  v-if="item.isDeleted"
+                  color="success"
+                  icon="mdi-restore"
+                  :loading="restoreLoading[item.userId]"
+                  size="small"
+                  variant="text"
+                  @click="restoreUser(item)"
+                />
+                <v-btn
+                  v-else
                   color="error"
-                  :disabled="item.isDeleted || String(item.userId) === authStore.user?.username"
+                  :disabled="String(item.userId) === authStore.user?.username"
                   icon="mdi-delete"
                   size="small"
                   variant="text"
@@ -92,7 +102,7 @@
 
 <script setup lang="ts">
   import { onMounted, reactive, ref } from 'vue'
-  import { deleteUser as apiDeleteUser, listUsers, updateUserRole, type UserInfoResponse } from '@/api/client'
+  import { deleteUser as apiDeleteUser, listUsers, restoreUser as apiRestoreUser, updateUserRole, type UserInfoResponse } from '@/api/client'
   import { useAuthStore } from '@/stores/auth'
   import { translate } from '@/wasm/translator.js'
 
@@ -102,6 +112,7 @@
   const loading = ref(false)
   const error = ref<string | null>(null)
   const roleLoading = reactive<Record<string | number, boolean>>({})
+  const restoreLoading = reactive<Record<string | number, boolean>>({})
   const deleteDialog = ref(false)
   const deleteLoading = ref(false)
   const userToDelete = ref<UserInfoResponse | null>(null)
@@ -190,6 +201,24 @@
       console.error('Failed to delete user:', error_)
     } finally {
       deleteLoading.value = false
+    }
+  }
+
+  async function restoreUser (user: UserInfoResponse): Promise<void> {
+    restoreLoading[user.userId] = true
+
+    try {
+      const { error: apiError } = await apiRestoreUser({ path: { user_id: Number(user.userId) } })
+
+      if (apiError) {
+        console.error('Failed to restore user:', apiError)
+      } else {
+        user.isDeleted = false
+      }
+    } catch (error_) {
+      console.error('Failed to restore user:', error_)
+    } finally {
+      restoreLoading[user.userId] = false
     }
   }
 
