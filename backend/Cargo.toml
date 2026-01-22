@@ -63,4 +63,7 @@ mime_guess.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
+# CLI
+clap.workspace = true
+
 [build-dependencies]

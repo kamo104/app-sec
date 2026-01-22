@@ -12,6 +12,7 @@ use axum::{
 };
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
+use clap::Parser;
 use std::convert::Infallible;
 use std::future::Future;
 use std::path::PathBuf;
@@ -26,6 +27,7 @@ use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
+use utoipa::OpenApi;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -48,6 +50,57 @@ mod db;
 mod email;
 use config::{Config, load_config};
 use db::DBHandle;
+
+#[derive(Parser)]
+#[command(name = "appsec-server")]
+#[command(about = "AppSec Demo Server")]
+struct Cli {
+    /// Output OpenAPI spec as JSON and exit
+    #[arg(long)]
+    openapi: bool,
+}
+
+/// OpenAPI documentation
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "AppSec Demo API",
+        version = "1.0.0",
+        description = "Web app demonstration focused on using good web security practices"
+    ),
+    paths(
+        api::health::health_check,
+        api::register::register_user,
+        api::login::login_user,
+        api::auth::auth_check,
+        api::auth::refresh_session,
+        api::logout::logout_user,
+        api::verify_email::verify_email,
+        api::password_reset::request_password_reset,
+        api::password_reset::complete_password_reset,
+        api::counter::get_counter,
+        api::counter::set_counter,
+        api::posts::list_posts,
+        api::posts::search_posts,
+        api::posts::get_post,
+        api::posts::get_post_image,
+        api::posts::create_post,
+        api::posts::update_post,
+        api::posts::delete_post,
+        api::comments::list_comments,
+        api::comments::create_comment,
+        api::comments::delete_comment,
+        api::ratings::rate_post,
+        api::ratings::remove_rating,
+        api::admin::list_users,
+        api::admin::update_user_role,
+        api::admin::delete_user,
+        api::admin::restore_user,
+        api::admin::list_deleted_posts,
+        api::admin::restore_post,
+    )
+)]
+struct ApiDoc;
 
 static DB_HANDLE: OnceCell<Arc<DBHandle>> = OnceCell::const_new();
 
@@ -115,14 +168,16 @@ impl Service<Request<Body>> for SpaFallbackService {
     }
 }
 
-#[derive(Clone)]
-struct AppState {
-    db: Arc<DBHandle>,
-    config: Config,
-}
-
 #[tokio::main]
 async fn main() {
+    let cli = Cli::parse();
+
+    // If --openapi flag is passed, output the OpenAPI spec and exit
+    if cli.openapi {
+        println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+        return;
+    }
+
     // Install rustls crypto provider before any TLS operations
     rustls::crypto::ring::default_provider()
         .install_default()
@@ -206,7 +261,6 @@ async fn main() {
     .routes(routes!(api::password_reset::complete_password_reset))
     .routes(routes!(api::counter::get_counter))
     .routes(routes!(api::counter::set_counter))
-    // Posts endpoints
     .routes(routes!(api::posts::list_posts))
     .routes(routes!(api::posts::search_posts))
     .routes(routes!(api::posts::get_post))
@@ -214,14 +268,11 @@ async fn main() {
     .routes(routes!(api::posts::create_post))
     .routes(routes!(api::posts::update_post))
     .routes(routes!(api::posts::delete_post))
-    // Comments endpoints
     .routes(routes!(api::comments::list_comments))
     .routes(routes!(api::comments::create_comment))
     .routes(routes!(api::comments::delete_comment))
-    // Ratings endpoints
     .routes(routes!(api::ratings::rate_post))
     .routes(routes!(api::ratings::remove_rating))
-    // Admin endpoints
     .routes(routes!(api::admin::list_users))
     .routes(routes!(api::admin::update_user_role))
     .routes(routes!(api::admin::delete_user))

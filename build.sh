@@ -103,25 +103,14 @@ else
     exit 1
 fi
 
-# Fetch fresh OpenAPI spec from backend
-print_status "Fetching OpenAPI spec from backend..."
-./target/release/appsec-server > /tmp/backend.log 2>&1 &
-BACKEND_PID=$!
-disown $BACKEND_PID 2>/dev/null || true
-
-sleep 3
-
-if curl -s --max-time 5 http://localhost:4000/api/openapi.json > /tmp/openapi.json 2>/dev/null && [ -s /tmp/openapi.json ]; then
-    mv /tmp/openapi.json frontend/src/generated/openapi.json
-    print_success "OpenAPI spec fetched successfully"
+# Generate OpenAPI spec from backend
+print_status "Generating OpenAPI spec..."
+if ./target/release/appsec-server --openapi > frontend/src/generated/openapi.json 2>/dev/null; then
+    print_success "OpenAPI spec generated"
 else
-    print_warning "Could not fetch OpenAPI spec from backend. Using existing spec if available."
+    print_error "Failed to generate OpenAPI spec"
+    exit 1
 fi
-
-# Kill the backend process
-kill $BACKEND_PID 2>/dev/null || true
-sleep 1
-kill -9 $BACKEND_PID 2>/dev/null || true
 
 # Generate OpenAPI TypeScript client
 print_status "Generating OpenAPI TypeScript client..."
